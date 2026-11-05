@@ -195,7 +195,7 @@ export function AIAgentChat() {
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
                     placeholder={locale === "ar" ? "اطرح سؤالك هنا..." : locale === "en" ? "Ask your question..." : "Posez votre question..."}
-                    className="flex-1 text-xs sm:text-sm px-3 py-2 rounded-xl border border-gray-200 dark:border-neutral-600 bg-gray-50 dark:bg-neutral-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                    className="flex-1 min-w-0 text-xs sm:text-sm px-3 py-2 rounded-xl border border-gray-200 dark:border-neutral-600 bg-gray-50 dark:bg-neutral-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
                   />
                   <button
                     onClick={() => sendMessage()}

@@ -453,7 +453,7 @@ function BookingContent() {
                     <select
                       value={data.pickupLocationId}
                       onChange={(e) => setData((d) => ({ ...d, pickupLocationId: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800"
+                      className="w-full min-w-0 px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800 truncate"
                     >
                       {locations.map((l) => (
                         <option key={l._id} value={l._id}>
@@ -471,7 +471,7 @@ function BookingContent() {
                     <select
                       value={data.returnLocationId}
                       onChange={(e) => setData((d) => ({ ...d, returnLocationId: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800"
+                      className="w-full min-w-0 px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800 truncate"
                     >
                       {locations.map((l) => (
                         <option key={l._id} value={l._id}>
@@ -491,7 +491,7 @@ function BookingContent() {
                       value={data.pickupDate}
                       min={new Date().toISOString().split("T")[0]}
                       onChange={(e) => setData((d) => ({ ...d, pickupDate: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800"
+                      className="w-full min-w-0 px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800"
                     />
                   </div>
 
@@ -505,7 +505,7 @@ function BookingContent() {
                       value={data.returnDate}
                       min={data.pickupDate || new Date().toISOString().split("T")[0]}
                       onChange={(e) => setData((d) => ({ ...d, returnDate: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800"
+                      className="w-full min-w-0 px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800"
                     />
                   </div>
 
@@ -518,7 +518,7 @@ function BookingContent() {
                       type="time"
                       value={data.pickupTime}
                       onChange={(e) => setData((d) => ({ ...d, pickupTime: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800"
+                      className="w-full min-w-0 px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800"
                     />
                   </div>
 
@@ -531,7 +531,7 @@ function BookingContent() {
                       type="time"
                       value={data.returnTime}
                       onChange={(e) => setData((d) => ({ ...d, returnTime: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800"
+                      className="w-full min-w-0 px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800"
                     />
                   </div>
                 </div>

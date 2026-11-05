@@ -7,13 +7,11 @@ import {
   MapPin,
   Calendar,
   Clock,
-  ArrowRightLeft,
   Search,
   Sparkles,
   Plane,
-  Building,
-  CheckCircle2,
   CalendarDays,
+  ChevronDown,
 } from "lucide-react";
 
 interface LocationOption {
@@ -107,19 +105,19 @@ export function BookingSearchBox() {
   ];
 
   return (
-    <div id="booking-search" className="relative z-20 max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 -mt-6 sm:-mt-14 mb-12 sm:mb-16">
-      <div className="backdrop-blur-xl bg-card/95 dark:bg-neutral-900/95 border border-border/80 dark:border-white/10 shadow-2xl p-4 sm:p-8 rounded-2xl relative overflow-hidden charging-card">
+    <div id="booking-search" className="relative z-20 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 -mt-6 sm:-mt-14 mb-12 sm:mb-16">
+      <div className="backdrop-blur-xl bg-card/95 dark:bg-neutral-900/95 border border-border/80 dark:border-white/10 shadow-2xl p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl relative overflow-hidden charging-card w-full">
         {/* Subtle decorative top bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-amber-400 to-blue-700" />
 
         {/* Header inside search box */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-border/50">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5 pb-4 border-b border-border/50">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold shrink-0">
               <Sparkles className="w-4 h-4" />
             </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-foreground">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base md:text-lg font-bold text-foreground truncate">
                 {t("title") ||
                   (locale === "fr"
                     ? "Réservez votre véhicule en Tunisie"
@@ -127,7 +125,7 @@ export function BookingSearchBox() {
                     ? "احجز سيارتك في تونس"
                     : "Book Your Vehicle in Tunisia")}
               </h2>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[11px] sm:text-xs text-muted-foreground truncate">
                 {locale === "fr"
                   ? "Livraison directe à tous les aéroports et agences en Tunisie"
                   : locale === "ar"
@@ -138,7 +136,7 @@ export function BookingSearchBox() {
           </div>
 
           {/* Duration Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-500 dark:text-amber-300 text-xs font-semibold">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-500 dark:text-amber-300 text-xs font-semibold shrink-0">
             <CalendarDays className="w-3.5 h-3.5" />
             <span>
               {locale === "fr"
@@ -151,7 +149,7 @@ export function BookingSearchBox() {
         </div>
 
         {/* Quick category filter tags */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none text-xs">
+        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none text-xs -mx-1 px-1">
           {[
             {
               id: "all",
@@ -178,10 +176,10 @@ export function BookingSearchBox() {
               key={cat.id}
               type="button"
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-medium whitespace-nowrap transition-all shrink-0 active:scale-95 ${
                 selectedCategory === cat.id
-                  ? "bg-amber-400 text-black font-semibold shadow-sm"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-amber-400 text-black font-semibold shadow-xs"
+                  : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
               {cat.label}
@@ -190,15 +188,15 @@ export function BookingSearchBox() {
         </div>
 
         {/* Form Grid */}
-        <form onSubmit={handleSearch} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <form onSubmit={handleSearch} className="space-y-4 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
             {/* Pickup Location */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 w-full min-w-0">
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-amber-500" />
-                <span>{t("pickupLocation") || "Pickup Location"}</span>
+                <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="truncate">{t("pickupLocation") || "Pickup Location"}</span>
               </label>
-              <div className="relative">
+              <div className="relative w-full min-w-0">
                 <select
                   value={pickupLocation}
                   onChange={(e) => {
@@ -207,7 +205,7 @@ export function BookingSearchBox() {
                       setReturnLocation(e.target.value);
                     }
                   }}
-                  className="w-full bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3.5 py-3 text-sm text-foreground appearance-none cursor-pointer outline-none transition-colors"
+                  className="w-full min-w-0 bg-background dark:bg-neutral-800 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3.5 pr-10 rtl:pr-3.5 rtl:pl-10 h-11 text-xs sm:text-sm text-foreground appearance-none cursor-pointer outline-none transition-colors truncate"
                 >
                   {TUNISIA_LOCATIONS.map((loc) => (
                     <option key={loc.id} value={loc.id}>
@@ -215,27 +213,27 @@ export function BookingSearchBox() {
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                <div className="absolute right-3.5 rtl:right-auto rtl:left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
                   <Plane className="w-4 h-4 text-muted-foreground" />
                 </div>
               </div>
             </div>
 
-            {/* Return Location (or conditional if different) */}
-            <div className="space-y-1.5">
+            {/* Return Location (or toggle button) */}
+            <div className="space-y-1.5 w-full min-w-0">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-blue-500" />
-                  <span>{t("returnLocation") || "Return Location"}</span>
+                  <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  <span className="truncate">{t("returnLocation") || "Return Location"}</span>
                 </label>
               </div>
 
               {diffReturnLocation ? (
-                <div className="relative">
+                <div className="relative w-full min-w-0">
                   <select
                     value={returnLocation}
                     onChange={(e) => setReturnLocation(e.target.value)}
-                    className="w-full bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3.5 py-3 text-sm text-foreground appearance-none cursor-pointer outline-none transition-colors"
+                    className="w-full min-w-0 bg-background dark:bg-neutral-800 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3.5 pr-10 rtl:pr-3.5 rtl:pl-10 h-11 text-xs sm:text-sm text-foreground appearance-none cursor-pointer outline-none transition-colors truncate"
                   >
                     {TUNISIA_LOCATIONS.map((loc) => (
                       <option key={loc.id} value={loc.id}>
@@ -243,44 +241,45 @@ export function BookingSearchBox() {
                       </option>
                     ))}
                   </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                  <div className="absolute right-3.5 rtl:right-auto rtl:left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
                     <Plane className="w-4 h-4 text-muted-foreground" />
                   </div>
                 </div>
               ) : (
-                <div
+                <button
+                  type="button"
                   onClick={() => setDiffReturnLocation(true)}
-                  className="w-full bg-muted/40 border border-dashed border-input rounded-xl px-3.5 py-3 text-sm text-muted-foreground flex items-center justify-between cursor-pointer hover:bg-muted/70 transition-colors"
+                  className="w-full min-w-0 bg-muted/40 border border-dashed border-input rounded-xl px-3.5 h-11 text-xs sm:text-sm text-muted-foreground flex items-center justify-between cursor-pointer hover:bg-muted/70 active:bg-muted transition-colors text-left rtl:text-right"
                 >
-                  <span className="truncate">
+                  <span className="truncate flex-1 pr-2 rtl:pr-0 rtl:pl-2">
                     {locale === "fr"
-                      ? "Même lieu que le départ ("
+                      ? "Même lieu ("
                       : locale === "ar"
-                      ? "نفس موقع الاستلام ("
-                      : "Same as pickup ("}
+                      ? "نفس الموقع ("
+                      : "Same location ("}
                     {TUNISIA_LOCATIONS.find((l) => l.id === pickupLocation)?.city || "Tunis"}
                     )
                   </span>
-                  <span className="text-[11px] text-amber-500 font-semibold underline shrink-0 ml-2">
+                  <span className="text-[11px] text-amber-500 font-bold shrink-0">
                     {locale === "fr" ? "Modifier" : locale === "ar" ? "تغيير" : "Change"}
                   </span>
-                </div>
+                </button>
               )}
             </div>
 
             {/* Pickup Date & Time */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 w-full min-w-0">
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-amber-500" />
-                <span>
+                <Calendar className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <span className="truncate">
                   {locale === "fr"
-                    ? "Date & Heure de Départ"
+                    ? "Départ (Date & Heure)"
                     : locale === "ar"
                     ? "تاريخ ووقت الاستلام"
-                    : "Pickup Date & Time"}
+                    : "Pickup (Date & Time)"}
                 </span>
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-5 gap-2 w-full min-w-0">
                 <input
                   type="date"
                   min={tomorrow}
@@ -291,13 +290,13 @@ export function BookingSearchBox() {
                       setReturnDate(e.target.value);
                     }
                   }}
-                  className="sm:col-span-3 w-full bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2.5 text-sm text-foreground outline-none transition-colors"
+                  className="col-span-3 w-full min-w-0 bg-background dark:bg-neutral-800 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 h-11 text-xs sm:text-sm text-foreground outline-none transition-colors"
                   required
                 />
                 <select
                   value={pickupTime}
                   onChange={(e) => setPickupTime(e.target.value)}
-                  className="sm:col-span-2 w-full bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-2 py-2.5 text-sm text-foreground outline-none transition-colors"
+                  className="col-span-2 w-full min-w-0 bg-background dark:bg-neutral-800 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-2 h-11 text-xs sm:text-sm text-foreground outline-none transition-colors"
                 >
                   {timeOptions.map((time) => (
                     <option key={time} value={time}>
@@ -309,30 +308,30 @@ export function BookingSearchBox() {
             </div>
 
             {/* Return Date & Time */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 w-full min-w-0">
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-blue-500" />
-                <span>
+                <Clock className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                <span className="truncate">
                   {locale === "fr"
-                    ? "Date & Heure de Retour"
+                    ? "Retour (Date & Heure)"
                     : locale === "ar"
                     ? "تاريخ ووقت الإرجاع"
-                    : "Return Date & Time"}
+                    : "Return (Date & Time)"}
                 </span>
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-5 gap-2 w-full min-w-0">
                 <input
                   type="date"
                   min={pickupDate}
                   value={returnDate}
                   onChange={(e) => setReturnDate(e.target.value)}
-                  className="sm:col-span-3 w-full bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2.5 text-sm text-foreground outline-none transition-colors"
+                  className="col-span-3 w-full min-w-0 bg-background dark:bg-neutral-800 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 h-11 text-xs sm:text-sm text-foreground outline-none transition-colors"
                   required
                 />
                 <select
                   value={returnTime}
                   onChange={(e) => setReturnTime(e.target.value)}
-                  className="sm:col-span-2 w-full bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-2 py-2.5 text-sm text-foreground outline-none transition-colors"
+                  className="col-span-2 w-full min-w-0 bg-background dark:bg-neutral-800 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-2 h-11 text-xs sm:text-sm text-foreground outline-none transition-colors"
                 >
                   {timeOptions.map((time) => (
                     <option key={time} value={time}>
@@ -345,16 +344,16 @@ export function BookingSearchBox() {
           </div>
 
           {/* Bottom Bar: Different Return Checkbox & Big Search Button */}
-          <div className="pt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="pt-2 sm:pt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 w-full">
             {/* Different return location checkbox */}
-            <label className="inline-flex items-center gap-2 cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none text-xs text-muted-foreground hover:text-foreground transition-colors py-1">
               <input
                 type="checkbox"
                 checked={diffReturnLocation}
                 onChange={(e) => setDiffReturnLocation(e.target.checked)}
-                className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 border-input cursor-pointer"
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-input cursor-pointer shrink-0"
               />
-              <span className="font-medium">
+              <span className="font-medium text-xs leading-tight">
                 {locale === "fr"
                   ? "Restituer dans une autre agence ou un autre aéroport"
                   : locale === "ar"
@@ -366,15 +365,15 @@ export function BookingSearchBox() {
             {/* Action CTA Button */}
             <button
               type="submit"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-700 to-amber-500 hover:from-blue-700 hover:to-amber-600 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+              className="w-full sm:w-auto h-12 inline-flex items-center justify-center gap-2.5 px-8 rounded-xl bg-gradient-to-r from-blue-600 to-[#1D4ED8] hover:from-blue-700 hover:to-blue-800 text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-blue-600/25 active:scale-[0.98] transition-all cursor-pointer shrink-0"
             >
               <Search className="w-4 h-4" />
               <span>
                 {t("search") ||
                   (locale === "fr"
-                    ? "Rechercher les Véhicules Disponibles"
+                    ? "Rechercher les Véhicules"
                     : locale === "ar"
-                    ? "البحث عن السيارات المتاحة"
+                    ? "البحث عن السيارات"
                     : "Search Available Vehicles")}
               </span>
             </button>
@@ -384,3 +383,5 @@ export function BookingSearchBox() {
     </div>
   );
 }
+
+export default BookingSearchBox;
