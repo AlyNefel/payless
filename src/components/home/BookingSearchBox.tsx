@@ -107,8 +107,8 @@ export function BookingSearchBox() {
   ];
 
   return (
-    <div id="booking-search" className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 sm:-mt-16 mb-16">
-      <div className="backdrop-blur-xl bg-card/95 dark:bg-neutral-900/95 border border-border/80 dark:border-white/10 shadow-2xl p-6 sm:p-8 rounded-2xl relative overflow-hidden charging-card">
+    <div id="booking-search" className="relative z-20 max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 -mt-6 sm:-mt-14 mb-12 sm:mb-16">
+      <div className="backdrop-blur-xl bg-card/95 dark:bg-neutral-900/95 border border-border/80 dark:border-white/10 shadow-2xl p-4 sm:p-8 rounded-2xl relative overflow-hidden charging-card">
         {/* Subtle decorative top bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-600 via-amber-400 to-blue-700" />
 
@@ -280,7 +280,7 @@ export function BookingSearchBox() {
                     : "Pickup Date & Time"}
                 </span>
               </label>
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
                 <input
                   type="date"
                   min={tomorrow}
@@ -291,13 +291,13 @@ export function BookingSearchBox() {
                       setReturnDate(e.target.value);
                     }
                   }}
-                  className="col-span-3 bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-foreground outline-none transition-colors"
+                  className="sm:col-span-3 w-full bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2.5 text-sm text-foreground outline-none transition-colors"
                   required
                 />
                 <select
                   value={pickupTime}
                   onChange={(e) => setPickupTime(e.target.value)}
-                  className="col-span-2 bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-2 py-2.5 text-xs text-foreground outline-none transition-colors"
+                  className="sm:col-span-2 w-full bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-2 py-2.5 text-sm text-foreground outline-none transition-colors"
                 >
                   {timeOptions.map((time) => (
                     <option key={time} value={time}>
@@ -320,19 +320,19 @@ export function BookingSearchBox() {
                     : "Return Date & Time"}
                 </span>
               </label>
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
                 <input
                   type="date"
                   min={pickupDate}
                   value={returnDate}
                   onChange={(e) => setReturnDate(e.target.value)}
-                  className="col-span-3 bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-foreground outline-none transition-colors"
+                  className="sm:col-span-3 w-full bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-3 py-2.5 text-sm text-foreground outline-none transition-colors"
                   required
                 />
                 <select
                   value={returnTime}
                   onChange={(e) => setReturnTime(e.target.value)}
-                  className="col-span-2 bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-2 py-2.5 text-xs text-foreground outline-none transition-colors"
+                  className="sm:col-span-2 w-full bg-background/80 dark:bg-neutral-800/80 border border-input focus:border-amber-400 focus:ring-1 focus:ring-amber-400 rounded-xl px-2 py-2.5 text-sm text-foreground outline-none transition-colors"
                 >
                   {timeOptions.map((time) => (
                     <option key={time} value={time}>

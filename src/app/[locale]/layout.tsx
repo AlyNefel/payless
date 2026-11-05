@@ -139,13 +139,13 @@ export default async function LocaleLayout({
       lang={locale}
       dir={isRtl ? "rtl" : "ltr"}
       suppressHydrationWarning
-      className={`${inter.variable} ${playfair.variable} ${cairo.variable} min-h-screen flex flex-col bg-background text-foreground ${
+      className={`${inter.variable} ${playfair.variable} ${cairo.variable} min-h-screen flex flex-col bg-background text-foreground overflow-x-clip ${
         isRtl ? "font-arabic" : "font-sans"
       }`}
     >
       <NextIntlClientProvider messages={messages} locale={locale}>
         <Header />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 w-full overflow-x-clip">{children}</main>
         <Footer />
         <WhatsAppWidget />
         <AIAgentChat />

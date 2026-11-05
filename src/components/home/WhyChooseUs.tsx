@@ -167,7 +167,7 @@ export function WhyChooseUs() {
   }[locale as "fr" | "en" | "ar"] ?? "The PAYLESS Difference";
 
   return (
-    <section id="why-us" className="py-24 bg-neutral-950 text-white relative overflow-hidden">
+    <section id="why-us" className="py-14 sm:py-24 bg-neutral-950 text-white relative overflow-hidden">
       {/* Decorative glows */}
       <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 left-10 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -201,7 +201,7 @@ export function WhyChooseUs() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="group relative p-8 rounded-2xl bg-neutral-900/60 hover:bg-neutral-900/90 border border-white/10 hover:border-amber-400/40 backdrop-blur-xl transition-all duration-300 shadow-xl overflow-hidden"
+                className="group relative p-5 sm:p-8 rounded-2xl bg-neutral-900/60 hover:bg-neutral-900/90 border border-white/10 hover:border-amber-400/40 backdrop-blur-xl transition-all duration-300 shadow-xl overflow-hidden"
               >
                 {/* Subtle top card glow */}
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400/0 group-hover:via-amber-400/70 to-transparent transition-all duration-500" />

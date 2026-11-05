@@ -60,7 +60,7 @@ export function Hero() {
   };
 
   return (
-    <section ref={sectionRef} className="relative min-h-[92vh] flex items-center justify-center pt-28 pb-20 overflow-hidden bg-neutral-950">
+    <section ref={sectionRef} className="relative min-h-[85vh] sm:min-h-[92vh] flex items-center justify-center pt-20 sm:pt-28 pb-14 sm:pb-20 overflow-hidden bg-neutral-950">
       {/* Cinematic Parallax Background */}
       <motion.div
         className="absolute inset-0 z-0"
@@ -80,8 +80,8 @@ export function Hero() {
       />
       <div className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent" />
 
-      {/* Cinematic Automotive Smoke Layer (Rising from down to top) */}
-      <div className="absolute inset-0 z-[2] pointer-events-none overflow-hidden">
+      {/* Cinematic Automotive Smoke Layer (Hidden on mobile to preserve 60fps performance) */}
+      <div className="hidden sm:block absolute inset-0 z-[2] pointer-events-none overflow-hidden">
         {/* Continuous billowing smoke plumes rising from bottom to top */}
         {[
           { left: "5%", width: 340, duration: 7.2, delay: 0 },
@@ -188,7 +188,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.15, ease: "easeOut" }}
-          className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight text-white font-display max-w-5xl leading-[1.08]"
+          className="text-3xl sm:text-5xl md:text-7xl lg:text-8xl font-black tracking-tight text-white font-display max-w-5xl leading-[1.12] sm:leading-[1.08]"
         >
           {t("tagline") || "Your Journey. Your Freedom."}
         </motion.h1>
@@ -198,7 +198,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
-          className="mt-6 text-base sm:text-lg md:text-xl text-neutral-300 max-w-2xl font-light leading-relaxed text-balance"
+          className="mt-4 sm:mt-6 text-sm sm:text-lg md:text-xl text-neutral-300 max-w-2xl font-light leading-relaxed text-balance"
         >
           {t("subtitle") ||
             "Premium vehicles for every destination in Tunisia. Delivered directly to your airport terminal or private hotel in minutes."}
@@ -209,12 +209,12 @@ export function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.45, ease: "easeOut" }}
-          className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto"
+          className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 w-full sm:w-auto"
         >
           <a
             href="#booking-search"
             onClick={scrollToSearch}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl text-black bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 font-bold text-sm uppercase tracking-wider shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 hover:-translate-y-0.5 transition-all group"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-black bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 font-bold text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 hover:-translate-y-0.5 transition-all group"
           >
             <span>{t("cta") || "Book Now"}</span>
             <ArrowDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
@@ -222,7 +222,7 @@ export function Hero() {
 
           <Link
             href={`/${locale}/vehicles`}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl text-white bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 backdrop-blur-md font-semibold text-sm transition-all hover:-translate-y-0.5"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-white bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 backdrop-blur-md font-semibold text-xs sm:text-sm transition-all hover:-translate-y-0.5"
           >
             <span>{t("ctaSecondary") || "Explore Fleet"}</span>
             <ChevronRight className="w-4 h-4 text-amber-400 rtl-flip" />
@@ -234,7 +234,7 @@ export function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-          className="mt-16 w-full max-w-5xl grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-left"
+          className="mt-10 sm:mt-16 w-full max-w-5xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 text-left rtl:text-right"
         >
           {trustPillars.map((pillar, idx) => {
             const Icon = pillar.icon;

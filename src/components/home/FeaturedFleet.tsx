@@ -269,7 +269,7 @@ export function FeaturedFleet() {
   }, [activeTab]);
 
   return (
-    <section id="fleet" className="py-20 bg-background relative overflow-hidden">
+    <section id="fleet" className="py-12 sm:py-20 bg-background relative overflow-hidden">
       {/* Background subtleties */}
       <div className="absolute top-1/2 left-0 w-72 h-72 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
