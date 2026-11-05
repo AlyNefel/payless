@@ -136,7 +136,13 @@ export function FAQSection() {
         <div className="text-center mb-14">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-500 text-xs font-semibold uppercase tracking-wider mb-3">
             <HelpCircle className="w-3.5 h-3.5" />
-            <span>Clear & Transparent</span>
+            <span>
+              {locale === "ar"
+                ? "شفاف وواضح"
+                : locale === "fr"
+                ? "Clair & Transparent"
+                : "Clear & Transparent"}
+            </span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground font-display tracking-tight">
@@ -175,7 +181,7 @@ export function FAQSection() {
                 <button
                   type="button"
                   onClick={() => toggleItem(faq.id)}
-                  className="w-full px-5 py-4 sm:p-5 flex items-center justify-between text-left gap-4 transition-colors"
+                  className="w-full px-5 py-4 sm:p-5 flex items-center justify-between text-left rtl:text-right gap-4 transition-colors"
                 >
                   <div className="flex items-center gap-3.5">
                     <div

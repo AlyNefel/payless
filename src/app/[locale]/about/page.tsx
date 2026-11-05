@@ -52,23 +52,23 @@ export default function AboutPage({
   return (
     <div className={cn("min-h-screen bg-[#0A0A0B] text-white", isRTL && "rtl")}>
       {/* Hero */}
-      <section className="relative pt-32 pb-24 px-6 overflow-hidden">
+      <section className="relative pt-28 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-[#1D4ED8]/5 to-transparent pointer-events-none" />
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <div className="inline-flex items-center gap-2 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full px-4 py-2 mb-6">
+            <div className="inline-flex items-center gap-2 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full px-3.5 py-1.5 sm:px-4 sm:py-2 mb-6">
               <Star className="h-4 w-4 text-[#D4AF37]" />
-              <span className="text-[#D4AF37] text-sm font-medium">{g(t.hero.badge)}</span>
+              <span className="text-[#D4AF37] text-xs sm:text-sm font-medium">{g(t.hero.badge)}</span>
             </div>
-            <h1 className="text-5xl lg:text-6xl font-bold font-playfair mb-6 leading-tight">{g(t.hero.title)}</h1>
-            <p className="text-xl text-white/60 leading-relaxed max-w-2xl mx-auto">{g(t.hero.sub)}</p>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-4 sm:mb-6 leading-tight tracking-tight">{g(t.hero.title)}</h1>
+            <p className="text-sm sm:text-base md:text-xl text-white/70 leading-relaxed max-w-2xl mx-auto">{g(t.hero.sub)}</p>
           </motion.div>
         </div>
       </section>
 
       {/* Stats */}
-      <section className="py-12 px-6 border-y border-white/10">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-8">
+      <section className="py-10 sm:py-12 px-4 sm:px-6 border-y border-white/10">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {t.stats.map((stat, i) => (
             <motion.div
               key={i}
@@ -76,41 +76,41 @@ export default function AboutPage({
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="text-center"
+              className="text-center p-3 sm:p-4 rounded-xl bg-white/[0.02]"
             >
-              <p className="text-4xl font-bold text-[#D4AF37] mb-1">{stat.value}</p>
-              <p className="text-white/50 text-sm">{g(stat.label)}</p>
+              <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#D4AF37] mb-1 font-display">{stat.value}</p>
+              <p className="text-white/60 text-xs sm:text-sm">{g(stat.label)}</p>
             </motion.div>
           ))}
         </div>
       </section>
 
       {/* Mission */}
-      <section className="py-20 px-6">
+      <section className="py-14 sm:py-20 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl font-bold font-playfair text-white mb-6">{g(t.mission)}</h2>
-            <p className="text-xl text-white/60 leading-relaxed">{g(t.missionText)}</p>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-white mb-4 sm:mb-6">{g(t.mission)}</h2>
+            <p className="text-base sm:text-lg md:text-xl text-white/70 leading-relaxed">{g(t.missionText)}</p>
           </motion.div>
         </div>
       </section>
 
       {/* Values */}
-      <section className="py-20 px-6 bg-white/2">
+      <section className="py-14 sm:py-20 px-4 sm:px-6 bg-white/[0.02]">
         <div className="max-w-6xl mx-auto">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-3xl font-bold font-playfair text-white text-center mb-12"
+            className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-white text-center mb-10 sm:mb-12"
           >
             {locale === "fr" ? "Nos Valeurs" : locale === "ar" ? "قيمنا" : "Our Values"}
           </motion.h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {t.values.map((val, i) => (
               <motion.div
                 key={i}
@@ -118,13 +118,13 @@ export default function AboutPage({
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-[#1D4ED8]/30 transition-all"
+                className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-6 hover:border-[#1D4ED8]/30 transition-all"
               >
-                <div className="w-12 h-12 bg-[#1D4ED8]/10 rounded-xl flex items-center justify-center mb-4">
-                  <val.icon className="h-6 w-6 text-[#1D4ED8]" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#1D4ED8]/10 rounded-xl flex items-center justify-center mb-4">
+                  <val.icon className="h-5 w-5 sm:h-6 sm:w-6 text-[#1D4ED8]" />
                 </div>
-                <h3 className="font-semibold text-white mb-2">{g(val.title)}</h3>
-                <p className="text-white/50 text-sm leading-relaxed">{g(val.text)}</p>
+                <h3 className="font-semibold text-white text-base sm:text-lg mb-2">{g(val.title)}</h3>
+                <p className="text-white/60 text-xs sm:text-sm leading-relaxed">{g(val.text)}</p>
               </motion.div>
             ))}
           </div>
@@ -132,30 +132,30 @@ export default function AboutPage({
       </section>
 
       {/* CTA */}
-      <section className="py-20 px-6">
+      <section className="py-14 sm:py-20 px-4 sm:px-6">
         <div className="max-w-2xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl font-bold font-playfair text-white mb-4">
-              {locale === "fr" ? "Prêt pour votre prochain voyage?" : locale === "ar" ? "هل أنت مستعد لرحلتك القادمة؟" : "Ready for your next journey?"}
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-white mb-4">
+              {locale === "fr" ? "Prêt pour votre prochain voyage ?" : locale === "ar" ? "هل أنت مستعد لرحلتك القادمة؟" : "Ready for your next journey?"}
             </h2>
-            <p className="text-white/50 mb-8">
+            <p className="text-sm sm:text-base text-white/60 mb-8">
               {locale === "fr" ? "Réservez en quelques minutes avec confirmation immédiate." : locale === "ar" ? "احجز في دقائق مع تأكيد فوري." : "Book in minutes with instant confirmation."}
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
               <Button
                 onClick={() => router.push(`/${locale}/vehicles`)}
-                className="h-12 px-8 bg-[#1D4ED8] hover:bg-[#1e40af] text-white font-semibold rounded-xl"
+                className="w-full sm:w-auto h-12 px-8 bg-[#1D4ED8] hover:bg-[#1e40af] text-white font-semibold rounded-xl"
               >
                 {g(t.cta)}
               </Button>
               <Button
                 onClick={() => router.push(`/${locale}/contact`)}
                 variant="outline"
-                className="h-12 px-8 border-white/20 text-white hover:bg-white/5 rounded-xl"
+                className="w-full sm:w-auto h-12 px-8 border-white/20 text-white hover:bg-white/5 rounded-xl"
               >
                 {g(t.contact)}
               </Button>

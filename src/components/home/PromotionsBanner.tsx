@@ -22,17 +22,63 @@ export function PromotionsBanner() {
   const [copied, setCopied] = useState(false);
   const promoCode = "PAYLESS2026";
 
+  const promoTranslations = {
+    fr: {
+      badge: "Offre Été Limitée — Tunisie 2026",
+      title: "Offre Précoce Été — ",
+      discount: "15% DE REMISE",
+      description:
+        "Réservez toute berline, SUV ou véhicule premium pour 4+ jours de location et obtenez une remise exclusive de 15% ainsi qu'une livraison VIP aéroport offerte.",
+      validUntil: "Valable pour les trajets jusqu'en Septembre 2026",
+      applicableAt: "Applicable dans 11 aéroports et agences en Tunisie",
+      voucherLabel: "Code Promo Exclusif",
+      copyBtn: "Copier",
+      copiedBtn: "Copié !",
+      claimBtn: "Obtenir 15% de Remise",
+      toastTitle: "Code promo copié !",
+      toastDesc: `Utilisez le code "${promoCode}" à la réservation pour économiser 15%.`,
+    },
+    en: {
+      badge: "Limited Time Tunisian Summer Offer",
+      title: "Early Bird Summer Special — ",
+      discount: "15% OFF",
+      description:
+        "Reserve any luxury sedan, SUV, or supercar for 4+ rental days and unlock an exclusive 15% discount plus complimentary VIP airport fast-track concierge delivery.",
+      validUntil: "Valid for trips through September 2026",
+      applicableAt: "Applicable to all 11 Tunisian Hubs & Airports",
+      voucherLabel: "Promo Voucher Code",
+      copyBtn: "Copy",
+      copiedBtn: "Copied!",
+      claimBtn: "Claim 15% Discount",
+      toastTitle: "Promo code copied to clipboard!",
+      toastDesc: `Apply code "${promoCode}" at checkout to save 15% on your booking.`,
+    },
+    ar: {
+      badge: "عرض صيف محدود — تونس 2026",
+      title: "عرض الحجز المبكر — ",
+      discount: "خصم 15%",
+      description:
+        "احجز أي سيدان فاخرة أو SUV لمدة 4 أيام أو أكثر واستمتع بخصم حصري 15% مع خدمة توصيل VIP مجانية للمطار.",
+      validUntil: "صالح للرحلات حتى سبتمبر 2026",
+      applicableAt: "متاح في 11 مطاراً ووكالة في تونس",
+      voucherLabel: "رمز القسيمة الترويجية",
+      copyBtn: "نسخ",
+      copiedBtn: "تم النسخ!",
+      claimBtn: "احصل على خصم 15%",
+      toastTitle: "تم نسخ رمز الخصم!",
+      toastDesc: `استخدم الرمز "${promoCode}" عند الدفع لتوفير 15%.`,
+    },
+  };
+  const tl = promoTranslations[locale as "fr" | "en" | "ar"] ?? promoTranslations.fr;
+
   const handleCopyCode = async () => {
     try {
       await navigator.clipboard.writeText(promoCode);
       setCopied(true);
-      toast.success("Promo code copied to clipboard!", {
-        description: `Apply code "${promoCode}" at checkout to save 15% on your booking.`,
-      });
+      toast.success(tl.toastTitle, { description: tl.toastDesc });
       setTimeout(() => setCopied(false), 3000);
     } catch {
-      // Fallback
-      toast.info(`Promo Code: ${promoCode}`);
+      toast.info(`${tl.voucherLabel}: ${promoCode}`);
     }
   };
 
@@ -49,29 +95,28 @@ export function PromotionsBanner() {
             <div className="space-y-4 max-w-2xl text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-bold uppercase tracking-wider">
                 <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                <span>Limited Time Moroccan Voyage Offer</span>
+                <span>{tl.badge}</span>
               </div>
 
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-black font-display tracking-tight text-white leading-tight">
-                Early Bird Summer Special —{" "}
+                {tl.title}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200">
-                  15% OFF
+                  {tl.discount}
                 </span>
               </h2>
 
               <p className="text-sm sm:text-base text-neutral-300 leading-relaxed font-light">
-                Reserve any luxury sedan, SUV, or supercar for 4+ rental days and unlock an exclusive
-                15% discount plus complimentary VIP airport fast-track concierge delivery.
+                {tl.description}
               </p>
 
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2 text-xs text-neutral-400">
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-amber-400" />
-                  <span>Valid for trips through September 2026</span>
+                  <span>{tl.validUntil}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Percent className="w-4 h-4 text-emerald-400" />
-                  <span>Applicable to all 11 Tunisian Hubs & Airports</span>
+                  <span>{tl.applicableAt}</span>
                 </div>
               </div>
             </div>
@@ -86,7 +131,7 @@ export function PromotionsBanner() {
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-widest text-neutral-400">
-                      Promo Voucher Code
+                      {tl.voucherLabel}
                     </div>
                     <div className="text-lg font-black tracking-widest text-amber-400 font-mono">
                       {promoCode}
@@ -103,12 +148,12 @@ export function PromotionsBanner() {
                   {copied ? (
                     <>
                       <Check className="w-4 h-4 text-emerald-400" />
-                      <span className="text-emerald-400">Copied!</span>
+                      <span className="text-emerald-400">{tl.copiedBtn}</span>
                     </>
                   ) : (
                     <>
                       <Copy className="w-4 h-4" />
-                      <span>Copy</span>
+                      <span>{tl.copyBtn}</span>
                     </>
                   )}
                 </button>
@@ -119,7 +164,7 @@ export function PromotionsBanner() {
                 href={`/${locale}/vehicles?promoCode=${promoCode}`}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-bold text-sm uppercase tracking-wider shadow-lg shadow-amber-500/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
               >
-                <span>Claim 15% Discount</span>
+                <span>{tl.claimBtn}</span>
                 <ArrowRight className="w-4 h-4 rtl-flip" />
               </Link>
             </div>

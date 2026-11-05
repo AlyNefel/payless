@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   Star,
   Quote,
@@ -74,6 +74,29 @@ const TESTIMONIALS: Testimonial[] = [
 
 export function Testimonials() {
   const t = useTranslations("home");
+  const locale = useLocale();
+
+  const labels = {
+    fr: {
+      badge: "Avis Clients Vérifiés",
+      verified: "Vérifié",
+      ratingNote: "1 200+ Avis Vérifiés sur Google & Trustpilot",
+    },
+    en: {
+      badge: "Verified Guest Experiences",
+      verified: "Verified",
+      ratingNote: "1,200+ Verified Reviews on Google & Trustpilot",
+    },
+    ar: {
+      badge: "تجارب عملاء حقيقية",
+      verified: "موثّق",
+      ratingNote: "+1,200 تقييم موثق على Google وTrustpilot",
+    },
+  }[locale as "fr" | "en" | "ar"] ?? {
+    badge: "Avis Clients Vérifiés",
+    verified: "Vérifié",
+    ratingNote: "1 200+ Avis Vérifiés sur Google & Trustpilot",
+  };
 
   return (
     <section className="py-24 bg-neutral-950 text-white relative overflow-hidden">
@@ -85,7 +108,7 @@ export function Testimonials() {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-amber-400 text-xs font-semibold uppercase tracking-widest mb-4">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Verified Guest Experiences</span>
+            <span>{labels.badge}</span>
           </div>
 
           <h2 className="text-3xl sm:text-5xl font-black font-display tracking-tight text-white">
@@ -106,7 +129,7 @@ export function Testimonials() {
             </div>
             <span className="font-bold text-white">4.9 / 5</span>
             <span className="text-neutral-500">•</span>
-            <span className="text-neutral-300">1,200+ Verified Reviews on Google & Trustpilot</span>
+            <span className="text-neutral-300">{labels.ratingNote}</span>
           </div>
         </div>
 
@@ -148,7 +171,7 @@ export function Testimonials() {
                   </div>
                   <div className="flex items-center gap-1 text-[11px] text-emerald-400 shrink-0 ml-2">
                     <CheckCircle2 className="w-3 h-3" />
-                    <span>Verified</span>
+                    <span>{labels.verified}</span>
                   </div>
                 </div>
 

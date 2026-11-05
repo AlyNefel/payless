@@ -162,30 +162,34 @@ export function VehicleDetailClient({ vehicleId, locale }: Props) {
   return (
     <div className={cn("min-h-screen bg-[#0A0A0B] text-white", isRTL && "rtl")}>
       {/* Back button */}
-      <div className="pt-24 pb-4 px-6 max-w-7xl mx-auto">
+      <div className="pt-20 sm:pt-24 pb-4 px-4 sm:px-6 max-w-7xl mx-auto">
         <button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-white/60 hover:text-white transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
           <span className="text-sm">
-            {locale === "fr" ? "Retour au catalogue" : locale === "ar" ? "العودة" : "Back to catalogue"}
+            {locale === "fr" ? "Retour au catalogue" : locale === "ar" ? "العودة إلى الأسطول" : "Back to fleet"}
           </span>
         </button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-16 sm:pb-20">
         {!vehicle ? (
           <div className="text-center py-20">
             <Car className="h-16 w-16 text-white/20 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-2">Vehicle Not Found</h2>
-            <p className="text-white/60 mb-6">This vehicle may no longer be available.</p>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {locale === "fr" ? "Véhicule introuvable" : locale === "ar" ? "السيارة غير موجودة" : "Vehicle Not Found"}
+            </h2>
+            <p className="text-white/60 mb-6">
+              {locale === "fr" ? "Ce véhicule n'est plus disponible actuellement." : locale === "ar" ? "هذه السيارة قد لا تكون متاحة حالياً." : "This vehicle may no longer be available."}
+            </p>
             <Button onClick={() => router.push(`/${locale}/vehicles`)}>
-              Browse Fleet
+              {locale === "fr" ? "Voir toute la flotte" : locale === "ar" ? "تصفح الأسطول" : "Browse Fleet"}
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10">
             {/* Left: Images + Info */}
             <div className="lg:col-span-2 space-y-8">
               {/* Header */}
@@ -202,10 +206,15 @@ export function VehicleDetailClient({ vehicleId, locale }: Props) {
                         variant="default"
                         className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                       >
-                        ✓ {availableCount} {locale === "ar" ? "سيارات متوفرة" : "véhicules disponibles"}
+                        ✓ {availableCount}{" "}
+                        {locale === "ar"
+                          ? "سيارات متوفرة"
+                          : locale === "en"
+                          ? "vehicles available"
+                          : "véhicules disponibles"}
                       </Badge>
                     </div>
-                    <h1 className="text-4xl lg:text-5xl font-bold font-playfair text-white">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-display text-white tracking-tight">
                       {vehicle.brand} <span className="text-amber-400">{vehicle.model}</span>
                     </h1>
                     <p className="text-white/50 mt-1">{vehicle.year || 2024} · {vehicle.color || "Blanc Glacier"}</p>

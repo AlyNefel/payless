@@ -140,28 +140,28 @@ export default function PromotionsPage({
     desc?.[locale as "fr" | "en" | "ar"] ?? desc?.fr ?? "";
 
   return (
-    <div className={cn("min-h-screen bg-[#0A0A0B] text-white pt-24 pb-20", isRTL && "rtl")}>
+    <div className={cn("min-h-screen bg-[#0A0A0B] text-white pt-20 sm:pt-24 pb-16 sm:pb-20", isRTL && "rtl")}>
       {/* Header */}
-      <div className="max-w-7xl mx-auto px-6 mb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-10 sm:mb-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="text-center"
         >
-          <div className="inline-flex items-center gap-2 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full px-4 py-2 mb-6">
+          <div className="inline-flex items-center gap-2 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full px-3.5 py-1.5 sm:px-4 sm:py-2 mb-6">
             <Sparkles className="h-4 w-4 text-[#D4AF37]" />
-            <span className="text-[#D4AF37] text-sm font-medium">
+            <span className="text-[#D4AF37] text-xs sm:text-sm font-medium">
               {locale === "fr" ? "Offres exclusives" : locale === "ar" ? "عروض حصرية" : "Exclusive Offers"}
             </span>
           </div>
-          <h1 className="text-5xl lg:text-6xl font-bold font-playfair mb-4">{getText("title")}</h1>
-          <p className="text-xl text-white/60">{getText("subtitle")}</p>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-3 sm:mb-4 tracking-tight">{getText("title")}</h1>
+          <p className="text-sm sm:text-base md:text-xl text-white/60 max-w-2xl mx-auto">{getText("subtitle")}</p>
         </motion.div>
       </div>
 
       {/* Promotions Grid */}
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (

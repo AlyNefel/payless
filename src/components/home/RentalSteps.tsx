@@ -66,16 +66,31 @@ export function RentalSteps() {
         <div className="text-center max-w-2xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-semibold uppercase tracking-wider mb-3">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Effortless Reservation</span>
+            <span>
+              {locale === "fr"
+                ? "Réservation Simplifiée"
+                : locale === "ar"
+                ? "حجز سهل وسريع"
+                : "Effortless Reservation"}
+            </span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-foreground font-display tracking-tight">
-            {t("howItWorks") || "Rent Your Luxury Vehicle in 3 Simple Steps"}
+            {t("howItWorks") ||
+              (locale === "fr"
+                ? "Louez votre véhicule en 3 étapes simples"
+                : locale === "ar"
+                ? "استأجر سيارتك في 3 خطوات بسيطة"
+                : "Rent Your Vehicle in 3 Simple Steps")}
           </h2>
 
           <p className="mt-3 text-sm sm:text-base text-muted-foreground">
             {t("howSubtitle") ||
-              "From booking to taking the wheel, we have reimagined car rental into a seamless, five-star experience."}
+              (locale === "fr"
+                ? "De la sélection du modèle à la remise des clés, une expérience fluide et sans attente."
+                : locale === "ar"
+                ? "من اختيار السيارة إلى استلام المفاتيح، تجربة سلسة بدون انتظار."
+                : "From booking to taking the wheel, we have reimagined car rental into a seamless, five-star experience.")}
           </p>
         </div>
 

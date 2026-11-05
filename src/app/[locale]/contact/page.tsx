@@ -72,51 +72,51 @@ export default function ContactPage({
   };
 
   return (
-    <div className={cn("min-h-screen bg-[#0A0A0B] text-white pt-24 pb-20", isRTL && "rtl")}>
+    <div className={cn("min-h-screen bg-[#0A0A0B] text-white pt-20 sm:pt-24 pb-16 sm:pb-20", isRTL && "rtl")}>
       {/* Header */}
-      <div className="max-w-7xl mx-auto px-6 mb-16 text-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-10 sm:mb-16 text-center">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          <h1 className="text-5xl lg:text-6xl font-bold font-playfair mb-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-3 sm:mb-4 tracking-tight">
             {getText("title")}
           </h1>
-          <p className="text-xl text-white/60">{getText("subtitle")}</p>
+          <p className="text-sm sm:text-base md:text-xl text-white/60 max-w-2xl mx-auto">{getText("subtitle")}</p>
         </motion.div>
       </div>
 
       {/* Emergency Banner */}
-      <div className="max-w-7xl mx-auto px-6 mb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-8 sm:mb-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}
-          className="bg-[#1D4ED8]/10 border border-[#1D4ED8]/30 rounded-2xl p-6 flex items-center justify-between flex-wrap gap-4"
+          className="bg-[#1D4ED8]/10 border border-[#1D4ED8]/30 rounded-2xl p-4 sm:p-6 flex items-center justify-between flex-wrap gap-4"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#1D4ED8]/20 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-[#1D4ED8]/20 rounded-full flex items-center justify-center shrink-0">
               <Phone className="h-5 w-5 text-[#1D4ED8]" />
             </div>
             <div>
-              <p className="font-semibold text-white">{getText("emergency")}</p>
-              <p className="text-white/50 text-sm">+216 25 120 130</p>
+              <p className="font-semibold text-white text-sm sm:text-base">{getText("emergency")}</p>
+              <p className="text-white/60 text-xs sm:text-sm font-mono">+216 25 120 130</p>
             </div>
           </div>
           <a
             href="https://wa.me/21625120130"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-[#25D366] text-white px-5 py-2.5 rounded-xl font-medium hover:bg-[#20b958] transition-colors text-sm"
+            className="w-full sm:w-auto justify-center flex items-center gap-2 bg-[#25D366] text-white px-5 py-2.5 rounded-xl font-medium hover:bg-[#20b958] transition-colors text-sm shadow-md shadow-emerald-900/30"
           >
             <MessageCircle className="h-4 w-4" />
-            {getText("whatsapp")}
+            <span>{getText("whatsapp")}</span>
           </a>
         </motion.div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 mb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-16 sm:mb-20">
         {/* Contact Form */}
         <motion.div
           initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.2 }}
         >
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
-            <h2 className="text-2xl font-semibold text-white mb-6">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sm:p-8">
+            <h2 className="text-xl sm:text-2xl font-semibold text-white mb-6">
               {locale === "fr" ? "Envoyez-nous un message" : locale === "ar" ? "أرسل لنا رسالة" : "Send Us a Message"}
             </h2>
 
@@ -124,26 +124,26 @@ export default function ContactPage({
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <CheckCircle className="h-16 w-16 text-emerald-400 mb-4" />
                 <h3 className="text-xl font-semibold text-white mb-2">{getText("success")}</h3>
-                <p className="text-white/50">
+                <p className="text-white/50 text-sm">
                   {locale === "fr" ? "Nous vous répondrons dans les 24 heures." : locale === "ar" ? "سنرد عليك خلال 24 ساعة." : "We'll reply within 24 hours."}
                 </p>
                 <button
                   onClick={() => setSuccess(false)}
-                  className="mt-6 text-[#1D4ED8] hover:underline text-sm"
+                  className="mt-6 text-[#1D4ED8] hover:underline text-sm font-semibold"
                 >
                   {locale === "fr" ? "Envoyer un autre message" : locale === "ar" ? "إرسال رسالة أخرى" : "Send another message"}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs text-white/50 mb-1.5 uppercase tracking-wide">{getText("name")}</label>
                     <input
                       required
                       value={form.name}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      className="w-full h-10 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] placeholder:text-white/20"
+                      className="w-full h-11 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] placeholder:text-white/20"
                       placeholder={getText("name")}
                     />
                   </div>
@@ -152,7 +152,7 @@ export default function ContactPage({
                     <input
                       value={form.phone}
                       onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      className="w-full h-10 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] placeholder:text-white/20"
+                      className="w-full h-11 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#1D4ED8] placeholder:text-white/20"
                       placeholder="+216 25..."
                     />
                   </div>
@@ -253,23 +253,23 @@ export default function ContactPage({
                       </div>
                       <div>
                         <p className="font-semibold text-white text-sm">
-                          {branch.city[locale as "fr" | "en" | "ar"]}
+                          {branch.city[locale as "fr" | "en" | "ar"] ?? branch.city.fr}
                         </p>
-                        <p className="text-white/40 text-xs">
-                          {branch.airport[locale as "fr" | "en" | "ar"]}
+                        <p className="text-white/50 text-xs">
+                          {branch.airport[locale as "fr" | "en" | "ar"] ?? branch.airport.fr}
                         </p>
                       </div>
                     </div>
-                    <span className="text-xs text-white/30 border border-white/10 rounded px-2 py-0.5">{branch.code}</span>
+                    <span className="text-xs text-white/40 border border-white/10 rounded px-2 py-0.5 font-mono">{branch.code}</span>
                   </div>
-                  <div className="mt-3 flex items-center justify-between text-xs text-white/40">
+                  <div className="mt-3 flex items-center justify-between flex-wrap gap-2 text-xs text-white/50">
                     <a href={`tel:${branch.phone.replace(/\s/g, "")}`} className="flex items-center gap-1 hover:text-white transition-colors">
                       <Phone className="h-3 w-3" />
-                      {branch.phone}
+                      <span>{branch.phone}</span>
                     </a>
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {branch.hours}
+                      <span>{branch.hours}</span>
                     </span>
                   </div>
                 </div>

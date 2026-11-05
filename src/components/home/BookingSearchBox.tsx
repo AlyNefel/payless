@@ -120,7 +120,12 @@ export function BookingSearchBox() {
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-foreground">
-                {t("title") || "Book Your Luxury Vehicle"}
+                {t("title") ||
+                  (locale === "fr"
+                    ? "Réservez votre véhicule en Tunisie"
+                    : locale === "ar"
+                    ? "احجز سيارتك في تونس"
+                    : "Book Your Vehicle in Tunisia")}
               </h2>
               <p className="text-xs text-muted-foreground">
                 {locale === "fr"
@@ -136,7 +141,11 @@ export function BookingSearchBox() {
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-500 dark:text-amber-300 text-xs font-semibold">
             <CalendarDays className="w-3.5 h-3.5" />
             <span>
-              {rentalDays} {rentalDays === 1 ? "Day" : "Days"} Rental
+              {locale === "fr"
+                ? `${rentalDays} jour${rentalDays > 1 ? "s" : ""} de location`
+                : locale === "ar"
+                ? `${rentalDays} ${rentalDays === 1 ? "يوم" : "أيام"} إيجار`
+                : `${rentalDays} ${rentalDays === 1 ? "Day" : "Days"} Rental`}
             </span>
           </div>
         </div>
@@ -144,11 +153,26 @@ export function BookingSearchBox() {
         {/* Quick category filter tags */}
         <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none text-xs">
           {[
-            { id: "all", label: "All Vehicles" },
-            { id: "luxury", label: "Prestige Sedans" },
-            { id: "suv", label: "Luxury SUVs" },
-            { id: "sport", label: "Supercars & Sport" },
-            { id: "compact", label: "Compact & City" },
+            {
+              id: "all",
+              label: locale === "fr" ? "Tous les Véhicules" : locale === "ar" ? "جميع السيارات" : "All Vehicles",
+            },
+            {
+              id: "luxury",
+              label: locale === "fr" ? "Berlines Prestige" : locale === "ar" ? "سيدان فاخرة" : "Prestige Sedans",
+            },
+            {
+              id: "suv",
+              label: locale === "fr" ? "SUV & 4x4" : locale === "ar" ? "SUV ودفع رباعي" : "Luxury SUVs",
+            },
+            {
+              id: "sport",
+              label: locale === "fr" ? "Sport & Coupés" : locale === "ar" ? "رياضية وكوبيه" : "Supercars & Sport",
+            },
+            {
+              id: "compact",
+              label: locale === "fr" ? "Citadines Éco" : locale === "ar" ? "سيارات اقتصادية" : "Compact & City",
+            },
           ].map((cat) => (
             <button
               key={cat.id}
@@ -229,12 +253,16 @@ export function BookingSearchBox() {
                   className="w-full bg-muted/40 border border-dashed border-input rounded-xl px-3.5 py-3 text-sm text-muted-foreground flex items-center justify-between cursor-pointer hover:bg-muted/70 transition-colors"
                 >
                   <span className="truncate">
-                    Same as pickup (
+                    {locale === "fr"
+                      ? "Même lieu que le départ ("
+                      : locale === "ar"
+                      ? "نفس موقع الاستلام ("
+                      : "Same as pickup ("}
                     {TUNISIA_LOCATIONS.find((l) => l.id === pickupLocation)?.city || "Tunis"}
                     )
                   </span>
                   <span className="text-[11px] text-amber-500 font-semibold underline shrink-0 ml-2">
-                    Change
+                    {locale === "fr" ? "Modifier" : locale === "ar" ? "تغيير" : "Change"}
                   </span>
                 </div>
               )}
@@ -244,7 +272,13 @@ export function BookingSearchBox() {
             <div className="space-y-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-amber-500" />
-                <span>{t("pickupDate") || "Pickup Date & Time"}</span>
+                <span>
+                  {locale === "fr"
+                    ? "Date & Heure de Départ"
+                    : locale === "ar"
+                    ? "تاريخ ووقت الاستلام"
+                    : "Pickup Date & Time"}
+                </span>
               </label>
               <div className="grid grid-cols-5 gap-1.5">
                 <input
@@ -278,7 +312,13 @@ export function BookingSearchBox() {
             <div className="space-y-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-blue-500" />
-                <span>{t("returnDate") || "Return Date & Time"}</span>
+                <span>
+                  {locale === "fr"
+                    ? "Date & Heure de Retour"
+                    : locale === "ar"
+                    ? "تاريخ ووقت الإرجاع"
+                    : "Return Date & Time"}
+                </span>
               </label>
               <div className="grid grid-cols-5 gap-1.5">
                 <input
@@ -315,7 +355,11 @@ export function BookingSearchBox() {
                 className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 border-input cursor-pointer"
               />
               <span className="font-medium">
-                Return to a different location / airport
+                {locale === "fr"
+                  ? "Restituer dans une autre agence ou un autre aéroport"
+                  : locale === "ar"
+                  ? "إرجاع السيارة في موقع أو مطار مختلف"
+                  : "Return to a different location / airport"}
               </span>
             </label>
 
@@ -325,7 +369,14 @@ export function BookingSearchBox() {
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-blue-700 to-amber-500 hover:from-blue-700 hover:to-amber-600 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
             >
               <Search className="w-4 h-4" />
-              <span>{t("search") || "Search Available Vehicles"}</span>
+              <span>
+                {t("search") ||
+                  (locale === "fr"
+                    ? "Rechercher les Véhicules Disponibles"
+                    : locale === "ar"
+                    ? "البحث عن السيارات المتاحة"
+                    : "Search Available Vehicles")}
+              </span>
             </button>
           </div>
         </form>

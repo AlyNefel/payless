@@ -537,7 +537,7 @@ function BookingContent() {
                 </div>
 
                 {data.pickupDate && data.returnDate && (
-                  <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-xl p-4 text-sm text-blue-900 dark:text-blue-200 flex items-center justify-between">
+                  <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-xl p-4 text-sm text-blue-900 dark:text-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <div>
                       {locale === "ar" ? "مدة الإيجار:" : locale === "en" ? "Rental duration:" : "Durée de location :"}{" "}
                       <strong>
@@ -545,7 +545,11 @@ function BookingContent() {
                       </strong>
                     </div>
                     <div className="text-xs text-blue-700 dark:text-blue-300 font-medium">
-                      ✓ Kilométrage illimité & Assurance incluse
+                      {locale === "ar"
+                        ? "✓ مسافة غير محدودة والتأمين مشمول"
+                        : locale === "en"
+                        ? "✓ Unlimited mileage & Insurance included"
+                        : "✓ Kilométrage illimité & Assurance incluse"}
                     </div>
                   </div>
                 )}
@@ -570,13 +574,26 @@ function BookingContent() {
 
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-3">
-                    <CarSpinner size="lg" label="Recherche des véhicules disponibles en Tunisie..." />
+                    <CarSpinner
+                      size="lg"
+                      label={
+                        locale === "ar"
+                          ? "جارٍ البحث عن السيارات المتاحة في تونس..."
+                          : locale === "en"
+                          ? "Searching available fleet in Tunisia..."
+                          : "Recherche des véhicules disponibles en Tunisie..."
+                      }
+                    />
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
                     {vehicles.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground">
-                        Aucun véhicule trouvé pour ces dates. Veuillez modifier vos critères de recherche.
+                        {locale === "ar"
+                          ? "لم يتم العثور على سيارات متاحة لهذه التواريخ. يرجى تعديل التواريخ أو الأوقات."
+                          : locale === "en"
+                          ? "No vehicles available for these dates. Please try adjusting your schedule."
+                          : "Aucun véhicule trouvé pour ces dates. Veuillez modifier vos critères de recherche."}
                       </div>
                     ) : (
                       vehicles.map((v) => {
@@ -594,13 +611,13 @@ function BookingContent() {
                               setSelectedVehicle(v);
                               setData((d) => ({ ...d, vehicleId: v._id }));
                             }}
-                            className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+                            className={`w-full flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl border-2 transition-all text-left ${
                               isSelected
-                                ? "border-blue-600 bg-blue-50/80 dark:bg-blue-950/30"
+                                ? "border-blue-600 bg-blue-50/80 dark:bg-blue-950/30 shadow-md"
                                 : "border-border dark:border-neutral-800 hover:border-blue-300 dark:hover:border-neutral-700 bg-white dark:bg-neutral-800/60"
                             }`}
                           >
-                            <div className="relative w-28 h-18 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-100 dark:bg-neutral-800">
+                            <div className="relative w-full sm:w-28 h-36 sm:h-20 rounded-lg overflow-hidden shrink-0 bg-neutral-100 dark:bg-neutral-800">
                               <img
                                 src={img}
                                 alt={`${v.brand} ${v.model}`}
@@ -612,14 +629,24 @@ function BookingContent() {
                                 {v.brand} {v.model}{" "}
                                 <span className="text-muted-foreground font-normal text-xs">{v.year}</span>
                               </h4>
-                              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                   <Gauge className="w-3.5 h-3.5" />
-                                  {v.transmission === "automatic" ? "Automatique" : "Manuelle"}
+                                  {v.transmission === "automatic"
+                                    ? locale === "fr"
+                                      ? "Automatique"
+                                      : locale === "ar"
+                                      ? "أوتوماتيك"
+                                      : "Automatic"
+                                    : locale === "fr"
+                                    ? "Manuelle"
+                                    : locale === "ar"
+                                    ? "يدوي"
+                                    : "Manual"}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Users className="w-3.5 h-3.5" />
-                                  {v.seats} places
+                                  {v.seats} {locale === "ar" ? "مقاعد" : locale === "en" ? "seats" : "places"}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Fuel className="w-3.5 h-3.5" />
@@ -627,14 +654,16 @@ function BookingContent() {
                                 </span>
                               </div>
                             </div>
-                            <div className="text-right flex-shrink-0">
-                              <div className="text-xl font-bold text-blue-700 dark:text-blue-400">
+                            <div className="w-full sm:w-auto flex items-center justify-between sm:flex-col sm:items-end gap-1 border-t sm:border-t-0 border-border/50 pt-2 sm:pt-0 shrink-0">
+                              <div className="text-lg sm:text-xl font-bold text-blue-700 dark:text-blue-400">
                                 {fmt(v.pricing?.daily)} {currencySymbol}
                               </div>
-                              <div className="text-xs text-muted-foreground">/ jour TTC</div>
+                              <div className="text-[11px] text-muted-foreground">
+                                {locale === "ar" ? "/ يوم شامل" : locale === "en" ? "/ day incl. tax" : "/ jour TTC"}
+                              </div>
                             </div>
                             {isSelected && (
-                              <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0">
+                              <div className="hidden sm:flex w-7 h-7 rounded-full bg-blue-600 text-white items-center justify-center shrink-0">
                                 <Check className="w-4 h-4" />
                               </div>
                             )}
@@ -687,8 +716,16 @@ function BookingContent() {
                           <div className="text-xs text-muted-foreground">
                             {priceFormatted}{" "}
                             {extra.pricingType === "per_rental"
-                              ? "(forfait location)"
-                              : extra.unit || "/ jour"}
+                              ? locale === "ar"
+                                ? "(لكل إيجار)"
+                                : locale === "en"
+                                ? "(flat fee)"
+                                : "(forfait location)"
+                              : locale === "ar"
+                              ? "/ يوم"
+                              : locale === "en"
+                              ? "/ day"
+                              : "/ jour"}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -838,7 +875,13 @@ function BookingContent() {
                     </label>
                     <textarea
                       rows={3}
-                      placeholder="Précisez votre numéro de vol pour un accueil personnalisé avec pancarte à l'aéroport..."
+                      placeholder={
+                        locale === "ar"
+                          ? "يرجى تحديد رقم رحلتك الجوية للاستقبال المباشر بلافتة في المطار..."
+                          : locale === "en"
+                          ? "Provide your flight number for airport curbside greeting with name board..."
+                          : "Précisez votre numéro de vol pour un accueil personnalisé avec pancarte à l'aéroport..."
+                      }
                       value={data.notes}
                       onChange={(e) => setData((d) => ({ ...d, notes: e.target.value }))}
                       className="w-full px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm resize-none bg-white dark:bg-neutral-800"
@@ -890,7 +933,9 @@ function BookingContent() {
                 {/* Price breakdown in TND */}
                 <div className="space-y-2 text-sm border-t border-b border-border dark:border-neutral-800 py-3">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Sous-total location</span>
+                    <span className="text-muted-foreground">
+                      {locale === "ar" ? "المجموع الفرعي للإيجار" : locale === "en" ? "Rental Subtotal" : "Sous-total location"}
+                    </span>
                     <span className="font-medium">
                       {fmt(subtotal)} {currencySymbol}
                     </span>
@@ -898,7 +943,9 @@ function BookingContent() {
 
                   {extrasTotal > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Options additionnelles</span>
+                      <span className="text-muted-foreground">
+                        {locale === "ar" ? "الخيارات الإضافية" : locale === "en" ? "Additional Options" : "Options additionnelles"}
+                      </span>
                       <span className="font-medium">
                         +{fmt(extrasTotal)} {currencySymbol}
                       </span>
@@ -907,7 +954,9 @@ function BookingContent() {
 
                   {discountAmount > 0 && (
                     <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                      <span>Remise Code Promo</span>
+                      <span>
+                        {locale === "ar" ? "خصم الرمز الترويجي" : locale === "en" ? "Promo Code Discount" : "Remise Code Promo"}
+                      </span>
                       <span>
                         -{fmt(discountAmount)} {currencySymbol}
                       </span>
@@ -930,7 +979,13 @@ function BookingContent() {
 
                   {depositAmount > 0 && (
                     <div className="text-xs text-muted-foreground flex justify-between pt-1">
-                      <span>Caution par carte bancaire (restituée au retour)</span>
+                      <span>
+                        {locale === "ar"
+                          ? "التأمين بالبطاقة البنكية (يُرجع عند التسليم)"
+                          : locale === "en"
+                          ? "Credit card deposit (released upon return)"
+                          : "Caution par carte bancaire (restituée au retour)"}
+                      </span>
                       <span>
                         {fmt(depositAmount)} {currencySymbol}
                       </span>
@@ -942,7 +997,9 @@ function BookingContent() {
                 <div>
                   <label className="block text-sm font-semibold mb-1.5 flex items-center gap-2">
                     <Tag className="w-4 h-4 text-blue-600" />
-                    Code promotionnel
+                    <span>
+                      {locale === "ar" ? "رمز الخصم" : locale === "en" ? "Promo Code" : "Code promotionnel"}
+                    </span>
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -960,7 +1017,15 @@ function BookingContent() {
                       disabled={couponLoading || !data.couponCode.trim()}
                       className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
                     >
-                      {couponLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Appliquer"}
+                      {couponLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : locale === "ar" ? (
+                        "تطبيق"
+                      ) : locale === "en" ? (
+                        "Apply"
+                      ) : (
+                        "Appliquer"
+                      )}
                     </button>
                   </div>
 

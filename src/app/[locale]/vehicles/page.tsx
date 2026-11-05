@@ -407,10 +407,10 @@ function VehiclesContent() {
                           </span>
                           <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 dark:bg-neutral-800 px-2 py-0.5 rounded-md font-medium">
                             <Users className="w-3 h-3" />
-                            {v.seats} {locale === "ar" ? "مقاعد" : "places"}
+                            {v.seats} {locale === "ar" ? "مقاعد" : locale === "en" ? "seats" : "places"}
                           </span>
                           <span className="text-[11px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-md font-medium">
-                            ❄️ Clim
+                            ❄️ {locale === "ar" ? "مكيّف" : "A/C"}
                           </span>
                         </div>
                       </div>
@@ -423,11 +423,11 @@ function VehiclesContent() {
                           <div className="flex items-baseline gap-1">
                             <span className="text-2xl font-black text-foreground">{dailyTND}</span>
                             <span className="text-muted-foreground text-xs font-bold uppercase">
-                              TND / {locale === "ar" ? "يوم" : "jour"}
+                              TND / {locale === "ar" ? "يوم" : locale === "en" ? "day" : "jour"}
                             </span>
                           </div>
                           <div className="text-[11px] text-muted-foreground">
-                            ≈ {dailyEUR} € · Caution: {depositTND} TND
+                            ≈ {dailyEUR} € · {locale === "ar" ? "الوديعة:" : locale === "en" ? "Deposit:" : "Caution:"} {depositTND} TND
                           </div>
                         </div>
 
@@ -492,7 +492,12 @@ function VehiclesContent() {
                     unoptimized
                   />
                   <div className="absolute top-3 left-3 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
-                    ✓ {modalVehicle.availableUnits ?? 3} {locale === "ar" ? "سيارات متوفرة في الأسطول" : "véhicules disponibles dans le parc"}
+                    ✓ {modalVehicle.availableUnits ?? 3}{" "}
+                    {locale === "ar"
+                      ? "سيارات متوفرة في الأسطول"
+                      : locale === "en"
+                      ? "cars available in fleet"
+                      : "véhicules disponibles dans le parc"}
                   </div>
                 </div>
 
@@ -524,15 +529,23 @@ function VehiclesContent() {
                       {modalVehicle.brand} {modalVehicle.model}
                     </h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Année modèle {modalVehicle.year || 2024} · Kilométrage illimité inclus · Assistance 24/7 en Tunisie
+                      {locale === "en"
+                        ? `Model year ${modalVehicle.year || 2024} · Unlimited mileage included · 24/7 Roadside Assistance in Tunisia`
+                        : locale === "ar"
+                        ? `سنة الموديل ${modalVehicle.year || 2024} · مسافة غير محدودة مشمولة · مساعدة على الطريق 24/7 في تونس`
+                        : `Année modèle ${modalVehicle.year || 2024} · Kilométrage illimité inclus · Assistance 24/7 en Tunisie`}
                     </p>
                   </div>
                   <div className="sm:text-right">
                     <div className="text-3xl font-black text-foreground">
-                      {getDailyTND(modalVehicle)} <span className="text-sm font-bold text-muted-foreground">TND / jour</span>
+                      {getDailyTND(modalVehicle)}{" "}
+                      <span className="text-sm font-bold text-muted-foreground">
+                        TND / {locale === "ar" ? "يوم" : locale === "en" ? "day" : "jour"}
+                      </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      ≈ {Math.round(getDailyTND(modalVehicle) / 3.35)} € / jour · Caution: {getDepositTND(modalVehicle)} TND
+                      ≈ {Math.round(getDailyTND(modalVehicle) / 3.35)} € / {locale === "ar" ? "يوم" : locale === "en" ? "day" : "jour"} ·{" "}
+                      {locale === "ar" ? "الوديعة:" : locale === "en" ? "Deposit:" : "Caution:"} {getDepositTND(modalVehicle)} TND
                     </p>
                   </div>
                 </div>
@@ -540,28 +553,36 @@ function VehiclesContent() {
                 {/* Key Specs Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-3 rounded-xl bg-muted/40 dark:bg-neutral-800 border border-border/50">
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold">Transmission</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                      {locale === "ar" ? "ناقل الحركة" : locale === "en" ? "Transmission" : "Boîte de vitesses"}
+                    </p>
                     <p className="text-sm font-bold text-foreground mt-0.5 flex items-center gap-1.5">
                       <Gauge className="w-4 h-4 text-amber-500" />
                       {getTransmissionLabel(modalVehicle.transmission)}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-muted/40 dark:bg-neutral-800 border border-border/50">
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold">Carburant</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                      {locale === "ar" ? "الوقود" : locale === "en" ? "Fuel" : "Carburant"}
+                    </p>
                     <p className="text-sm font-bold text-foreground mt-0.5 flex items-center gap-1.5">
                       <Fuel className="w-4 h-4 text-amber-500" />
                       {getFuelLabel(modalVehicle.fuelType)}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-muted/40 dark:bg-neutral-800 border border-border/50">
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold">Capacité</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                      {locale === "ar" ? "السعة" : locale === "en" ? "Capacity" : "Capacité"}
+                    </p>
                     <p className="text-sm font-bold text-foreground mt-0.5 flex items-center gap-1.5">
                       <Users className="w-4 h-4 text-amber-500" />
-                      {modalVehicle.seats} places
+                      {modalVehicle.seats} {locale === "ar" ? "مقاعد" : locale === "en" ? "seats" : "places"}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-muted/40 dark:bg-neutral-800 border border-border/50">
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold">Caution</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                      {locale === "ar" ? "الوديعة" : locale === "en" ? "Deposit" : "Caution"}
+                    </p>
                     <p className="text-sm font-bold text-foreground mt-0.5 flex items-center gap-1.5">
                       <Shield className="w-4 h-4 text-emerald-500" />
                       {getDepositTND(modalVehicle)} TND
@@ -572,16 +593,16 @@ function VehiclesContent() {
                 {/* Features list */}
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                    Équipements & Inclusions
+                    {locale === "en" ? "Equipment & Inclusions" : locale === "ar" ? "المعدات والمزايا المشمولة" : "Équipements & Inclusions"}
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {[
-                      "Climatisation automatique A/C",
-                      "Assistance routière 24h/24 partout en Tunisie",
-                      "Kilométrage 100% illimité",
-                      "Siège bébé / enfant offert sur demande (0 TND)",
-                      "Second conducteur offert gratuitement (0 TND)",
-                      "Prise en charge aéroport sans file d'attente",
+                      locale === "en" ? "Automatic A/C climate control" : locale === "ar" ? "تكييف هواء أوتوماتيكي" : "Climatisation automatique A/C",
+                      locale === "en" ? "24/7 dedicated roadside assistance across Tunisia" : locale === "ar" ? "مساعدة على الطريق 24/7 في كافة أنحاء تونس" : "Assistance routière 24h/24 partout en Tunisie",
+                      locale === "en" ? "100% Unlimited mileage" : locale === "ar" ? "مسافة 100% غير محدودة" : "Kilométrage 100% illimité",
+                      locale === "en" ? "Complimentary child / baby seat on request (0 TND)" : locale === "ar" ? "مقعد طفل / رضيع مجاني عند الطلب (0 د.ت)" : "Siège bébé / enfant offert sur demande (0 TND)",
+                      locale === "en" ? "Free 2nd driver included (0 TND)" : locale === "ar" ? "سائق إضافي ثانٍ مجاناً (0 د.ت)" : "Second conducteur offert gratuitement (0 TND)",
+                      locale === "en" ? "Zero counter queues & fast airport terminal delivery" : locale === "ar" ? "تسليم سريع بالمطار بدون طوابير" : "Prise en charge aéroport sans file d'attente",
                     ].map((feat, i) => (
                       <div key={i} className="flex items-center gap-2 text-xs text-foreground">
                         <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -598,8 +619,14 @@ function VehiclesContent() {
                   href={`/vehicles/${modalVehicle._id}`}
                   className="text-xs font-semibold text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                 >
-                  <span>{locale === "fr" ? "Voir la page détaillée complète" : "View full detail page"}</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>
+                    {locale === "fr"
+                      ? "Voir la page détaillée complète"
+                      : locale === "ar"
+                      ? "عرض صفحة التفاصيل الكاملة"
+                      : "View full detail page"}
+                  </span>
+                  <ExternalLink className="w-3.5 h-3.5 rtl-flip" />
                 </Link>
 
                 <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -608,7 +635,7 @@ function VehiclesContent() {
                     onClick={() => setModalVehicle(null)}
                     className="px-4 py-2.5 rounded-xl border border-border text-xs font-semibold hover:bg-muted transition-colors"
                   >
-                    Fermer
+                    {locale === "fr" ? "Fermer" : locale === "ar" ? "إغلاق" : "Close"}
                   </button>
                   <Link
                     href={`/booking?vehicleId=${modalVehicle._id}${pickupDate ? `&pickupDate=${pickupDate}` : ""}${returnDate ? `&returnDate=${returnDate}` : ""}`}

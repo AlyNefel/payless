@@ -179,30 +179,54 @@ export default function TermsPage() {
           <div className="p-4 rounded-2xl bg-slate-900/80 border border-blue-500/20 backdrop-blur-sm space-y-1.5">
             <div className="flex items-center gap-2 text-blue-400 font-bold text-xs uppercase">
               <Clock className="w-4 h-4" />
-              <span>Âge Minimal & Permis</span>
+              <span>
+                {locale === "en" ? "Minimum Age & License" : locale === "ar" ? "الحد الأدنى للعمر والرخصة" : "Âge Minimal & Permis"}
+              </span>
             </div>
             <p className="text-xs text-slate-300">
-              <strong>23 ans</strong> pour les citadines, <strong>25 ans</strong> pour les compactes, berlines et SUV. Permis de conduire valide depuis <strong>≥ 24 mois</strong>.
+              {locale === "en" ? (
+                <><strong>23 years old</strong> for city cars, <strong>25 years old</strong> for SUVs & sedans. Valid license for <strong>≥ 24 months</strong>.</>
+              ) : locale === "ar" ? (
+                <><strong>23 سنة</strong> للسيارات الصغيرة، و<strong>25 سنة</strong> لسيارات SUV والسيدان. رخصة سارية لأكثر من <strong>24 شهراً</strong>.</>
+              ) : (
+                <><strong>23 ans</strong> pour les citadines, <strong>25 ans</strong> pour les compactes, berlines et SUV. Permis de conduire valide depuis <strong>≥ 24 mois</strong>.</>
+              )}
             </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-900/80 border border-amber-500/20 backdrop-blur-sm space-y-1.5">
             <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase">
               <MapPin className="w-4 h-4" />
-              <span>Territoire Tunisien Exclusif</span>
+              <span>
+                {locale === "en" ? "Tunisian Territory Only" : locale === "ar" ? "التراب التونسي حصراً" : "Territoire Tunisien Exclusif"}
+              </span>
             </div>
             <p className="text-xs text-slate-300">
-              Circulation autorisée exclusivement en <strong>République Tunisienne</strong>. Interdiction absolue de franchir les frontières du pays.
+              {locale === "en" ? (
+                <>Authorized travel strictly within the <strong>Republic of Tunisia</strong>. Crossing national borders is strictly prohibited.</>
+              ) : locale === "ar" ? (
+                <>الجولان مسموح به حصراً داخل <strong>الجمهورية التونسية</strong>. يمنع منعاً باتاً عبور الحدود الدولية.</>
+              ) : (
+                <>Circulation autorisée exclusivement en <strong>République Tunisienne</strong>. Interdiction absolue de franchir les frontières du pays.</>
+              )}
             </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-900/80 border border-emerald-500/20 backdrop-blur-sm space-y-1.5">
             <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase">
               <Sparkles className="w-4 h-4" />
-              <span>Kilométrage Illimité</span>
+              <span>
+                {locale === "en" ? "Unlimited Mileage" : locale === "ar" ? "مسافة غير محدودة" : "Kilométrage Illimité"}
+              </span>
             </div>
             <p className="text-xs text-slate-300">
-              Tous nos contrats bénéficient du <strong>kilométrage illimité</strong> et d'une assistance dépannage dédiée <strong>24h/24 & 7j/7</strong>.
+              {locale === "en" ? (
+                <>All contracts include <strong>unlimited mileage</strong> and dedicated roadside assistance <strong>24/7</strong>.</>
+              ) : locale === "ar" ? (
+                <>تشمل جميع العقود <strong>مسافة غير محدودة</strong> مع خدمة مساعدة على الطريق <strong>24/7</strong>.</>
+              ) : (
+                <>Tous nos contrats bénéficient du <strong>kilométrage illimité</strong> et d'une assistance dépannage dédiée <strong>24h/24 & 7j/7</strong>.</>
+              )}
             </p>
           </div>
         </div>
@@ -215,7 +239,13 @@ export default function TermsPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher dans les 14 articles (ex: caution, assurance, âge, permis)..."
+              placeholder={
+                locale === "en"
+                  ? "Search across all 14 articles (e.g. deposit, insurance, age, fuel)..."
+                  : locale === "ar"
+                  ? "البحث في بنود العقد الـ 14 (تأمين، وديعة، عمر، وقود)..."
+                  : "Rechercher dans les 14 articles (ex: caution, assurance, âge, permis)..."
+              }
               className="w-full rounded-xl bg-slate-950 border border-slate-700/80 pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
             />
           </div>
@@ -225,13 +255,13 @@ export default function TermsPage() {
               onClick={expandAll}
               className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-slate-300 transition-colors"
             >
-              Tout Déplier
+              {locale === "en" ? "Expand All" : locale === "ar" ? "فتح الكل" : "Tout Déplier"}
             </button>
             <button
               onClick={collapseAll}
               className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-slate-300 transition-colors"
             >
-              Tout Replier
+              {locale === "en" ? "Collapse All" : locale === "ar" ? "طي الكل" : "Tout Replier"}
             </button>
           </div>
         </div>
@@ -274,12 +304,20 @@ export default function TermsPage() {
         </div>
 
         {/* CTA Footer */}
-        <div className="p-8 rounded-3xl bg-gradient-to-r from-blue-900/30 via-slate-900 to-blue-900/30 border border-blue-500/30 text-center space-y-4">
-          <h3 className="text-xl sm:text-2xl font-bold text-white">
-            Besoin d'une précision sur les conditions de location ?
+        <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-blue-900/30 via-slate-900 to-blue-900/30 border border-blue-500/30 text-center space-y-4">
+          <h3 className="text-lg sm:text-2xl font-bold text-white">
+            {locale === "en"
+              ? "Need Clarification on Our Rental Terms?"
+              : locale === "ar"
+              ? "هل تحتاج لتوضيح بشأن شروط التأجير؟"
+              : "Besoin d'une précision sur les conditions de location ?"}
           </h3>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
-            Notre équipe commerciale et assistance est disponible 7j/7 pour répondre à toutes vos questions avant votre départ.
+            {locale === "en"
+              ? "Our sales and roadside assistance team is available 24/7 to answer all your questions before your arrival."
+              : locale === "ar"
+              ? "فريقنا متواجد 7 أيام في الأسبوع للإجابة على جميع استفساراتكم قبل موعد انطلاقكم."
+              : "Notre équipe commerciale et assistance est disponible 7j/7 pour répondre à toutes vos questions avant votre départ."}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <a
@@ -288,14 +326,26 @@ export default function TermsPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-lg shadow-emerald-600/25"
             >
-              <span>Contacter sur WhatsApp (+216 25 120 130)</span>
+              <span>
+                {locale === "en"
+                  ? "Chat on WhatsApp (+216 25 120 130)"
+                  : locale === "ar"
+                  ? "تواصل عبر واتساب (+216 25 120 130)"
+                  : "Contacter sur WhatsApp (+216 25 120 130)"}
+              </span>
             </a>
             <Link
               href={`/${locale}/vehicles`}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-lg shadow-blue-600/25"
             >
-              <span>Voir Notre Flotte 2026</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>
+                {locale === "en"
+                  ? "Explore 2026 Fleet"
+                  : locale === "ar"
+                  ? "عرض أسطول 2026"
+                  : "Voir Notre Flotte 2026"}
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 rtl-flip" />
             </Link>
           </div>
         </div>

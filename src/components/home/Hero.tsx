@@ -29,28 +29,27 @@ export function Hero() {
   const overlayOpacity = useTransform(scrollYProgress, [0, 0.7], [0.6, 0.85]);
   const contentY = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
 
-  const trustPillars = [
-    {
-      icon: ShieldCheck,
-      title: "Verified Fleet",
-      desc: "Guaranteed exact model, zero substitutions",
-    },
-    {
-      icon: Headphones,
-      title: "24/7 Roadside Concierge",
-      desc: "Instant assistance anywhere in Tunisia (+216 25 120 130)",
-    },
-    {
-      icon: Zap,
-      title: "Instant Confirmation",
-      desc: "Immediate WhatsApp voucher & contract",
-    },
-    {
-      icon: BadgeCheck,
-      title: "0 TND Deposit Options",
-      desc: "Zero excess plans for total peace of mind",
-    },
-  ];
+  const trustPillarsData = {
+    fr: [
+      { icon: ShieldCheck, title: "Flotte Vérifiée", desc: "Modèle exact garanti, zéro substitution ni déclassement" },
+      { icon: Headphones, title: "Conciergerie 24/7", desc: "Assistance immédiate partout en Tunisie (+216 25 120 130)" },
+      { icon: Zap, title: "Confirmation Instantanée", desc: "Bon WhatsApp & contrat immédiat après réservation" },
+      { icon: BadgeCheck, title: "Options 0 TND Dépôt", desc: "Formules zéro franchise pour une sérénité totale" },
+    ],
+    en: [
+      { icon: ShieldCheck, title: "Verified Fleet", desc: "Guaranteed exact model, zero substitutions or downgrades" },
+      { icon: Headphones, title: "24/7 Roadside Concierge", desc: "Instant assistance anywhere in Tunisia (+216 25 120 130)" },
+      { icon: Zap, title: "Instant Confirmation", desc: "Immediate WhatsApp voucher & contract upon booking" },
+      { icon: BadgeCheck, title: "0 TND Deposit Options", desc: "Zero excess plans for total peace of mind" },
+    ],
+    ar: [
+      { icon: ShieldCheck, title: "أسطول مضمون", desc: "نفس الموديل المحجوز مضمون بدون إحلال أو تبديل" },
+      { icon: Headphones, title: "مساعدة 24/7 على الطريق", desc: "دعم فوري في كل مكان بتونس (+216 25 120 130)" },
+      { icon: Zap, title: "تأكيد فوري", desc: "وصل واتساب وعقد فوريان بعد الحجز مباشرة" },
+      { icon: BadgeCheck, title: "خيارات بدون وديعة", desc: "خطط بدون فرانشيز لراحة بال تامة" },
+    ],
+  };
+  const trustPillars = trustPillarsData[locale as "fr" | "en" | "ar"] ?? trustPillarsData.fr;
 
   const scrollToSearch = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -264,7 +263,7 @@ export function Hero() {
       {/* Subtle bottom scroll indicator */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center">
         <span className="text-[10px] uppercase tracking-widest text-neutral-500 mb-1">
-          Scroll to Reserve
+          {locale === "ar" ? "مرر للحجز" : locale === "fr" ? "Défiler pour réserver" : "Scroll to Reserve"}
         </span>
         <div className="w-5 h-8 border border-neutral-700 rounded-full flex items-start justify-center p-1">
           <motion.div
