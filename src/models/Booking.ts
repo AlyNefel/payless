@@ -44,6 +44,22 @@ export interface IBookingAudit {
   notes?: string;
 }
 
+export interface IModificationRequest {
+  status: "pending" | "approved" | "rejected";
+  requestedAt: Date;
+  processedAt?: Date;
+  processedBy?: string;
+  pickupDate?: Date;
+  returnDate?: Date;
+  pickupTime?: string;
+  returnTime?: string;
+  pickupLocationId?: mongoose.Types.ObjectId;
+  returnLocationId?: mongoose.Types.ObjectId;
+  customerNotes?: string;
+  reason?: string;
+  decisionNotes?: string;
+}
+
 export interface IBooking extends Document {
   _id: mongoose.Types.ObjectId;
   bookingReference: string;
@@ -64,6 +80,7 @@ export interface IBooking extends Document {
   internalNotes: string;
   customerNotes?: string;
   auditHistory: IBookingAudit[];
+  modificationRequest?: IModificationRequest;
   pickupRecordedAt?: Date;
   returnRecordedAt?: Date;
   cancellationReason?: string;
@@ -161,6 +178,24 @@ const BookingSchema = new Schema<IBooking>(
         notes: String,
       },
     ],
+    modificationRequest: {
+      status: {
+        type: String,
+        enum: ["pending", "approved", "rejected"],
+      },
+      requestedAt: { type: Date, default: Date.now },
+      processedAt: Date,
+      processedBy: String,
+      pickupDate: Date,
+      returnDate: Date,
+      pickupTime: String,
+      returnTime: String,
+      pickupLocationId: { type: Schema.Types.ObjectId, ref: "Location" },
+      returnLocationId: { type: Schema.Types.ObjectId, ref: "Location" },
+      customerNotes: String,
+      reason: String,
+      decisionNotes: String,
+    },
     pickupRecordedAt: Date,
     returnRecordedAt: Date,
     cancellationReason: String,

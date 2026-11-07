@@ -61,6 +61,8 @@ const updateSchema = z.object({
   returnDate: z.string().optional(),
   actualPickupDate: z.string().optional(),
   actualReturnDate: z.string().optional(),
+  modificationDecision: z.enum(["approve", "reject"]).optional(),
+  decisionNotes: z.string().max(1000).optional(),
 }).passthrough();
 
 export async function PATCH(
@@ -85,16 +87,122 @@ export async function PATCH(
       updates.bookingStatus = parsed.data.status;
     }
 
+    const currentBooking = await Booking.findById(id).populate("vehicleId").populate("customerId");
+    if (!currentBooking) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+
+    // Handle modification request decision (approve or reject)
+    if (parsed.data.modificationDecision && currentBooking.modificationRequest) {
+      const decision = parsed.data.modificationDecision;
+      const notes = parsed.data.decisionNotes || "";
+
+      if (decision === "approve") {
+        const mod = currentBooking.modificationRequest;
+        if (mod.pickupDate) updates.pickupDate = mod.pickupDate;
+        if (mod.returnDate) updates.returnDate = mod.returnDate;
+        if (mod.pickupTime) updates.pickupTime = mod.pickupTime;
+        if (mod.returnTime) updates.returnTime = mod.returnTime;
+        if (mod.pickupLocationId) updates.pickupLocationId = mod.pickupLocationId;
+        if (mod.returnLocationId) updates.returnLocationId = mod.returnLocationId;
+        if (mod.customerNotes) updates.customerNotes = mod.customerNotes;
+
+        // Recalculate duration & pricing if dates changed
+        if (mod.pickupDate && mod.returnDate) {
+          const days = Math.max(1, Math.ceil((new Date(mod.returnDate).getTime() - new Date(mod.pickupDate).getTime()) / (24 * 3600 * 1000)));
+          updates.rentalDuration = days;
+          if (currentBooking.pricingBreakdown) {
+            const veh = currentBooking.vehicleId as unknown as { pricing?: { daily: number; weekly: number; monthly: number } } | null;
+            let subtotal = currentBooking.pricingBreakdown.subtotal;
+            if (veh?.pricing) {
+              const daily = veh.pricing.daily || 10000;
+              subtotal = days * daily;
+            }
+            const timbre = currentBooking.pricingBreakdown.timbreFiscal ?? 100;
+            const contrib = 200 * days;
+            const total = Math.max(0, subtotal + (currentBooking.pricingBreakdown.extrasTotal || 0) + timbre + contrib - (currentBooking.pricingBreakdown.discountAmount || 0));
+            updates.pricingBreakdown = {
+              ...currentBooking.pricingBreakdown,
+              rentalDays: days,
+              subtotal,
+              contributionLF2026: contrib,
+              totalAmount: total,
+            };
+          }
+        }
+
+        updates["modificationRequest.status"] = "approved";
+        updates["modificationRequest.processedAt"] = new Date();
+        updates["modificationRequest.processedBy"] = session.user?.email || "Admin";
+        updates["modificationRequest.decisionNotes"] = notes;
+
+        // Notify customer via email about modification approval
+        try {
+          const cust = currentBooking.customerId as unknown as { email?: string; firstName?: string; lastName?: string } | null;
+          if (cust?.email) {
+            sendEmail({
+              to: cust.email,
+              toName: `${cust.firstName || ""} ${cust.lastName || ""}`.trim(),
+              subject: `✅ Demande de modification ACCEPTÉE - ${currentBooking.bookingReference} | Payless`,
+              html: `
+                <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+                  <h2 style="color: #16a34a;">Votre demande de modification a été validée</h2>
+                  <p>Bonjour ${cust.firstName || "Client"},</p>
+                  <p>L'agence Payless a le plaisir de vous confirmer que votre demande de modification pour la réservation <strong>${currentBooking.bookingReference}</strong> a été <strong>acceptée</strong>.</p>
+                  <p>Votre contrat et vos vouchers ont été mis à jour avec vos nouvelles dates.</p>
+                  ${notes ? `<p><strong>Note de l'agence :</strong> ${notes}</p>` : ""}
+                  <p><a href="${process.env.NEXT_PUBLIC_APP_URL || ""}/fr/booking/status?ref=${currentBooking.bookingReference}" style="display:inline-block; padding:12px 24px; background:#16a34a; color:#fff; text-decoration:none; border-radius:8px; font-weight:bold;">Voir mon dossier mis à jour</a></p>
+                </div>
+              `,
+              templateType: "booking_modified",
+            }).catch((e) => console.error("Email send error:", e));
+          }
+        } catch (mailErr) {
+          console.error("Email notify customer mod approve error:", mailErr);
+        }
+      } else if (decision === "reject") {
+        updates["modificationRequest.status"] = "rejected";
+        updates["modificationRequest.processedAt"] = new Date();
+        updates["modificationRequest.processedBy"] = session.user?.email || "Admin";
+        updates["modificationRequest.decisionNotes"] = notes;
+
+        // Notify customer via email about rejection
+        try {
+          const cust = currentBooking.customerId as unknown as { email?: string; firstName?: string; lastName?: string } | null;
+          if (cust?.email) {
+            sendEmail({
+              to: cust.email,
+              toName: `${cust.firstName || ""} ${cust.lastName || ""}`.trim(),
+              subject: `ℹ️ Demande de modification non acceptée - ${currentBooking.bookingReference} | Payless`,
+              html: `
+                <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+                  <h2 style="color: #dc2626;">Information concernant votre demande de modification</h2>
+                  <p>Bonjour ${cust.firstName || "Client"},</p>
+                  <p>Nous vous informons que votre demande de modification pour la réservation <strong>${currentBooking.bookingReference}</strong> n'a pas pu être acceptée par l'agence en raison des disponibilités du parc automobile.</p>
+                  <p>Votre réservation initiale reste <strong>active et confirmée</strong> selon les dates préalablement convenues.</p>
+                  ${notes ? `<p><strong>Précision de l'agence :</strong> ${notes}</p>` : ""}
+                  <p>Pour tout renseignement complémentaire, contactez-nous directement sur WhatsApp ou par téléphone au +216 25 120 130.</p>
+                </div>
+              `,
+              templateType: "booking_modified",
+            }).catch((e) => console.error("Email send error:", e));
+          }
+        } catch (mailErr) {
+          console.error("Email notify customer mod reject error:", mailErr);
+        }
+      }
+    }
+
     // Record audit history entry
     const auditEntry = {
       timestamp: new Date(),
-      action: `Status updated to ${parsed.data.status || "modified"}`,
+      action: parsed.data.modificationDecision
+        ? `Demande de modification ${parsed.data.modificationDecision === "approve" ? "ACCEPTÉE" : "REFUSÉE"} par l'admin`
+        : `Statut mis à jour à ${parsed.data.status || "modifié"}`,
       performedBy: session.user?.email,
       changes: parsed.data,
     };
 
     const newStatus = parsed.data.status;
-    const oldBooking = await Booking.findById(id);
+    const oldBooking = currentBooking;
 
     const booking = await Booking.findByIdAndUpdate(
       id,

@@ -3,7 +3,6 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale } from "next-intl";
-import { Link } from "@/i18n/navigation";
 import {
   Search,
   Calendar,
@@ -16,13 +15,20 @@ import {
   Printer,
   MessageCircle,
   ShieldCheck,
-  ArrowRight,
-  ArrowLeft,
   Loader2,
   FileText,
-  HelpCircle,
   Phone,
+  Edit3,
+  X,
+  Send,
+  Info,
 } from "lucide-react";
+
+interface LocationItem {
+  _id: string;
+  name?: { fr?: string; en?: string; ar?: string };
+  city?: string;
+}
 
 interface TrackedBooking {
   _id: string;
@@ -34,8 +40,10 @@ interface TrackedBooking {
   rentalDuration: number;
   pickupTime?: string;
   returnTime?: string;
+  customerNotes?: string;
   createdAt: string;
   vehicleId?: {
+    _id: string;
     brand: string;
     model: string;
     year: number;
@@ -50,10 +58,12 @@ interface TrackedBooking {
     phone: string;
   };
   pickupLocationId?: {
+    _id?: string;
     name?: { fr?: string; en?: string; ar?: string };
     city?: string;
   };
   returnLocationId?: {
+    _id?: string;
     name?: { fr?: string; en?: string; ar?: string };
     city?: string;
   };
@@ -62,6 +72,17 @@ interface TrackedBooking {
     subtotal?: number;
     depositAmount?: number;
     currency?: string;
+  };
+  modificationRequest?: {
+    status: "pending" | "approved" | "rejected";
+    requestedAt: string;
+    pickupDate?: string;
+    returnDate?: string;
+    pickupTime?: string;
+    returnTime?: string;
+    customerNotes?: string;
+    reason?: string;
+    decisionNotes?: string;
   };
 }
 
@@ -75,11 +96,25 @@ function BookingStatusContent() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
+
+  // Modification modal states
+  const [showModifyModal, setShowModifyModal] = useState(false);
+  const [locations, setLocations] = useState<LocationItem[]>([]);
+  const [modPickupDate, setModPickupDate] = useState("");
+  const [modReturnDate, setModReturnDate] = useState("");
+  const [modPickupTime, setModPickupTime] = useState("10:00");
+  const [modReturnTime, setModReturnTime] = useState("10:00");
+  const [modPickupLoc, setModPickupLoc] = useState("");
+  const [modReturnLoc, setModReturnLoc] = useState("");
+  const [modReason, setModReason] = useState("");
+  const [submittingMod, setSubmittingMod] = useState(false);
+  const [modError, setModError] = useState("");
 
   const t = {
     fr: {
       title: "Suivi & Gestion de Réservation",
-      subtitle: "Consultez en temps réel le statut de votre véhicule, téléchargez votre bon ou contactez votre concierge.",
+      subtitle: "Consultez en temps réel le statut de votre véhicule, modifiez vos dates, téléchargez votre bon ou contactez votre concierge.",
       refLabel: "Référence de réservation",
       refPlaceholder: "Ex: PAY-2026-ABCD",
       emailLabel: "Adresse email utilisée",
@@ -101,13 +136,27 @@ function BookingStatusContent() {
       printVoucher: "Imprimer mon Bon de Réservation",
       whatsappBtn: "Assistance WhatsApp 24/7",
       cancelPolicy: "Annulation gratuite jusqu'à 48h avant la prise en charge.",
-      modifyBtn: "Demande de modification",
+      modifyBtn: "Modifier la réservation",
+      pendingDirectHint: "Votre réservation n'est pas encore confirmée : vous pouvez modifier vos dates directement, l'agence en sera immédiatement informée.",
+      confirmedRequestHint: "Votre réservation est déjà confirmée par l'agence : vous pouvez soumettre une demande de modification que l'administrateur examinera sous peu.",
+      modalTitleDirect: "Modifier ma réservation (Mise à jour directe)",
+      modalTitleRequest: "Demande de modification (Validation agence requise)",
+      pickupDateLabel: "Nouvelle date de départ",
+      returnDateLabel: "Nouvelle date de retour",
+      pickupTimeLabel: "Heure de prise en charge",
+      returnTimeLabel: "Heure de restitution",
+      pickupLocLabel: "Lieu de prise en charge",
+      returnLocLabel: "Lieu de restitution",
+      reasonLabel: "Motif ou remarques (Vol retardé, changement de programme...)",
+      submitDirectBtn: "Enregistrer la modification",
+      submitRequestBtn: "Envoyer la demande de modification",
+      cancelBtn: "Annuler",
       faqPrompt: "Une question concernant la remise des clés ?",
       callHotline: "Appeler l'assistance aéroport",
     },
     en: {
       title: "Reservation Tracking & Self-Service",
-      subtitle: "Track your vehicle in real-time, print your voucher, or connect directly with your curbside concierge.",
+      subtitle: "Track your vehicle in real-time, modify your dates, print your voucher, or connect directly with your curbside concierge.",
       refLabel: "Booking Reference",
       refPlaceholder: "e.g. PAY-2026-ABCD",
       emailLabel: "Email Address Used",
@@ -129,13 +178,27 @@ function BookingStatusContent() {
       printVoucher: "Print Official Voucher",
       whatsappBtn: "24/7 WhatsApp Concierge",
       cancelPolicy: "Free cancellation up to 48 hours before pickup.",
-      modifyBtn: "Request Modification",
+      modifyBtn: "Modify Booking",
+      pendingDirectHint: "Your booking is still pending confirmation: you can directly change dates, and our agency team will be immediately notified.",
+      confirmedRequestHint: "Your booking is confirmed: you can submit a change request that our dispatch team will review promptly.",
+      modalTitleDirect: "Directly Update Booking Dates",
+      modalTitleRequest: "Request Modification (Subject to Agency Approval)",
+      pickupDateLabel: "New Pick-up Date",
+      returnDateLabel: "New Drop-off Date",
+      pickupTimeLabel: "Pick-up Time",
+      returnTimeLabel: "Drop-off Time",
+      pickupLocLabel: "Pick-up Location",
+      returnLocLabel: "Drop-off Location",
+      reasonLabel: "Reason / Notes (Flight delay, schedule change...)",
+      submitDirectBtn: "Save Modifications",
+      submitRequestBtn: "Submit Modification Request",
+      cancelBtn: "Cancel",
       faqPrompt: "Need help with key hand-off?",
       callHotline: "Call Airport Support",
     },
     ar: {
       title: "متابعة وإدارة الحجز",
-      subtitle: "تابع حالة سيارتك في الوقت الفعلي، اطبع وصل الحجز أو تواصل مباشرة مع مسؤول الاستقبال في المطار.",
+      subtitle: "تابع حالة سيارتك في الوقت الفعلي، عدل مواعيد الحجز، اطبع وصل الحجز أو تواصل مباشرة مع فريق المطار.",
       refLabel: "مرجع الحجز",
       refPlaceholder: "مثال: PAY-2026-ABCD",
       emailLabel: "البريد الإلكتروني المستخدم",
@@ -157,7 +220,21 @@ function BookingStatusContent() {
       printVoucher: "طباعة وصل الحجز",
       whatsappBtn: "واتساب مباشر 24/7",
       cancelPolicy: "إلغاء مجاني حتى 48 ساعة قبل موعد الاستلام.",
-      modifyBtn: "طلب تعديل الموعد",
+      modifyBtn: "تعديل موعد الحجز",
+      pendingDirectHint: "حجزك قيد المراجعة: يمكنك تعديل المواعيد مباشرة وسيتم إشعار إدارة الوكالة فورا.",
+      confirmedRequestHint: "حجزك مؤكد بالفعل: يمكنك إرسال طلب تعديل وستقوم إدارة الوكالة بمراجعته والموافقة عليه.",
+      modalTitleDirect: "تعديل مباشر لبيانات الحجز",
+      modalTitleRequest: "طلب تعديل الحجز (يتطلب موافقة الوكالة)",
+      pickupDateLabel: "تاريخ الاستلام الجديد",
+      returnDateLabel: "تاريخ التسليم الجديد",
+      pickupTimeLabel: "توقيت الاستلام",
+      returnTimeLabel: "توقيت التسليم",
+      pickupLocLabel: "مكان الاستلام",
+      returnLocLabel: "مكان التسليم",
+      reasonLabel: "سبب التعديل أو ملاحظات (تغيير الرحلة، تأخير...)",
+      submitDirectBtn: "تأكيد التعديل المباشر",
+      submitRequestBtn: "إرسال طلب التعديل للوكالة",
+      cancelBtn: "إلغاء",
       faqPrompt: "هل لديك استفسار حول استلام المفاتيح؟",
       callHotline: "الاتصال بمكتب المطار",
     },
@@ -185,7 +262,21 @@ function BookingStatusContent() {
     printVoucher: "Print Voucher",
     whatsappBtn: "WhatsApp Concierge",
     cancelPolicy: "Free cancellation up to 48h.",
-    modifyBtn: "Request Modification",
+    modifyBtn: "Modify Booking",
+    pendingDirectHint: "Your booking is still pending: modify directly.",
+    confirmedRequestHint: "Your booking is confirmed: modification requires approval.",
+    modalTitleDirect: "Update Booking Dates",
+    modalTitleRequest: "Request Modification",
+    pickupDateLabel: "New Pick-up Date",
+    returnDateLabel: "New Drop-off Date",
+    pickupTimeLabel: "Pick-up Time",
+    returnTimeLabel: "Drop-off Time",
+    pickupLocLabel: "Pick-up Location",
+    returnLocLabel: "Drop-off Location",
+    reasonLabel: "Reason / Notes",
+    submitDirectBtn: "Save",
+    submitRequestBtn: "Send Request",
+    cancelBtn: "Cancel",
     faqPrompt: "Need help?",
     callHotline: "Call Hotline",
   };
@@ -196,6 +287,7 @@ function BookingStatusContent() {
 
     setLoading(true);
     setError("");
+    setActionSuccess("");
     setSearched(true);
 
     try {
@@ -219,12 +311,87 @@ function BookingStatusContent() {
     }
   };
 
+  // Fetch locations for modify modal
+  useEffect(() => {
+    fetch("/api/locations")
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.locations) {
+          setLocations(res.locations);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Auto-search if ref provided in query string
   useEffect(() => {
     if (searchParams.get("ref")) {
       handleLookup();
     }
   }, []);
+
+  const openModifyModal = () => {
+    if (!booking) return;
+    setModPickupDate(new Date(booking.pickupDate).toISOString().split("T")[0]);
+    setModReturnDate(new Date(booking.returnDate).toISOString().split("T")[0]);
+    setModPickupTime(booking.pickupTime || "10:00");
+    setModReturnTime(booking.returnTime || "10:00");
+    setModPickupLoc(booking.pickupLocationId?._id || "");
+    setModReturnLoc(booking.returnLocationId?._id || "");
+    setModReason("");
+    setModError("");
+    setShowModifyModal(true);
+  };
+
+  const handleModifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!booking) return;
+
+    if (!modPickupDate || !modReturnDate) {
+      setModError("Veuillez sélectionner les dates de prise en charge et de restitution.");
+      return;
+    }
+
+    if (new Date(modReturnDate).getTime() <= new Date(modPickupDate).getTime()) {
+      setModError("La date de retour doit être strictement postérieure à la date de départ.");
+      return;
+    }
+
+    setSubmittingMod(true);
+    setModError("");
+
+    try {
+      const res = await fetch(`/api/bookings/${booking._id}/modify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reference: booking.bookingReference,
+          email: booking.customerId?.email,
+          pickupDate: modPickupDate,
+          returnDate: modReturnDate,
+          pickupTime: modPickupTime,
+          returnTime: modReturnTime,
+          pickupLocationId: modPickupLoc || undefined,
+          returnLocationId: modReturnLoc || undefined,
+          reason: modReason,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setShowModifyModal(false);
+        setActionSuccess(data.message);
+        // Refresh booking data
+        handleLookup();
+      } else {
+        setModError(data.error || "Échec de la demande.");
+      }
+    } catch {
+      setModError("Erreur de connexion au serveur.");
+    } finally {
+      setSubmittingMod(false);
+    }
+  };
 
   const fmt = (n?: number) => {
     if (n === undefined || isNaN(n)) return "0";
@@ -239,6 +406,10 @@ function BookingStatusContent() {
     if (st === "completed") return 4;
     return 1;
   };
+
+  const canModify = booking && (booking.bookingStatus === "pending" || booking.bookingStatus === "confirmed");
+  const isPending = booking?.bookingStatus === "pending";
+  const isConfirmed = booking?.bookingStatus === "confirmed";
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-neutral-950 py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
@@ -319,10 +490,17 @@ function BookingStatusContent() {
           </div>
         )}
 
+        {actionSuccess && (
+          <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs sm:text-sm flex items-center gap-2.5 animate-in fade-in">
+            <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+            <span>{actionSuccess}</span>
+          </div>
+        )}
+
         {/* Booking Details Display */}
         {booking && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            {/* Top Reference Card & Stepper */}
+            {/* Top Reference Card & Action Bar */}
             <div className="p-6 rounded-3xl bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 shadow-xl space-y-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-5 border-b border-slate-100 dark:border-neutral-800">
                 <div>
@@ -334,7 +512,18 @@ function BookingStatusContent() {
                   </h2>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {canModify && (
+                    <button
+                      onClick={openModifyModal}
+                      type="button"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs font-bold hover:bg-blue-100 dark:hover:bg-blue-900/60 shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Edit3 className="w-4 h-4 text-blue-600" />
+                      <span>{t.modifyBtn}</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => window.print()}
                     type="button"
@@ -357,6 +546,66 @@ function BookingStatusContent() {
                   </a>
                 </div>
               </div>
+
+              {/* Status Context Banner */}
+              {isPending && (
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>{t.pendingDirectHint}</span>
+                  </div>
+                  <button
+                    onClick={openModifyModal}
+                    type="button"
+                    className="shrink-0 font-bold underline hover:opacity-80"
+                  >
+                    {t.modifyBtn} &rarr;
+                  </button>
+                </div>
+              )}
+
+              {isConfirmed && !booking.modificationRequest && (
+                <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-900 dark:text-blue-200 text-xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Info className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span>{t.confirmedRequestHint}</span>
+                  </div>
+                  <button
+                    onClick={openModifyModal}
+                    type="button"
+                    className="shrink-0 font-bold underline hover:opacity-80"
+                  >
+                    {t.modifyBtn} &rarr;
+                  </button>
+                </div>
+              )}
+
+              {/* Modification Request in Progress notification */}
+              {booking.modificationRequest && booking.modificationRequest.status === "pending" && (
+                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-200 text-xs space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-sm text-amber-900 dark:text-amber-300">
+                    <Clock className="w-4 h-4 animate-spin text-amber-600" />
+                    <span>Demande de modification en cours d'examen par l'agence</span>
+                  </div>
+                  <p className="text-amber-800 dark:text-amber-300/90">
+                    Vous avez demandé le{" "}
+                    {new Date(booking.modificationRequest.requestedAt).toLocaleDateString("fr-FR")} à décaler vos
+                    dates du{" "}
+                    <strong>
+                      {booking.modificationRequest.pickupDate
+                        ? new Date(booking.modificationRequest.pickupDate).toLocaleDateString("fr-FR")
+                        : ""}
+                    </strong>{" "}
+                    au{" "}
+                    <strong>
+                      {booking.modificationRequest.returnDate
+                        ? new Date(booking.modificationRequest.returnDate).toLocaleDateString("fr-FR")
+                        : ""}
+                    </strong>
+                    . Notre responsable d'agence va valider votre demande sous peu.
+                  </p>
+                </div>
+              )}
 
               {/* Visual 4-Step Interactive Timeline */}
               <div className="pt-2">
@@ -457,7 +706,9 @@ function BookingStatusContent() {
                     </p>
                     <p className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-1">
                       <Calendar className="w-3.5 h-3.5" />
-                      <span>{new Date(booking.pickupDate).toLocaleDateString("fr-FR")} à {booking.pickupTime || "10:00"}</span>
+                      <span>
+                        {new Date(booking.pickupDate).toLocaleDateString("fr-FR")} à {booking.pickupTime || "10:00"}
+                      </span>
                     </p>
                   </div>
 
@@ -471,7 +722,9 @@ function BookingStatusContent() {
                     </p>
                     <p className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-1">
                       <Calendar className="w-3.5 h-3.5" />
-                      <span>{new Date(booking.returnDate).toLocaleDateString("fr-FR")} à {booking.returnTime || "10:00"}</span>
+                      <span>
+                        {new Date(booking.returnDate).toLocaleDateString("fr-FR")} à {booking.returnTime || "10:00"}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -499,6 +752,187 @@ function BookingStatusContent() {
                   <span>+216 25 120 130</span>
                 </a>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODIFICATION MODAL */}
+        {showModifyModal && booking && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+            <div className="relative w-full max-w-lg rounded-3xl bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 shadow-2xl p-6 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto">
+              <button
+                onClick={() => setShowModifyModal(false)}
+                type="button"
+                className="absolute top-5 right-5 rtl:right-auto rtl:left-5 p-1.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="space-y-1">
+                <span
+                  className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    isPending
+                      ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                      : "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
+                  }`}
+                >
+                  {isPending ? "Mise à jour directe" : "Validation agence requise"}
+                </span>
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+                  {isPending ? t.modalTitleDirect : t.modalTitleRequest}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {isPending ? t.pendingDirectHint : t.confirmedRequestHint}
+                </p>
+              </div>
+
+              {modError && (
+                <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{modError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleModifySubmit} className="space-y-4">
+                {/* Dates */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      {t.pickupDateLabel}
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={modPickupDate}
+                      onChange={(e) => setModPickupDate(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      {t.returnDateLabel}
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={modReturnDate}
+                      onChange={(e) => setModReturnDate(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Times */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      {t.pickupTimeLabel}
+                    </label>
+                    <input
+                      type="time"
+                      value={modPickupTime}
+                      onChange={(e) => setModPickupTime(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      {t.returnTimeLabel}
+                    </label>
+                    <input
+                      type="time"
+                      value={modReturnTime}
+                      onChange={(e) => setModReturnTime(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Locations */}
+                {locations.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                        {t.pickupLocLabel}
+                      </label>
+                      <select
+                        value={modPickupLoc}
+                        onChange={(e) => setModPickupLoc(e.target.value)}
+                        className="w-full h-10 px-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Conserver l'emplacement initial</option>
+                        {locations.map((loc) => (
+                          <option key={loc._id} value={loc._id}>
+                            {loc.name?.[locale as "fr" | "en" | "ar"] || loc.name?.fr || loc.city}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                        {t.returnLocLabel}
+                      </label>
+                      <select
+                        value={modReturnLoc}
+                        onChange={(e) => setModReturnLoc(e.target.value)}
+                        className="w-full h-10 px-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Conserver l'emplacement initial</option>
+                        {locations.map((loc) => (
+                          <option key={loc._id} value={loc._id}>
+                            {loc.name?.[locale as "fr" | "en" | "ar"] || loc.name?.fr || loc.city}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Reason */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                    {t.reasonLabel}
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={modReason}
+                    onChange={(e) => setModReason(e.target.value)}
+                    placeholder="Ex: Vol TU712 décalé de 24h, souhait de prolonger le séjour..."
+                    className="w-full p-3 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-neutral-800">
+                  <button
+                    onClick={() => setShowModifyModal(false)}
+                    type="button"
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    {t.cancelBtn}
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={submittingMod}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {submittingMod ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Envoi en cours...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{isPending ? t.submitDirectBtn : t.submitRequestBtn}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

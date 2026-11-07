@@ -85,6 +85,19 @@ interface PopulatedBooking {
     currency?: string;
   };
   extras?: Array<{ name: string; price: number; quantity: number }>;
+  modificationRequest?: {
+    status: "pending" | "approved" | "rejected";
+    requestedAt: string;
+    pickupDate?: string;
+    returnDate?: string;
+    pickupTime?: string;
+    returnTime?: string;
+    customerNotes?: string;
+    reason?: string;
+    decisionNotes?: string;
+    processedBy?: string;
+    processedAt?: string;
+  };
   auditHistory?: Array<{
     timestamp: string;
     action: string;
@@ -108,6 +121,8 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const [internalNotes, setInternalNotes] = useState("");
   const [availableVehicles, setAvailableVehicles] = useState<Array<{ _id: string; brand: string; model: string; year: number }>>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
+  const [modDecisionLoading, setModDecisionLoading] = useState(false);
+  const [modDecisionNotes, setModDecisionNotes] = useState("");
 
   const fetchBooking = async () => {
     setLoading(true);
@@ -171,6 +186,41 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       setError("Erreur de communication avec le serveur.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleModificationDecision = async (decision: "approve" | "reject") => {
+    if (!confirm(decision === "approve" ? "Confirmez-vous l'ACCEPTATION de cette modification de dates ?" : "Confirmez-vous le REFUS de cette modification ?")) {
+      return;
+    }
+    setModDecisionLoading(true);
+    setError("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch(`/api/admin/bookings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modificationDecision: decision,
+          decisionNotes: modDecisionNotes,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.booking) {
+        setBooking(data.booking);
+        setSuccessMsg(
+          decision === "approve"
+            ? "Demande de modification acceptée ! Les dates et le prix ont été ajustés."
+            : "Demande de modification refusée. Le client a été notifié."
+        );
+        setModDecisionNotes("");
+      } else {
+        setError(data.error || "Erreur lors du traitement de la demande");
+      }
+    } catch {
+      setError("Erreur de connexion.");
+    } finally {
+      setModDecisionLoading(false);
     }
   };
 
@@ -285,6 +335,115 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
         <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {/* Pending Customer Modification Request Banner */}
+      {booking.modificationRequest && booking.modificationRequest.status === "pending" && (
+        <div className="p-5 rounded-2xl bg-amber-500/10 border-2 border-amber-500/30 text-amber-950 dark:text-amber-100 space-y-4 animate-in fade-in">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="p-2 rounded-xl bg-amber-500 text-white shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base text-amber-900 dark:text-amber-200">
+                  ⚠️ Demande de modification soumise par le client
+                </h3>
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Cette réservation confirmée a fait l'objet d'une demande de modification le{" "}
+                  {new Date(booking.modificationRequest.requestedAt).toLocaleString("fr-FR")}. Votre accord est requis.
+                </p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-amber-200 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 text-[11px] font-black uppercase tracking-wider">
+              En attente d'approbation
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-white/70 dark:bg-neutral-900/70 border border-amber-300/50 dark:border-amber-700/50 text-xs">
+            <div>
+              <span className="font-bold text-slate-500 uppercase text-[10px] tracking-wider">Dates Actuelles :</span>
+              <p className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
+                Du {new Date(booking.pickupDate).toLocaleDateString("fr-FR")} au {new Date(booking.returnDate).toLocaleDateString("fr-FR")} ({booking.rentalDuration} jours)
+              </p>
+            </div>
+
+            <div>
+              <span className="font-bold text-amber-600 dark:text-amber-400 uppercase text-[10px] tracking-wider">Nouvelles Dates Demandées :</span>
+              <p className="font-bold text-blue-600 dark:text-blue-400 mt-0.5">
+                Du {booking.modificationRequest.pickupDate ? new Date(booking.modificationRequest.pickupDate).toLocaleDateString("fr-FR") : "--"} au{" "}
+                {booking.modificationRequest.returnDate ? new Date(booking.modificationRequest.returnDate).toLocaleDateString("fr-FR") : "--"}
+                {booking.modificationRequest.pickupTime && ` (${booking.modificationRequest.pickupTime} - ${booking.modificationRequest.returnTime || ""})`}
+              </p>
+            </div>
+
+            {booking.modificationRequest.reason && (
+              <div className="sm:col-span-2 pt-2 border-t border-slate-200 dark:border-neutral-800">
+                <span className="font-bold text-slate-500 text-[11px]">Motif invoqué par le client :</span>
+                <p className="text-slate-700 dark:text-slate-300 italic mt-0.5">
+                  &ldquo;{booking.modificationRequest.reason}&rdquo;
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2 pt-1">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Note ou motif de votre décision (optionnel, envoyé au client) :
+            </label>
+            <input
+              type="text"
+              value={modDecisionNotes}
+              onChange={(e) => setModDecisionNotes(e.target.value)}
+              placeholder="Ex: Véhicule disponible, modification validée / Désolé, indisponible sur ces dates..."
+              className="w-full h-10 px-3.5 rounded-xl border border-slate-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <button
+              onClick={() => handleModificationDecision("approve")}
+              disabled={modDecisionLoading}
+              type="button"
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{modDecisionLoading ? "Traitement..." : "Accepter la modification"}</span>
+            </button>
+
+            <button
+              onClick={() => handleModificationDecision("reject")}
+              disabled={modDecisionLoading}
+              type="button"
+              className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-500/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <XCircle className="w-4 h-4" />
+              <span>{modDecisionLoading ? "Traitement..." : "Refuser la modification"}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* History of approved / rejected modification request */}
+      {booking.modificationRequest && booking.modificationRequest.status !== "pending" && (
+        <div className={`p-4 rounded-2xl border text-xs flex items-center justify-between gap-4 ${
+          booking.modificationRequest.status === "approved"
+            ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 text-emerald-900 dark:text-emerald-300"
+            : "bg-slate-100 dark:bg-neutral-900 border-slate-200 text-slate-700 dark:text-slate-300"
+        }`}>
+          <div className="flex items-center gap-2">
+            {booking.modificationRequest.status === "approved" ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
+            )}
+            <span>
+              Dernière demande de modification : <strong>{booking.modificationRequest.status === "approved" ? "Acceptée" : "Refusée"}</strong>
+              {booking.modificationRequest.processedAt && ` le ${new Date(booking.modificationRequest.processedAt).toLocaleDateString("fr-FR")}`}
+              {booking.modificationRequest.decisionNotes && ` (${booking.modificationRequest.decisionNotes})`}
+            </span>
+          </div>
         </div>
       )}
 
