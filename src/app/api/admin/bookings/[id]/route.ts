@@ -34,7 +34,10 @@ export async function GET(
   try {
     await connectDB();
     const booking = await Booking.findById(id)
-      .populate("vehicle", "brand model licensePlate images pricing")
+      .populate("vehicleId")
+      .populate("customerId")
+      .populate("pickupLocationId")
+      .populate("returnLocationId")
       .lean();
     if (!booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     return NextResponse.json({ booking });
@@ -50,7 +53,9 @@ const updateSchema = z.object({
   ]).optional(),
   paymentStatus: z.enum(["unpaid", "partial", "paid", "refunded"]).optional(),
   internalNote: z.string().max(2000).optional(),
+  internalNotes: z.string().max(2000).optional(),
   adminNotes: z.string().max(2000).optional(),
+  vehicleId: z.string().optional(),
   vehicle: z.string().optional(),
   pickupDate: z.string().optional(),
   returnDate: z.string().optional(),
@@ -183,7 +188,7 @@ export async function DELETE(
   const { id } = await params;
   try {
     await connectDB();
-    await Booking.findByIdAndUpdate(id, { status: "cancelled" });
+    await Booking.findByIdAndUpdate(id, { bookingStatus: "cancelled" });
     return NextResponse.json({ message: "Booking cancelled" });
   } catch {
     return NextResponse.json({ error: "Failed to cancel booking" }, { status: 500 });

@@ -544,29 +544,29 @@ export async function POST(request: NextRequest) {
       console.error("Failed to generate admin notifications:", notifErr);
     }
 
-    // 11. Send Confirmation Email via @/lib/email
-    try {
-      const pickupLocName =
-        pickupLoc.name[customerLanguage] || pickupLoc.name.fr || pickupLoc.address;
-      const returnLocName =
-        returnLoc.name[customerLanguage] || returnLoc.name.fr || returnLoc.address;
+    // 11. Send Confirmation Emails asynchronously (Non-blocking to eliminate infinite frontend spinner)
+    const pickupLocName =
+      pickupLoc.name[customerLanguage] || pickupLoc.name.fr || pickupLoc.address;
+    const returnLocName =
+      returnLoc.name[customerLanguage] || returnLoc.name.fr || returnLoc.address;
 
-      const emailData = buildBookingConfirmationEmail({
-        customerName: `${customer.firstName} ${customer.lastName}`,
-        bookingReference,
-        vehicleName: `${vehicle.brand} ${vehicle.model} (${vehicle.year})`,
-        pickupLocation: pickupLocName,
-        returnLocation: returnLocName,
-        pickupDate: formatDate(pickupDate, customerLanguage === "ar" ? "ar-TN" : "fr-FR"),
-        returnDate: formatDate(returnDate, customerLanguage === "ar" ? "ar-TN" : "fr-FR"),
-        totalAmount: (totalAmount / 100).toLocaleString("fr-FR"),
-        currency: "TND",
-        language: customerLanguage,
-        timbreFiscal: "1",
-        contributionLF2026: (contributionLF2026 / 100).toLocaleString("fr-FR"),
-      });
+    const emailData = buildBookingConfirmationEmail({
+      customerName: `${customer.firstName} ${customer.lastName}`,
+      bookingReference,
+      vehicleName: `${vehicle.brand} ${vehicle.model} (${vehicle.year})`,
+      pickupLocation: pickupLocName,
+      returnLocation: returnLocName,
+      pickupDate: formatDate(pickupDate, customerLanguage === "ar" ? "ar-TN" : "fr-FR"),
+      returnDate: formatDate(returnDate, customerLanguage === "ar" ? "ar-TN" : "fr-FR"),
+      totalAmount: (totalAmount / 100).toLocaleString("fr-FR"),
+      currency: "TND",
+      language: customerLanguage,
+      timbreFiscal: "1",
+      contributionLF2026: (contributionLF2026 / 100).toLocaleString("fr-FR"),
+    });
 
-      await sendEmail({
+    const emailPromises: Promise<any>[] = [
+      sendEmail({
         to: customer.email,
         toName: `${customer.firstName} ${customer.lastName}`,
         subject: emailData.subject,
@@ -575,12 +575,13 @@ export async function POST(request: NextRequest) {
         language: customerLanguage,
         bookingId: booking._id.toString(),
         customerId: customer._id.toString(),
-      });
+      }).catch((err) => console.error("Customer email dispatch error:", err)),
+    ];
 
-      // Also send notification to agency / admin email
-      const agencyEmail = process.env.AGENCY_EMAIL || process.env.SMTP_USER;
-      if (agencyEmail && agencyEmail !== customer.email) {
-        await sendEmail({
+    const agencyEmail = process.env.AGENCY_EMAIL || process.env.SMTP_USER;
+    if (agencyEmail && agencyEmail !== customer.email) {
+      emailPromises.push(
+        sendEmail({
           to: agencyEmail,
           toName: "Payless Administration",
           subject: `🔔 Nouvelle Réservation Reçue - ${bookingReference}`,
@@ -589,11 +590,15 @@ export async function POST(request: NextRequest) {
           language: "fr",
           bookingId: booking._id.toString(),
           customerId: customer._id.toString(),
-        });
-      }
-    } catch (emailErr) {
-      console.error("Failed to send booking confirmation email:", emailErr);
+        }).catch((err) => console.error("Agency email dispatch error:", err))
+      );
     }
+
+    // Trigger non-blocking email resolution with a maximum 2.5s window
+    Promise.race([
+      Promise.allSettled(emailPromises),
+      new Promise((resolve) => setTimeout(resolve, 2500)),
+    ]).catch((e) => console.error("Async email error:", e));
 
     // Decrement available units for this vehicle in database
     try {

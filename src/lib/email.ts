@@ -15,6 +15,9 @@ function getSmtpTransporter() {
       host: process.env.SMTP_HOST || "smtp.gmail.com",
       port: Number(process.env.SMTP_PORT) || 465,
       secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
+      connectionTimeout: 4000, // 4s timeout prevents blocking Vercel serverless functions
+      greetingTimeout: 4000,
+      socketTimeout: 6000,
       auth: {
         user,
         pass,

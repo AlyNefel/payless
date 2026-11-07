@@ -8,7 +8,7 @@ import { Link } from "@/i18n/navigation";
 import {
   MapPin, Calendar, Clock, ChevronRight, Car, Users, Fuel,
   Gauge, Plus, Minus, Check, AlertCircle, Loader2, Copy, Tag,
-  ShieldCheck, Phone, Mail, UserCheck
+  ShieldCheck, Phone, Mail, UserCheck, Search
 } from "lucide-react";
 import { CarSpinner } from "@/components/ui/CarSpinner";
 
@@ -358,6 +358,9 @@ function BookingContent() {
 
       setBookingRef(json.booking?.bookingReference || json.bookingReference || "PAY-2026");
       setStep(6);
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur de communication avec le serveur.");
     } finally {
@@ -1238,16 +1241,29 @@ function BookingContent() {
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Link
-                    href="/"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors w-full sm:w-auto"
+                    href={`/booking/status?ref=${bookingRef}&email=${encodeURIComponent(data.email)}`}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#1D4ED8] hover:bg-[#1e40af] text-white rounded-xl font-bold text-sm shadow-md transition-all w-full sm:w-auto"
                   >
-                    Retour à l'accueil
+                    <Search className="w-4 h-4" />
+                    <span>
+                      {locale === "ar"
+                        ? "متابعة حالة الحجز وتفاصيله"
+                        : locale === "en"
+                        ? "Track & Manage Reservation"
+                        : "Suivre et gérer ma réservation"}
+                    </span>
+                  </Link>
+                  <Link
+                    href="/"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-800 dark:text-slate-200 rounded-xl font-semibold text-sm hover:bg-muted transition-colors w-full sm:w-auto"
+                  >
+                    {locale === "ar" ? "العودة للرئيسية" : locale === "en" ? "Back to Home" : "Retour à l'accueil"}
                   </Link>
                   <Link
                     href="/vehicles"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border dark:border-neutral-700 rounded-xl font-medium hover:bg-muted transition-colors w-full sm:w-auto"
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border dark:border-neutral-700 rounded-xl font-medium text-sm hover:bg-muted transition-colors w-full sm:w-auto"
                   >
-                    Voir d'autres voitures
+                    {locale === "ar" ? "عرض سيارات أخرى" : locale === "en" ? "View Fleet" : "Voir d'autres voitures"}
                   </Link>
                 </div>
               </motion.div>

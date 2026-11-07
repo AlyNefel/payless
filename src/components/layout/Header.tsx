@@ -22,6 +22,7 @@ import {
   Clock,
   ArrowRight,
   ArrowLeft,
+  Search,
 } from "lucide-react";
 
 interface NavItem {
@@ -84,6 +85,16 @@ const navItems: NavItem[] = [
       en: "Terms & Conditions",
       fr: "Conditions",
       ar: "الشروط والأحكام",
+    },
+  },
+  {
+    key: "status",
+    href: "/booking/status",
+    icon: Search,
+    label: {
+      en: "Track Booking",
+      fr: "Suivi Réservation",
+      ar: "متابعة الحجز",
     },
   },
   {
