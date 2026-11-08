@@ -57,6 +57,7 @@ export default function SettingsPage() {
     taxRate: "0",
     timbreFiscal: "1",
     contributionLF2026: "2",
+    differentLocationFee: "50", // Frais restitution agence différente (Aller-simple)
     outOfTownReturnFee: "100", // 100 DT default for drop-offs outside Tunis
     depositMultiplier: "1",
     minRentalAge: "21",
@@ -120,6 +121,7 @@ export default function SettingsPage() {
             taxRate: s.taxRate !== undefined ? String(s.taxRate) : prev.taxRate,
             timbreFiscal: s.timbreFiscal !== undefined ? String(s.timbreFiscal) : prev.timbreFiscal,
             contributionLF2026: s.contributionLF2026 !== undefined ? String(s.contributionLF2026) : prev.contributionLF2026,
+            differentLocationFee: s.differentLocationFee !== undefined ? String(s.differentLocationFee) : prev.differentLocationFee,
             outOfTownReturnFee: s.outOfTownReturnFee !== undefined ? String(s.outOfTownReturnFee) : prev.outOfTownReturnFee,
             minRentalAge: s.minRentalAge !== undefined ? String(s.minRentalAge) : prev.minRentalAge,
             minLuxuryAge: s.minLuxuryAge !== undefined ? String(s.minLuxuryAge) : prev.minLuxuryAge,
@@ -166,6 +168,12 @@ export default function SettingsPage() {
       const json = await res.json();
       if (res.ok && json.success) {
         setSaved(true);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("company-settings-updated"));
+          try {
+            localStorage.setItem("company-settings-updated", Date.now().toString());
+          } catch {}
+        }
         setTimeout(() => setSaved(false), 3500);
       } else {
         setErrorMsg(json.error || "Erreur lors de l'enregistrement des paramètres");
@@ -331,7 +339,8 @@ export default function SettingsPage() {
                     { label: "Taux TVA (%) [0% inclus TTC]", key: "taxRate", placeholder: "0" },
                     { label: "Timbre fiscal (DT)", key: "timbreFiscal", placeholder: "1" },
                     { label: "Contribution LF 2026 (DT / jour / voiture)", key: "contributionLF2026", placeholder: "2" },
-                    { label: "Frais de restitution hors Tunis (DT)", key: "outOfTownReturnFee", placeholder: "100" },
+                    { label: "Frais restitution agence différente / Aller-simple (DT)", key: "differentLocationFee", placeholder: "50" },
+                    { label: "Frais standard restitution hors Tunis (DT)", key: "outOfTownReturnFee", placeholder: "100" },
                     { label: "Âge minimum conducteur (ans)", key: "minRentalAge", placeholder: "21" },
                     { label: "Âge minimum (Luxe / Sport)", key: "minLuxuryAge", placeholder: "25" },
                     { label: "Annulation gratuite jusqu'à (heures)", key: "cancellationHours", placeholder: "48" },
@@ -359,13 +368,16 @@ export default function SettingsPage() {
                   ))}
                 </div>
 
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-xs text-amber-900 dark:text-amber-200 space-y-2">
                   <div className="font-bold flex items-center gap-1.5">
                     <MapPin className="w-4 h-4 text-amber-600" />
-                    <span>Règle des Frais de Restitution Hors Tunis :</span>
+                    <span>Règles de Rapatriement & Restitution :</span>
                   </div>
                   <p>
-                    Lorsqu'un client sélectionne une agence de retour située en dehors du Grand Tunis (Monastir, Enfidha, Sfax, Sousse, Bizerte, Nabeul, Tabarka...), un supplément configurable (actuellement <strong>{financialSettings.outOfTownReturnFee || "100"} DT</strong>) est automatiquement ajouté au total facturé et affiché sur le voucher.
+                    • <strong>Restitution hors Grand Tunis :</strong> Lorsqu'un client sélectionne une agence de retour en dehors du Grand Tunis (Monastir, Enfidha, Sfax, Sousse, Bizerte, Nabeul, Tabarka...), un supplément configurable (actuellement <strong>{financialSettings.outOfTownReturnFee || "100"} DT</strong>) est automatiquement ajouté au total facturé.
+                  </p>
+                  <p>
+                    • <strong>Restitution agence différente (Aller-simple) :</strong> Lorsque le lieu de retour est différent du lieu de départ, un frais d'aller-simple (actuellement <strong>{financialSettings.differentLocationFee || "50"} DT</strong>) peut être facturé. De plus, chaque agence dans <em>Gestion des Agences</em> peut avoir son propre frais spécifique de prise en charge et de restitution.
                   </p>
                 </div>
               </div>

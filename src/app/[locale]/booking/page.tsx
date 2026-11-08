@@ -11,6 +11,7 @@ import {
   ShieldCheck, Phone, Mail, UserCheck, Search
 } from "lucide-react";
 import { CarSpinner } from "@/components/ui/CarSpinner";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 
 interface LocationItem {
   _id: string;
@@ -19,6 +20,8 @@ interface LocationItem {
   isAirport?: boolean;
   isOutsideTunis?: boolean;
   customReturnFee?: number;
+  pickupFee?: number;
+  returnFee?: number;
 }
 
 interface ExtraItem {
@@ -143,6 +146,7 @@ function BookingContent() {
 
   const [accountOption, setAccountOption] = useState<"guest" | "existing" | "create">("guest");
   const [accountPassword, setAccountPassword] = useState("");
+  const { settings } = useCompanySettings();
 
   // Currency string
   const currencySymbol = locale === "ar" ? "د.ت" : "TND";
@@ -259,12 +263,31 @@ function BookingContent() {
   }, [couponStatus]);
 
   const depositAmount = selectedVehicle?.pricing?.deposit || 0;
-  // Fiscal calculations (Tunisian legal framework):
+  // Fiscal calculations & Location Fees:
   // TVA: 0% (inclus TTC)
   // Timbre fiscal: 1 DT flat (= 100 centimes)
   // Contribution LF 2026: 2 DT par jour par véhicule (= 200 centimes * rentalDays)
-  // Frais restitution hors Tunis : 100 DT (= 10000 centimes) si hors Grand Tunis
+  // Frais prise en charge spécifique par point de départ
+  // Frais restitution agence différente (Aller-simple)
+  // Frais restitution hors Tunis / Ramassage
+  const selectedPickupLoc = locations.find((l) => l._id === data.pickupLocationId);
   const selectedReturnLoc = locations.find((l) => l._id === data.returnLocationId);
+
+  const selectedPickupLocName = selectedPickupLoc
+    ? typeof selectedPickupLoc.name === "string"
+      ? selectedPickupLoc.name
+      : selectedPickupLoc.name[locale as "fr" | "en" | "ar"] || selectedPickupLoc.name.fr
+    : "";
+
+  const selectedReturnLocName = selectedReturnLoc
+    ? typeof selectedReturnLoc.name === "string"
+      ? selectedReturnLoc.name
+      : selectedReturnLoc.name[locale as "fr" | "en" | "ar"] || selectedReturnLoc.name.fr
+    : "";
+
+  const pickupLocationFee = selectedPickupLoc?.pickupFee ? Number(selectedPickupLoc.pickupFee) : 0;
+  const returnLocationFee = selectedReturnLoc?.returnFee ? Number(selectedReturnLoc.returnFee) : (selectedReturnLoc?.customReturnFee ? Number(selectedReturnLoc.customReturnFee) : 0);
+
   const isReturnOutsideTunis = useMemo(() => {
     if (!selectedReturnLoc) return false;
     if (selectedReturnLoc.isOutsideTunis) return true;
@@ -283,11 +306,27 @@ function BookingContent() {
     );
   }, [selectedReturnLoc]);
 
-  const outOfTownFee = isReturnOutsideTunis ? (selectedReturnLoc?.customReturnFee && selectedReturnLoc.customReturnFee > 0 ? selectedReturnLoc.customReturnFee : 10000) : 0;
+  const outOfTownFee = isReturnOutsideTunis
+    ? (returnLocationFee > 0 ? returnLocationFee : (settings.outOfTownReturnFee ? settings.outOfTownReturnFee * 100 : 10000))
+    : returnLocationFee;
 
-  const timbreFiscal = 100;
-  const contributionLF2026 = 200 * rentalDays;
-  const totalAmount = Math.max(0, subtotal + extrasTotal - discountAmount + timbreFiscal + contributionLF2026 + outOfTownFee);
+  const isDifferentLocation = Boolean(data.pickupLocationId && data.returnLocationId && data.pickupLocationId !== data.returnLocationId);
+  const differentLocationFee = (isDifferentLocation && settings.differentLocationFee) ? settings.differentLocationFee * 100 : 0;
+
+  const timbreFiscal = (settings.timbreFiscal !== undefined ? settings.timbreFiscal : 1) * 100;
+  const contributionLF2026 = (settings.contributionLF2026 !== undefined ? settings.contributionLF2026 : 2) * 100 * rentalDays;
+
+  const totalAmount = Math.max(
+    0,
+    subtotal +
+      extrasTotal -
+      discountAmount +
+      timbreFiscal +
+      contributionLF2026 +
+      outOfTownFee +
+      pickupLocationFee +
+      differentLocationFee
+  );
 
   async function validateCoupon() {
     if (!data.couponCode.trim()) return;
@@ -563,16 +602,48 @@ function BookingContent() {
                   </div>
                 </div>
 
-                {isReturnOutsideTunis && (
+                {pickupLocationFee > 0 && (
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 text-xs text-blue-900 dark:text-blue-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span>
+                        {locale === "ar"
+                          ? `معلوم الاستلام في الموقع (${selectedPickupLocName}) :`
+                          : locale === "en"
+                          ? `Pickup location fee (${selectedPickupLocName}) :`
+                          : `Frais de prise en charge (${selectedPickupLocName}) :`}
+                      </span>
+                    </div>
+                    <span className="font-bold font-mono">+{pickupLocationFee / 100} TND</span>
+                  </div>
+                )}
+
+                {isDifferentLocation && differentLocationFee > 0 && (
+                  <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-3 text-xs text-indigo-900 dark:text-indigo-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <span>
+                        {locale === "ar"
+                          ? "تسليم في وكالة مختلفة (ذهاب فقط) : معلوم تغيير الوكالة مطبق"
+                          : locale === "en"
+                          ? "Drop-off at different branch: One-way inter-agency fee applies"
+                          : "Restitution dans une agence différente : Frais d'aller-simple appliqués"}
+                      </span>
+                    </div>
+                    <span className="font-bold font-mono">+{differentLocationFee / 100} TND</span>
+                  </div>
+                )}
+
+                {(isReturnOutsideTunis || outOfTownFee > 0) && (
                   <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-900 dark:text-amber-200 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
                       <span>
                         {locale === "ar"
-                          ? "تسليم خارج تونس الكبرى: يتم احتساب معلوم استرجاع بقيمة 100 د.ت"
+                          ? `تسليم خارج تونس الكبرى / استرجاع (${selectedReturnLocName}) : معلوم استرجاع مطبق`
                           : locale === "en"
-                          ? "Drop-off outside Greater Tunis: 100 TND out-of-town return fee applies"
-                          : "Restitution hors Grand Tunis : Frais de rapatriement de 100 TND appliqués"}
+                          ? `Drop-off outside Tunis / Recovery (${selectedReturnLocName}) : Out-of-town fee applies`
+                          : `Restitution hors Tunis / Ramassage (${selectedReturnLocName}) : Frais appliqués`}
                       </span>
                     </div>
                     <span className="font-bold font-mono">+{outOfTownFee / 100} TND</span>
@@ -1005,6 +1076,55 @@ function BookingContent() {
                       </span>
                     </div>
                   )}
+
+                  {pickupLocationFee > 0 && (
+                    <div className="flex justify-between text-xs text-blue-600 dark:text-blue-400">
+                      <span>
+                        {locale === "ar"
+                          ? `معلوم الاستلام (${selectedPickupLocName})`
+                          : locale === "en"
+                          ? `Pickup fee (${selectedPickupLocName})`
+                          : `Frais prise en charge (${selectedPickupLocName})`}
+                      </span>
+                      <span className="font-medium">+{fmt(pickupLocationFee)} {currencySymbol}</span>
+                    </div>
+                  )}
+
+                  {differentLocationFee > 0 && (
+                    <div className="flex justify-between text-xs text-indigo-600 dark:text-indigo-400">
+                      <span>
+                        {locale === "ar"
+                          ? "معلوم تسليم في وكالة أخرى (ذهاب فقط)"
+                          : locale === "en"
+                          ? "Inter-agency return fee (One-way)"
+                          : "Restitution agence différente (Aller-simple)"}
+                      </span>
+                      <span className="font-medium">+{fmt(differentLocationFee)} {currencySymbol}</span>
+                    </div>
+                  )}
+
+                  {outOfTownFee > 0 && (
+                    <div className="flex justify-between text-xs text-amber-600 dark:text-amber-400">
+                      <span>
+                        {locale === "ar"
+                          ? `معلوم استرجاع خارج تونس (${selectedReturnLocName})`
+                          : locale === "en"
+                          ? `Out-of-town return fee (${selectedReturnLocName})`
+                          : `Frais restitution hors Tunis / Ramassage (${selectedReturnLocName})`}
+                      </span>
+                      <span className="font-medium">+{fmt(outOfTownFee)} {currencySymbol}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{locale === "ar" ? "طابع جبائي (قانوني)" : locale === "en" ? "Fiscal stamp (Legal)" : "Timbre fiscal (Légal)"}</span>
+                    <span>+{fmt(timbreFiscal)} {currencySymbol}</span>
+                  </div>
+
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{locale === "ar" ? `مساهمة قانون المالية 2026 (${rentalDays} يوم)` : locale === "en" ? `LF 2026 contribution (${rentalDays}d)` : `Contribution LF 2026 (${rentalDays}j)`}</span>
+                    <span>+{fmt(contributionLF2026)} {currencySymbol}</span>
+                  </div>
 
                   <div className="border-t border-border dark:border-neutral-800 pt-3 flex justify-between items-center text-lg font-bold">
                     <div>

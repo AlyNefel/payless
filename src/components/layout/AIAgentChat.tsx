@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Send, Bot } from "lucide-react";
 import { useLocale } from "next-intl";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 
 interface Message {
   role: "user" | "assistant";
@@ -17,6 +18,7 @@ const WELCOME_MESSAGES: Record<string, string> = {
 
 export function AIAgentChat() {
   const locale = useLocale();
+  const { settings } = useCompanySettings();
   const [open, setOpen] = useState(false);
   const welcomeText = WELCOME_MESSAGES[locale as "fr" | "en" | "ar"] ?? WELCOME_MESSAGES.fr;
   const [messages, setMessages] = useState<Message[]>([{ role: "assistant", content: welcomeText }]);
@@ -77,10 +79,10 @@ export function AIAgentChat() {
           role: "assistant",
           content:
             locale === "ar"
-              ? "فريق الدعم متاح 24/7 عبر الواتساب: +216 25 120 130"
+              ? `فريق الدعم متاح 24/7 عبر الواتساب: ${settings.whatsapp}`
               : locale === "en"
-              ? "Our support team is directly available on WhatsApp 24/7: +216 25 120 130"
-              : "Notre équipe de réservation est joignable directement sur WhatsApp 24/7 : +216 25 120 130",
+              ? `Our support team is directly available on WhatsApp 24/7: ${settings.whatsapp}`
+              : `Notre équipe de réservation est joignable directement sur WhatsApp 24/7 : ${settings.whatsapp}`,
         },
       ]);
     } finally {

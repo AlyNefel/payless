@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import connectDB from "@/lib/db";
+import AgencySetting from "@/models/AgencySetting";
 
-const SYSTEM_PROMPT = `You are the official AI assistant for PAYLESS CAR RENTAL TUNISIA (Houimli Rent a Car SARL).
+function buildSystemPrompt(info: { agencyName: string; phone: string; email: string; address: string }) {
+  return `You are the official AI assistant for ${info.agencyName} (Houimli Rent a Car SARL).
 
 AGENCY INFORMATION:
-- Official name: Payless Car Rental Tunisia / Houimli Rent a Car SARL
-- Address: 60 Avenue de l'UMA, La Soukra, Ariana 2036, Tunisia
-- Phone (WhatsApp): +216 25 120 130
-- Phone (24/7): +216 24 220 277
-- Email: Reservations@hmlrentcar.tn
-- Website: https://hmlrentcar.tn
+- Official name: ${info.agencyName} / Houimli Rent a Car SARL
+- Address: ${info.address}
+- Phone (WhatsApp): ${info.phone}
+- Email: ${info.email}
+- Website: https://paylesscarrental.tn
 - Hours: 24/7 for airport pickups, office hours vary
 
 CURRENCIES:
@@ -74,9 +76,29 @@ TERMS KEY POINTS:
 - No driving on unpaved/offroad tracks (voids insurance)
 
 LANGUAGE: Always respond in the same language as the user's question. Support French, English, and Arabic.
-Be helpful, concise, and professional. For complex bookings or special requests, direct users to WhatsApp: +216 25 120 130.`;
+Be helpful, concise, and professional. For complex bookings or special requests, direct users to WhatsApp: ${info.phone}.`;
+}
 
 export async function POST(req: NextRequest) {
+  let agencyName = "PAYLESS CAR RENTAL TUNISIE";
+  let phone = "+216 25 120 130";
+  let email = "contact@paylesscarrental.tn";
+  let address = "60 Avenue de l'UMA, La Soukra, Ariana 2036, Tunisie";
+
+  try {
+    await connectDB();
+    const settings = await AgencySetting.find({
+      key: { $in: ["agencyName", "phone", "whatsapp", "email", "address"] },
+    }).lean();
+
+    settings.forEach((s) => {
+      if (s.key === "agencyName" && s.value) agencyName = String(s.value);
+      if ((s.key === "whatsapp" || s.key === "phone") && s.value) phone = String(s.value);
+      if (s.key === "email" && s.value) email = String(s.value);
+      if (s.key === "address" && s.value) address = String(s.value);
+    });
+  } catch {}
+
   try {
     const { message, history } = await req.json();
 
@@ -87,7 +109,7 @@ export async function POST(req: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { reply: "Service temporairement indisponible. Contactez-nous au +216 25 120 130." },
+        { reply: `Service temporairement indisponible. Contactez-nous au ${phone}.` },
         { status: 200 }
       );
     }
@@ -95,7 +117,7 @@ export async function POST(req: NextRequest) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: "gemini-3.8-flash",
-      systemInstruction: SYSTEM_PROMPT,
+      systemInstruction: buildSystemPrompt({ agencyName, phone, email, address }),
     });
 
     // Build conversation history for context
@@ -112,7 +134,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Chat API error:", error);
     return NextResponse.json(
-      { reply: "Désolé, une erreur est survenue. Contactez-nous directement au +216 25 120 130 ou sur WhatsApp." },
+      { reply: `Désolé, une erreur est survenue. Contactez-nous directement au ${phone} ou sur WhatsApp.` },
       { status: 200 }
     );
   }

@@ -142,6 +142,9 @@ export function buildBookingConfirmationEmail(data: {
   language: "fr" | "en" | "ar";
   timbreFiscal?: string;
   contributionLF2026?: string;
+  pickupLocationFee?: string;
+  differentLocationFee?: string;
+  outOfTownFee?: string;
 }): { subject: string; html: string } {
   const subjects = {
     fr: `Confirmation de réservation - ${data.bookingReference} | Payless Tunisie`,
@@ -169,6 +172,9 @@ export function buildBookingConfirmationEmail(data: {
       return: "Restitution",
       fiscalStamp: "Timbre fiscal",
       lf2026: "Contribution LF 2026 (2 DT/jour)",
+      pickupFee: "Frais prise en charge",
+      oneWayFee: "Restitution agence différente (Aller-simple)",
+      outOfTownFee: "Frais restitution hors Tunis / Ramassage",
       tva: "TVA",
       tvaValue: "0% (Prix TTC)",
       total: "Montant Total TTC",
@@ -182,6 +188,9 @@ export function buildBookingConfirmationEmail(data: {
       return: "Return",
       fiscalStamp: "Fiscal Stamp",
       lf2026: "Contribution LF 2026 (2 TND/day)",
+      pickupFee: "Pickup Location Fee",
+      oneWayFee: "Inter-Agency Return Fee (One-Way)",
+      outOfTownFee: "Out-of-Town Return Fee",
       tva: "VAT",
       tvaValue: "0% (VAT included)",
       total: "Total Amount (Incl. taxes)",
@@ -195,6 +204,9 @@ export function buildBookingConfirmationEmail(data: {
       return: "مكان وتاريخ التسليم",
       fiscalStamp: "طابع جبائي",
       lf2026: "مساهمة قانون المالية 2026 (2 د.ت/يوم)",
+      pickupFee: "معلوم الاستلام في الموقع",
+      oneWayFee: "معلوم تسليم في وكالة أخرى (ذهاب فقط)",
+      outOfTownFee: "معلوم التسليم خارج تونس الكبرى",
       tva: "الأداء على القيمة المضافة",
       tvaValue: "0% (السعر باحتساب جميع الأداءات)",
       total: "المبلغ الإجمالي",
@@ -208,6 +220,9 @@ export function buildBookingConfirmationEmail(data: {
     return: "Return",
     fiscalStamp: "Fiscal Stamp",
     lf2026: "Contribution LF 2026 (2 TND/day)",
+    pickupFee: "Pickup Location Fee",
+    oneWayFee: "Inter-Agency Return Fee",
+    outOfTownFee: "Out-of-Town Return Fee",
     tva: "VAT",
     tvaValue: "0% (VAT included)",
     total: "Total Amount",
@@ -265,6 +280,9 @@ export function buildBookingConfirmationEmail(data: {
             <tr><td class="label">${labels.tva}</td><td class="value">${labels.tvaValue}</td></tr>
             <tr><td class="label">${labels.fiscalStamp}</td><td class="value">${data.timbreFiscal || "1"} ${data.currency}</td></tr>
             ${data.contributionLF2026 ? `<tr><td class="label">${labels.lf2026}</td><td class="value">${data.contributionLF2026} ${data.currency}</td></tr>` : ""}
+            ${data.pickupLocationFee ? `<tr><td class="label">${labels.pickupFee}</td><td class="value">+${data.pickupLocationFee} ${data.currency}</td></tr>` : ""}
+            ${data.differentLocationFee ? `<tr><td class="label">${labels.oneWayFee}</td><td class="value">+${data.differentLocationFee} ${data.currency}</td></tr>` : ""}
+            ${data.outOfTownFee ? `<tr><td class="label">${labels.outOfTownFee}</td><td class="value">+${data.outOfTownFee} ${data.currency}</td></tr>` : ""}
           </table>
           <div class="total-box">
             <div class="total-label">${labels.total}</div>

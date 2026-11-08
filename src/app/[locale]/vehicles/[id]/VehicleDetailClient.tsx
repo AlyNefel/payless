@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { CarSpinner } from "@/components/ui/CarSpinner";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 
 interface Vehicle {
   _id: string;
@@ -62,6 +63,7 @@ const PLACEHOLDER_IMAGES = [
 
 export function VehicleDetailClient({ vehicleId, locale }: Props) {
   const router = useRouter();
+  const { settings } = useCompanySettings();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
@@ -543,14 +545,14 @@ export function VehicleDetailClient({ vehicleId, locale }: Props) {
                       {locale === "fr" ? "Besoin d'aide?" : locale === "ar" ? "تحتاج مساعدة؟" : "Need help?"}
                     </p>
                     <a
-                      href="tel:+21625120130"
+                      href={`tel:${settings.phone.replace(/\s+/g, "")}`}
                       className="flex items-center justify-center gap-2 w-full h-10 border border-white/10 rounded-xl text-white/70 hover:text-white hover:border-white/20 transition-colors text-sm"
                     >
                       <Phone className="h-4 w-4" />
-                      +216 25 120 130
+                      {settings.phone}
                     </a>
                     <a
-                      href="https://wa.me/21625120130"
+                      href={`https://wa.me/${settings.whatsapp.replace(/[^0-9]/g, "")}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 w-full h-10 border border-[#25D366]/30 rounded-xl text-[#25D366]/80 hover:text-[#25D366] hover:border-[#25D366]/60 transition-colors text-sm mt-2"

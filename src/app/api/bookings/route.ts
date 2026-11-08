@@ -9,6 +9,7 @@ import {
   Coupon,
   Notification,
   User,
+  AgencySetting,
 } from "@/models";
 import { checkVehicleAvailability } from "@/lib/availability";
 import {
@@ -354,24 +355,82 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 7. Compute Final Totals and Deposit (Tunisian fiscal requirements & Out-of-town Return Fee)
+    // 7. Compute Final Totals and Deposit (Tunisian fiscal requirements & Location Fees)
+    // Query agency settings for fiscal rules and location fees
+    let differentLocationSetting = 50; // default 50 DT
+    let outOfTownSetting = 100; // default 100 DT
+    let timbreFiscalSetting = 1; // 1 DT
+    let contributionSetting = 2; // 2 DT/day
+
+    try {
+      const settingsDocs = await AgencySetting.find({
+        key: {
+          $in: [
+            "differentLocationFee",
+            "outOfTownReturnFee",
+            "timbreFiscal",
+            "contributionLF2026",
+          ],
+        },
+      }).lean();
+
+      settingsDocs.forEach((s) => {
+        if (s.key === "differentLocationFee" && s.value !== undefined) differentLocationSetting = Number(s.value);
+        if (s.key === "outOfTownReturnFee" && s.value !== undefined) outOfTownSetting = Number(s.value);
+        if (s.key === "timbreFiscal" && s.value !== undefined) timbreFiscalSetting = Number(s.value);
+        if (s.key === "contributionLF2026" && s.value !== undefined) contributionSetting = Number(s.value);
+      });
+    } catch (sErr) {
+      console.warn("Failed to query AgencySetting, using defaults:", sErr);
+    }
+
     const taxRate = 0; // TVA: 0% (TTC)
     const taxAmount = 0;
-    const timbreFiscal = 100; // 1 DT timbre fiscal flat = 100 centimes
-    const contributionLF2026 = 200 * rentalDays; // 2 DT par jour par voiture louée (Contribution LF 2026) = 200 centimes * rentalDays
+    const timbreFiscal = Math.round(timbreFiscalSetting * 100); // in centimes
+    const contributionLF2026 = Math.round(contributionSetting * 100) * rentalDays; // in centimes
 
-    // Out-of-town return fee: if return point is outside Tunis, apply fee (default 100 DT = 10000 centimes or location custom fee)
+    // 7a. Individual pickup location fee
+    const pickupLocationFee = Number(pickupLoc.pickupFee || 0);
+
+    // 7b. Individual return location fee (ramassage)
+    const returnLocationFee = Number(returnLoc.returnFee || returnLoc.customReturnFee || 0);
+
+    // 7c. Out-of-town return fee: if return point is outside Tunis
     let outOfTownFee = 0;
     const isReturnOutsideTunis =
-      returnLoc.isOutsideTunis ||
-      (returnLoc.city && !returnLoc.city.toLowerCase().includes("tunis") && !returnLoc.city.toLowerCase().includes("ariana") && !returnLoc.city.toLowerCase().includes("soukra") && !returnLoc.city.toLowerCase().includes("carthage"));
+      Boolean(returnLoc.isOutsideTunis) ||
+      (returnLoc.city &&
+        !returnLoc.city.toLowerCase().includes("tunis") &&
+        !returnLoc.city.toLowerCase().includes("ariana") &&
+        !returnLoc.city.toLowerCase().includes("soukra") &&
+        !returnLoc.city.toLowerCase().includes("carthage"));
 
     if (isReturnOutsideTunis) {
-      outOfTownFee = returnLoc.customReturnFee && returnLoc.customReturnFee > 0 ? returnLoc.customReturnFee : 10000; // 100 DT in centimes
+      outOfTownFee = returnLocationFee > 0 ? returnLocationFee : Math.round(outOfTownSetting * 100);
+    } else if (returnLocationFee > 0) {
+      outOfTownFee = returnLocationFee;
+    }
+
+    // 7d. Different location return fee (ramassage dans une autre place que la place initiale / aller-simple)
+    let differentLocationFee = 0;
+    const isDifferentLocation = pickupLoc._id.toString() !== returnLoc._id.toString();
+    if (isDifferentLocation && differentLocationSetting > 0) {
+      differentLocationFee = Math.round(differentLocationSetting * 100);
     }
 
     const depositAmount = vehicle.pricing.deposit || 0;
-    const totalAmount = Math.max(0, subtotal + extrasTotal - discountAmount + taxAmount + timbreFiscal + contributionLF2026 + outOfTownFee);
+    const totalAmount = Math.max(
+      0,
+      subtotal +
+        extrasTotal -
+        discountAmount +
+        taxAmount +
+        timbreFiscal +
+        contributionLF2026 +
+        outOfTownFee +
+        pickupLocationFee +
+        differentLocationFee
+    );
     const currency = vehicle.pricing.currency || "TND";
 
     const pricingBreakdown = {
@@ -385,6 +444,9 @@ export async function POST(request: NextRequest) {
       timbreFiscal,
       contributionLF2026,
       outOfTownFee,
+      pickupLocationFee,
+      returnLocationFee,
+      differentLocationFee,
       depositAmount,
       totalAmount,
       currency,
@@ -573,8 +635,11 @@ export async function POST(request: NextRequest) {
       totalAmount: (totalAmount / 100).toLocaleString("fr-FR"),
       currency: "TND",
       language: customerLanguage,
-      timbreFiscal: "1",
+      timbreFiscal: (timbreFiscal / 100).toLocaleString("fr-FR"),
       contributionLF2026: (contributionLF2026 / 100).toLocaleString("fr-FR"),
+      pickupLocationFee: pickupLocationFee > 0 ? (pickupLocationFee / 100).toLocaleString("fr-FR") : undefined,
+      differentLocationFee: differentLocationFee > 0 ? (differentLocationFee / 100).toLocaleString("fr-FR") : undefined,
+      outOfTownFee: outOfTownFee > 0 ? (outOfTownFee / 100).toLocaleString("fr-FR") : undefined,
     });
 
     const emailPromises: Promise<any>[] = [

@@ -9,6 +9,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppWidget } from "@/components/layout/WhatsAppWidget";
 import { AIAgentChat } from "@/components/layout/AIAgentChat";
+import { CompanySettingsProvider } from "@/contexts/CompanySettingsContext";
 import "../globals.css";
 
 // Fallback font variables - resilient for offline build environments
@@ -144,12 +145,14 @@ export default async function LocaleLayout({
       }`}
     >
       <NextIntlClientProvider messages={messages} locale={locale}>
-        <Header />
-        <main className="flex-1 w-full overflow-x-clip">{children}</main>
-        <Footer />
-        <WhatsAppWidget />
-        <AIAgentChat />
-        <Toaster richColors position="top-right" />
+        <CompanySettingsProvider>
+          <Header />
+          <main className="flex-1 w-full overflow-x-clip">{children}</main>
+          <Footer />
+          <WhatsAppWidget />
+          <AIAgentChat />
+          <Toaster richColors position="top-right" />
+        </CompanySettingsProvider>
       </NextIntlClientProvider>
     </div>
   );

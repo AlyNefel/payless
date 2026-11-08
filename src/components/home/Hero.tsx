@@ -14,10 +14,12 @@ import {
   ChevronRight,
   BadgeCheck,
 } from "lucide-react";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 
 export function Hero() {
   const t = useTranslations("hero");
   const locale = useLocale();
+  const { settings } = useCompanySettings();
   const sectionRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -32,19 +34,19 @@ export function Hero() {
   const trustPillarsData = {
     fr: [
       { icon: ShieldCheck, title: "Flotte Vérifiée", desc: "Modèle exact garanti, zéro substitution ni déclassement" },
-      { icon: Headphones, title: "Conciergerie 24/7", desc: "Assistance immédiate partout en Tunisie (+216 25 120 130)" },
+      { icon: Headphones, title: "Conciergerie 24/7", desc: `Assistance immédiate partout en Tunisie (${settings.phone})` },
       { icon: Zap, title: "Confirmation Instantanée", desc: "Bon WhatsApp & contrat immédiat après réservation" },
       { icon: BadgeCheck, title: "Options 0 TND Dépôt", desc: "Formules zéro franchise pour une sérénité totale" },
     ],
     en: [
       { icon: ShieldCheck, title: "Verified Fleet", desc: "Guaranteed exact model, zero substitutions or downgrades" },
-      { icon: Headphones, title: "24/7 Roadside Concierge", desc: "Instant assistance anywhere in Tunisia (+216 25 120 130)" },
+      { icon: Headphones, title: "24/7 Roadside Concierge", desc: `Instant assistance anywhere in Tunisia (${settings.phone})` },
       { icon: Zap, title: "Instant Confirmation", desc: "Immediate WhatsApp voucher & contract upon booking" },
       { icon: BadgeCheck, title: "0 TND Deposit Options", desc: "Zero excess plans for total peace of mind" },
     ],
     ar: [
       { icon: ShieldCheck, title: "أسطول مضمون", desc: "نفس الموديل المحجوز مضمون بدون إحلال أو تبديل" },
-      { icon: Headphones, title: "مساعدة 24/7 على الطريق", desc: "دعم فوري في كل مكان بتونس (+216 25 120 130)" },
+      { icon: Headphones, title: "مساعدة 24/7 على الطريق", desc: `دعم فوري في كل مكان بتونس (${settings.phone})` },
       { icon: Zap, title: "تأكيد فوري", desc: "وصل واتساب وعقد فوريان بعد الحجز مباشرة" },
       { icon: BadgeCheck, title: "خيارات بدون وديعة", desc: "خطط بدون فرانشيز لراحة بال تامة" },
     ],

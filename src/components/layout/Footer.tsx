@@ -5,6 +5,7 @@ import { useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 import {
   Phone,
   Mail,
@@ -257,6 +258,7 @@ export function Footer() {
   const locale = (useLocale() as "fr" | "en" | "ar") || "fr";
   const t = translations[locale] || translations.fr;
   const isRtl = locale === "ar";
+  const { settings } = useCompanySettings();
 
   const [email, setEmail] = React.useState("");
   const [newsletterStatus, setNewsletterStatus] = React.useState<
@@ -371,22 +373,22 @@ export function Footer() {
                 {t.hotlineLabel}
               </span>
               <a
-                href="tel:+21625120130"
+                href={`tel:${settings.phone.replace(/\s+/g, "")}`}
                 className="inline-flex items-center gap-3 text-lg font-bold text-white hover:text-blue-400 transition-colors"
                 dir="ltr"
               >
                 <div className="p-2 rounded-xl bg-blue-600/20 text-blue-400">
                   <Phone className="h-4 w-4" />
                 </div>
-                <span>+216 25 120 130</span>
+                <span>{settings.phone}</span>
               </a>
               <div className="flex items-center gap-2 pt-1 text-xs text-zinc-400">
                 <Mail className="h-3.5 w-3.5 text-zinc-400" />
                 <a
-                  href="mailto:Reservations@hmlrentcar.tn"
+                  href={`mailto:${settings.email}`}
                   className="hover:underline hover:text-white"
                 >
-                  Reservations@hmlrentcar.tn
+                  {settings.email}
                 </a>
               </div>
             </div>
@@ -574,7 +576,7 @@ export function Footer() {
         {/* SECTION 3: Bottom Legal & Copyright Bar */}
         <div className="border-t border-zinc-800/80 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-zinc-400">
           <div>
-            © {new Date().getFullYear()} PAYLESS CAR RENTAL. {t.rights}
+            © {new Date().getFullYear()} {settings.agencyName || "PAYLESS CAR RENTAL"}. {t.rights} ({settings.legalName || "Houimli Rent a Car SARL"})
           </div>
 
           <div className="flex flex-wrap items-center gap-6">

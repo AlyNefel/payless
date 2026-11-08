@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 
 const ARTICLES = [
   {
@@ -109,6 +110,7 @@ const ARTICLES = [
 export default function TermsPage() {
   const params = useParams();
   const locale = (params?.locale as string) || "fr";
+  const { settings } = useCompanySettings();
   const [openArticles, setOpenArticles] = useState<number[]>([1, 2, 3, 9, 11]);
   const [search, setSearch] = useState("");
 
@@ -164,12 +166,12 @@ export default function TermsPage() {
           <div className="flex flex-wrap items-center justify-center gap-4 pt-2 text-xs text-slate-400">
             <span className="flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-blue-400" />
-              60, Avenue de l'UMA, La Soukra, Ariana 2036
+              {settings.address}, {settings.city}
             </span>
             <span>•</span>
             <span className="flex items-center gap-1.5">
               <Phone className="w-3.5 h-3.5 text-emerald-400" />
-              +216 25 120 130 / +216 24 220 277
+              {settings.phone}
             </span>
           </div>
         </div>
@@ -321,17 +323,17 @@ export default function TermsPage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <a
-              href="https://wa.me/21625120130"
+              href={`https://wa.me/${settings.whatsapp.replace(/[^0-9]/g, "")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-lg shadow-emerald-600/25"
             >
               <span>
                 {locale === "en"
-                  ? "Chat on WhatsApp (+216 25 120 130)"
+                  ? `Chat on WhatsApp (${settings.whatsapp})`
                   : locale === "ar"
-                  ? "تواصل عبر واتساب (+216 25 120 130)"
-                  : "Contacter sur WhatsApp (+216 25 120 130)"}
+                  ? `تواصل عبر واتساب (${settings.whatsapp})`
+                  : `Contacter sur WhatsApp (${settings.whatsapp})`}
               </span>
             </a>
             <Link

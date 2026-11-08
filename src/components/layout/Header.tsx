@@ -6,6 +6,7 @@ import { useLocale } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 import {
   Globe,
   Menu,
@@ -126,6 +127,7 @@ export function Header() {
   const currentLocale = useLocale() as "fr" | "en" | "ar";
   const pathname = usePathname();
   const router = useRouter();
+  const { settings } = useCompanySettings();
 
   const [mounted, setMounted] = React.useState(false);
   const [isScrolled, setIsScrolled] = React.useState(false);
@@ -523,15 +525,15 @@ export function Header() {
                     </span>
                   </div>
                   <a
-                    href="tel:+21625120130"
+                    href={`tel:${settings.phone.replace(/\s+/g, "")}`}
                     className="text-xs text-blue-700 dark:text-blue-300 font-mono font-bold mt-0.5 block hover:underline"
                   >
-                    +216 25 120 130
+                    {settings.phone}
                   </a>
                 </div>
 
                 <a
-                  href="https://wa.me/21625120130"
+                  href={`https://wa.me/${settings.whatsapp.replace(/[^0-9]/g, "")}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center gap-1.5 active:scale-95 transition-transform"

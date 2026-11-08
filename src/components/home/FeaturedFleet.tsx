@@ -16,6 +16,7 @@ import {
   Check,
   Eye,
 } from "lucide-react";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 
 interface FleetVehicle {
   id: string;
@@ -189,6 +190,7 @@ export function FeaturedFleet() {
   const t = useTranslations("home");
   const bookingT = useTranslations("booking");
   const locale = useLocale();
+  const { settings } = useCompanySettings();
 
   const [activeTab, setActiveTab] = useState<CategoryFilter>("all");
 
@@ -213,7 +215,7 @@ export function FeaturedFleet() {
       bookBtn: "Réserver",
       airportBannerTitle: "Livraison Directe dans 11 Agences & Aéroports en Tunisie",
       airportBannerSubtitle: "Aéroports Tunis-Carthage (24/7), Monastir, Enfidha, Soukra, Hammamet, Sousse, Sfax, Bizerte, Nabeul, Jendouba.",
-      callCta: "Appeler +216 25 120 130",
+      callCta: `Appeler ${settings.phone}`,
     },
     en: {
       badge: "2024-2026 Fleet Available Across Tunisia",
@@ -235,7 +237,7 @@ export function FeaturedFleet() {
       bookBtn: "Book Now",
       airportBannerTitle: "Direct Delivery at 11 Agencies & Airports in Tunisia",
       airportBannerSubtitle: "Tunis-Carthage Airport (24/7), Monastir, Enfidha, Soukra, Hammamet, Sousse, Sfax, Bizerte, Nabeul, Jendouba.",
-      callCta: "Call +216 25 120 130",
+      callCta: `Call ${settings.phone}`,
     },
     ar: {
       badge: "أسطول 2024-2026 في جميع أنحاء تونس",
@@ -257,7 +259,7 @@ export function FeaturedFleet() {
       bookBtn: "احجز الآن",
       airportBannerTitle: "تسليم مباشر في 11 وكالة ومطاراً في تونس",
       airportBannerSubtitle: "مطار تونس قرطاج (24/7)، المنستير، النفيضة، سكرة، الحمامات، سوسة، صفاقس، بنزرت، نابل، جندوبة.",
-      callCta: "اتصل +216 25 120 130",
+      callCta: `اتصل ${settings.phone}`,
     },
   };
   const tl = fleetTranslations[locale as "fr" | "en" | "ar"] ?? fleetTranslations.fr;
@@ -454,7 +456,7 @@ export function FeaturedFleet() {
 
           <div className="flex items-center gap-3 shrink-0">
             <a
-              href="tel:+21625120130"
+              href={`tel:${settings.phone.replace(/\s+/g, "")}`}
               className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-600/25"
             >
               {tl.callCta}

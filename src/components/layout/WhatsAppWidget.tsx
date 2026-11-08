@@ -2,11 +2,13 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocale } from "next-intl";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 
 export function WhatsAppWidget() {
   const [show, setShow] = useState(false);
   const [hovered, setHovered] = useState(false);
   const locale = useLocale();
+  const { settings } = useCompanySettings();
 
   useEffect(() => {
     const t = setTimeout(() => setShow(true), 2000);
@@ -54,7 +56,7 @@ export function WhatsAppWidget() {
 
           {/* Button */}
           <motion.a
-            href={`https://wa.me/21625120130?text=${waText}`}
+            href={`https://wa.me/${settings.whatsapp.replace(/[^0-9]/g, "")}?text=${waText}`}
             target="_blank"
             rel="noopener noreferrer"
             onMouseEnter={() => setHovered(true)}

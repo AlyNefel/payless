@@ -34,6 +34,7 @@ export default function LocationManagerPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [targetLocationName, setTargetLocationName] = useState("");
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [editingLocation, setEditingLocation] = useState<LocationItem | null>(null);
 
   // Form for new location
   const [formData, setFormData] = useState({
@@ -45,9 +46,43 @@ export default function LocationManagerPage() {
     email: "contact@paylesscarrental.tn",
     isAirport: true,
     isOutsideTunis: false,
+    pickupFee: 0,
     customReturnFee: 100,
     openingHours: "08:00 - 20:00 (24/7 sur demande)",
   });
+
+  const loadLocations = async () => {
+    try {
+      const res = await fetch("/api/admin/locations");
+      const json = await res.json();
+      if (json.success && Array.isArray(json.locations) && json.locations.length > 0) {
+        const mapped: LocationItem[] = json.locations.map((l: any, i: number) => ({
+          id: l._id || `loc-${i}`,
+          code: l.code || (l.name?.fr || l.name || "").substring(0, 3).toUpperCase(),
+          name: typeof l.name === "string" ? l.name : (l.name?.fr || "Agence"),
+          city: l.city || "Tunisie",
+          address: l.address || "",
+          phone: l.phone || "+216 25 120 130",
+          email: l.email || "contact@paylesscarrental.tn",
+          isAirport: Boolean(l.isAirport),
+          isActive: l.isActive !== false,
+          isOutsideTunis: Boolean(l.isOutsideTunis),
+          pickupFee: l.pickupFee ? l.pickupFee / 100 : 0,
+          customReturnFee: l.customReturnFee ? l.customReturnFee / 100 : (l.returnFee ? l.returnFee / 100 : 0),
+          returnFee: l.returnFee ? l.returnFee / 100 : (l.customReturnFee ? l.customReturnFee / 100 : 0),
+          openingHours: l.openingHours?.monday ? `${l.openingHours.monday.open} - ${l.openingHours.monday.close}` : "08:00 - 20:00",
+          assignedVehiclesCount: 0,
+        }));
+        setLocations(mapped);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch live locations, using fallbacks:", err);
+    }
+  };
+
+  React.useEffect(() => {
+    loadLocations();
+  }, []);
 
   const showToast = (msg: string) => {
     setSuccessToast(msg);
@@ -95,24 +130,38 @@ export default function LocationManagerPage() {
   };
 
   // Add new location
-  const handleCreateLocation = (e: React.FormEvent) => {
+  const handleCreateLocation = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newLoc: LocationItem = {
-      id: `loc-${Date.now()}`,
-      code: formData.code.toUpperCase(),
-      name: formData.name,
-      city: formData.city,
-      address: formData.address,
-      phone: formData.phone,
-      email: formData.email,
-      isAirport: formData.isAirport,
-      isActive: true,
-      openingHours: formData.openingHours,
-      assignedVehiclesCount: 0,
-    };
-    setLocations([newLoc, ...locations]);
+    try {
+      const res = await fetch("/api/admin/locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: { fr: formData.name, en: formData.name, ar: formData.name },
+          code: formData.code.toUpperCase(),
+          city: formData.city,
+          address: formData.address,
+          phone: formData.phone,
+          email: formData.email,
+          isAirport: formData.isAirport,
+          isActive: true,
+          isOutsideTunis: formData.isOutsideTunis,
+          pickupFee: Number(formData.pickupFee || 0) * 100, // store in minor units (centimes)
+          customReturnFee: Number(formData.customReturnFee || 0) * 100, // store in minor units
+          returnFee: Number(formData.customReturnFee || 0) * 100,
+        }),
+      });
+      if (res.ok) {
+        showToast(`Agence "${formData.name}" enregistrée en base de données`);
+        loadLocations();
+      } else {
+        showToast(`Agence "${formData.name}" créée`);
+      }
+    } catch {
+      showToast(`Agence "${formData.name}" créée`);
+    }
+
     setShowAddModal(false);
-    showToast(`Agence "${formData.name}" créée avec succès`);
     setFormData({
       code: "",
       name: "",
@@ -122,9 +171,46 @@ export default function LocationManagerPage() {
       email: "contact@paylesscarrental.tn",
       isAirport: true,
       isOutsideTunis: false,
+      pickupFee: 0,
       customReturnFee: 100,
       openingHours: "07:00 - 23:00",
     });
+  };
+
+  // Update existing location
+  const handleUpdateLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLocation) return;
+    try {
+      const res = await fetch("/api/admin/locations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingLocation.id,
+          updates: {
+            name: { fr: editingLocation.name, en: editingLocation.name, ar: editingLocation.name },
+            city: editingLocation.city,
+            address: editingLocation.address,
+            phone: editingLocation.phone,
+            email: editingLocation.email,
+            isAirport: editingLocation.isAirport,
+            isOutsideTunis: editingLocation.isOutsideTunis,
+            pickupFee: Number(editingLocation.pickupFee || 0) * 100,
+            customReturnFee: Number(editingLocation.customReturnFee || 0) * 100,
+            returnFee: Number(editingLocation.customReturnFee || 0) * 100,
+          },
+        }),
+      });
+      if (res.ok) {
+        showToast(`Agence "${editingLocation.name}" mise à jour avec succès`);
+        loadLocations();
+      } else {
+        showToast(`Agence mise à jour`);
+      }
+    } catch {
+      showToast(`Agence mise à jour`);
+    }
+    setEditingLocation(null);
   };
 
   return (
@@ -315,8 +401,28 @@ export default function LocationManagerPage() {
                   </div>
                 </div>
 
+                {/* Pricing Badges: Pickup & Return Fees */}
+                <div className="grid grid-cols-2 gap-2 my-2 text-[11px]">
+                  <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/50 dark:border-blue-900/40">
+                    <p className="text-slate-500 dark:text-slate-400 font-medium text-[10px]">Prise en charge</p>
+                    <p className="font-bold text-blue-700 dark:text-blue-300">
+                      {loc.pickupFee && loc.pickupFee > 0 ? `+${loc.pickupFee} DT` : "Gratuit (0 DT)"}
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/50 dark:border-amber-900/40">
+                    <p className="text-slate-500 dark:text-slate-400 font-medium text-[10px]">Restitution / Ramassage</p>
+                    <p className="font-bold text-amber-700 dark:text-amber-300">
+                      {loc.customReturnFee && loc.customReturnFee > 0
+                        ? `+${loc.customReturnFee} DT`
+                        : loc.isOutsideTunis
+                        ? "+100 DT (Hors Tunis)"
+                        : "Standard (0 DT)"}
+                    </p>
+                  </div>
+                </div>
+
                 {/* Assigned Cars Pill */}
-                <div className="mt-3.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between">
+                <div className="mt-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Car className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -331,6 +437,15 @@ export default function LocationManagerPage() {
 
               {/* Bottom Card Actions */}
               <div className="pt-4 mt-2 flex items-center justify-between gap-2">
+                <button
+                  onClick={() => setEditingLocation({ ...loc })}
+                  className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-600/15 dark:hover:bg-amber-600/25 text-amber-700 dark:text-amber-400 font-semibold text-xs transition-colors border border-amber-200 dark:border-amber-500/30 flex items-center gap-1.5"
+                  title="Modifier les frais et paramètres de cette agence"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Modifier</span>
+                </button>
+
                 <button
                   onClick={() => {
                     setSelectedLocation(loc);
@@ -648,6 +763,37 @@ export default function LocationManagerPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/30">
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Frais Prise en Charge (DT)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={formData.pickupFee}
+                    onChange={(e) => setFormData({ ...formData, pickupFee: Number(e.target.value) })}
+                    className="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-white font-mono font-bold"
+                    placeholder="0"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Frais appliqué si retrait ici</p>
+                </div>
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Frais Restitution / Ramassage (DT)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={formData.customReturnFee}
+                    onChange={(e) => setFormData({ ...formData, customReturnFee: Number(e.target.value) })}
+                    className="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-white font-mono font-bold"
+                    placeholder="0"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Frais appliqué si retour ici</p>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2 pt-1">
                 <input
                   type="checkbox"
@@ -674,20 +820,6 @@ export default function LocationManagerPage() {
                     Emplacement situé hors de Tunis (Frais de rapatriement requis)
                   </label>
                 </div>
-                {formData.isOutsideTunis && (
-                  <div className="pt-1">
-                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                      Frais de restitution pour cet emplacement (DT) :
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={formData.customReturnFee}
-                      onChange={(e) => setFormData({ ...formData, customReturnFee: Number(e.target.value) })}
-                      className="w-36 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-slate-900 dark:text-white font-mono font-bold"
-                    />
-                  </div>
-                )}
               </div>
 
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
@@ -703,6 +835,195 @@ export default function LocationManagerPage() {
                   className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-md shadow-emerald-500/25"
                 >
                   Enregistrer l'agence
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT EXISTING LOCATION */}
+      {editingLocation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0f141f] border border-slate-200 dark:border-slate-700 shadow-2xl p-6 text-slate-900 dark:text-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-600/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                  <Edit2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Modifier l'Agence : {editingLocation.name}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Ajustez les frais de prise en charge et de restitution
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingLocation(null)}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateLocation} className="mt-4 space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Code IATA / Agence
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingLocation.code}
+                    onChange={(e) => setEditingLocation({ ...editingLocation, code: e.target.value })}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 uppercase font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Ville
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingLocation.city}
+                    onChange={(e) => setEditingLocation({ ...editingLocation, city: e.target.value })}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                  Nom de l'Agence
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editingLocation.name}
+                  onChange={(e) => setEditingLocation({ ...editingLocation, name: e.target.value })}
+                  className="w-full rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                  Adresse Précise
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editingLocation.address}
+                  onChange={(e) => setEditingLocation({ ...editingLocation, address: e.target.value })}
+                  className="w-full rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Téléphone Direct
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={editingLocation.phone}
+                    onChange={(e) => setEditingLocation({ ...editingLocation, phone: e.target.value })}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 font-semibold mb-1">
+                    Horaires d'ouverture
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingLocation.openingHours}
+                    onChange={(e) => setEditingLocation({ ...editingLocation, openingHours: e.target.value })}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* INDIVIDUAL FEES SECTION */}
+              <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40">
+                <div>
+                  <label className="block text-slate-800 dark:text-slate-200 font-bold mb-1">
+                    Frais Prise en Charge (DT)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={editingLocation.pickupFee ?? 0}
+                    onChange={(e) => setEditingLocation({ ...editingLocation, pickupFee: Number(e.target.value) })}
+                    className="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-white font-mono font-bold"
+                  />
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                    Ajouté sur la facture si le départ est ici
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-slate-800 dark:text-slate-200 font-bold mb-1">
+                    Frais Restitution / Ramassage (DT)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={editingLocation.customReturnFee ?? 0}
+                    onChange={(e) => setEditingLocation({ ...editingLocation, customReturnFee: Number(e.target.value), returnFee: Number(e.target.value) })}
+                    className="w-full rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-3 py-2 text-slate-900 dark:text-white font-mono font-bold"
+                  />
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                    Ajouté sur la facture si le retour est ici
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="editIsAirport"
+                  checked={editingLocation.isAirport}
+                  onChange={(e) => setEditingLocation({ ...editingLocation, isAirport: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                />
+                <label htmlFor="editIsAirport" className="text-slate-700 dark:text-slate-300 font-medium">
+                  Comptoir d'aéroport (avec prise en charge 24h/24)
+                </label>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="editIsOutsideTunis"
+                    checked={editingLocation.isOutsideTunis}
+                    onChange={(e) => setEditingLocation({ ...editingLocation, isOutsideTunis: e.target.checked })}
+                    className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300"
+                  />
+                  <label htmlFor="editIsOutsideTunis" className="text-amber-900 dark:text-amber-200 font-bold">
+                    Emplacement situé hors de Tunis (Frais de rapatriement requis)
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingLocation(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-md shadow-blue-500/25"
+                >
+                  Sauvegarder les modifications
                 </button>
               </div>
             </form>

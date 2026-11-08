@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Mail, Phone, MapPin, MessageCircle, Clock, Send, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 
 const BRANCHES = [
   { code: "TUN", city: { fr: "Tunis", en: "Tunis", ar: "تونس" }, airport: { fr: "Aéroport de Tunis-Carthage (24/7)", en: "Tunis-Carthage Airport (24/7)", ar: "مطار تونس قرطاج الدولي (24/7)" }, phone: "+216 22 123 456", hours: "24h/24 - 7j/7" },
@@ -23,6 +24,7 @@ export default function ContactPage({
   params: Promise<{ locale: string }>;
 }) {
   const [locale, setLocale] = React.useState("fr");
+  const { settings } = useCompanySettings();
   const [form, setForm] = useState({ name: "", email: "", phone: "", subject: "", message: "" });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -95,11 +97,11 @@ export default function ContactPage({
             </div>
             <div>
               <p className="font-semibold text-white text-sm sm:text-base">{getText("emergency")}</p>
-              <p className="text-white/60 text-xs sm:text-sm font-mono">+216 25 120 130</p>
+              <p className="text-white/60 text-xs sm:text-sm font-mono">{settings.phone}</p>
             </div>
           </div>
           <a
-            href="https://wa.me/21625120130"
+            href={`https://wa.me/${settings.whatsapp.replace(/[^0-9]/g, "")}`}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full sm:w-auto justify-center flex items-center gap-2 bg-[#25D366] text-white px-5 py-2.5 rounded-xl font-medium hover:bg-[#20b958] transition-colors text-sm shadow-md shadow-emerald-900/30"
@@ -217,8 +219,8 @@ export default function ContactPage({
           {/* Quick contact items */}
           <div className="grid grid-cols-1 gap-4">
             {[
-              { icon: Mail, title: "Email", value: "contact@payless.tn", href: "mailto:contact@payless.tn" },
-              { icon: Phone, title: locale === "fr" ? "Téléphone principal" : locale === "ar" ? "الهاتف الرئيسي" : "Main Phone", value: "+216 71 754 000", href: "tel:+21671754000" },
+              { icon: Mail, title: "Email", value: settings.email, href: `mailto:${settings.email}` },
+              { icon: Phone, title: locale === "fr" ? "Téléphone principal" : locale === "ar" ? "الهاتف الرئيسي" : "Main Phone", value: settings.phone, href: `tel:${settings.phone.replace(/\s/g, "")}` },
               { icon: Clock, title: locale === "fr" ? "Horaires" : locale === "ar" ? "أوقات العمل" : "Business Hours", value: locale === "fr" ? "Lun-Dim: 06h00 - 00h00" : locale === "ar" ? "الاثنين-الأحد: 06:00 - 00:00" : "Mon-Sun: 06:00 - 00:00", href: undefined },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-xl p-4 hover:border-[#1D4ED8]/30 transition-colors">

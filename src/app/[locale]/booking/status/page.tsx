@@ -23,6 +23,7 @@ import {
   Send,
   Info,
 } from "lucide-react";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 
 interface LocationItem {
   _id: string;
@@ -72,6 +73,8 @@ interface TrackedBooking {
     subtotal?: number;
     depositAmount?: number;
     outOfTownFee?: number;
+    pickupLocationFee?: number;
+    differentLocationFee?: number;
     currency?: string;
   };
   modificationRequest?: {
@@ -98,6 +101,7 @@ function BookingStatusContent() {
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  const { settings } = useCompanySettings();
 
   // Modification modal states
   const [showModifyModal, setShowModifyModal] = useState(false);
@@ -678,9 +682,21 @@ function BookingStatusContent() {
                       {fmt(booking.pricingBreakdown?.totalAmount)} TND
                     </span>
                   </div>
+                  {(booking.pricingBreakdown?.pickupLocationFee || 0) > 0 && (
+                    <div className="flex justify-between text-[11px] text-blue-600 dark:text-blue-400 font-medium">
+                      <span>Prise en charge ({booking.pickupLocationId?.name?.[locale as "fr" | "en" | "ar"] || booking.pickupLocationId?.name?.fr || "Départ"}) :</span>
+                      <span>+{fmt(booking.pricingBreakdown?.pickupLocationFee)} TND</span>
+                    </div>
+                  )}
+                  {(booking.pricingBreakdown?.differentLocationFee || 0) > 0 && (
+                    <div className="flex justify-between text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">
+                      <span>Restitution agence différente (Aller simple) :</span>
+                      <span>+{fmt(booking.pricingBreakdown?.differentLocationFee)} TND</span>
+                    </div>
+                  )}
                   {(booking.pricingBreakdown?.outOfTownFee || 0) > 0 && (
                     <div className="flex justify-between text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                      <span>Frais restitution hors Tunis :</span>
+                      <span>Frais restitution hors Tunis / Ramassage :</span>
                       <span>+{fmt(booking.pricingBreakdown?.outOfTownFee)} TND</span>
                     </div>
                   )}
@@ -752,11 +768,20 @@ function BookingStatusContent() {
 
               <div className="flex items-center gap-2 shrink-0">
                 <a
-                  href="tel:+21625120130"
+                  href={`tel:${settings.phone.replace(/\s+/g, "")}`}
                   className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-md transition-colors flex items-center gap-1.5"
                 >
                   <Phone className="w-3.5 h-3.5" />
-                  <span>+216 25 120 130</span>
+                  <span>{settings.phone}</span>
+                </a>
+                <a
+                  href={`https://wa.me/${settings.whatsapp.replace(/[^0-9]/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20b958] text-white text-xs font-semibold shadow-md transition-colors flex items-center gap-1.5"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>WhatsApp</span>
                 </a>
               </div>
             </div>

@@ -943,6 +943,10 @@ export interface LocationItem {
   isActive: boolean;
   openingHours: string;
   assignedVehiclesCount: number;
+  pickupFee?: number;
+  customReturnFee?: number;
+  returnFee?: number;
+  isOutsideTunis?: boolean;
 }
 
 export const MOCK_LOCATIONS: LocationItem[] = [

@@ -81,6 +81,9 @@ interface PopulatedBooking {
     timbreFiscal?: number;
     contributionLF2026?: number;
     outOfTownFee?: number;
+    pickupLocationFee?: number;
+    returnLocationFee?: number;
+    differentLocationFee?: number;
     depositAmount?: number;
     totalAmount?: number;
     currency?: string;
@@ -750,9 +753,23 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 <span>{fmt(booking.pricingBreakdown?.contributionLF2026 ?? (200 * (booking.rentalDuration || 1)))} TND</span>
               </div>
 
+              {(booking.pricingBreakdown?.pickupLocationFee || 0) > 0 && (
+                <div className="flex justify-between text-blue-600 dark:text-blue-400 font-semibold">
+                  <span>Frais prise en charge ({booking.pickupLocationId?.name?.fr || booking.pickupLocationId?.city || "Point de retrait"})</span>
+                  <span>+{fmt(booking.pricingBreakdown?.pickupLocationFee)} TND</span>
+                </div>
+              )}
+
+              {(booking.pricingBreakdown?.differentLocationFee || 0) > 0 && (
+                <div className="flex justify-between text-indigo-600 dark:text-indigo-400 font-semibold">
+                  <span>Restitution agence différente (Aller-simple)</span>
+                  <span>+{fmt(booking.pricingBreakdown?.differentLocationFee)} TND</span>
+                </div>
+              )}
+
               {(booking.pricingBreakdown?.outOfTownFee || 0) > 0 && (
                 <div className="flex justify-between text-amber-600 dark:text-amber-400 font-semibold">
-                  <span>Frais restitution hors Tunis</span>
+                  <span>Frais restitution hors Tunis / Ramassage</span>
                   <span>+{fmt(booking.pricingBreakdown?.outOfTownFee)} TND</span>
                 </div>
               )}

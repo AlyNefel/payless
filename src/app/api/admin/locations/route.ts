@@ -53,7 +53,9 @@ export async function POST(request: NextRequest) {
       isAirport: Boolean(body.isAirport),
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
       isOutsideTunis: Boolean(body.isOutsideTunis),
-      customReturnFee: Number(body.customReturnFee || 0),
+      customReturnFee: Number(body.customReturnFee || body.returnFee || 0),
+      pickupFee: Number(body.pickupFee || 0),
+      returnFee: Number(body.returnFee || body.customReturnFee || 0),
     });
 
     return NextResponse.json({ success: true, location: newLocation }, { status: 201 });

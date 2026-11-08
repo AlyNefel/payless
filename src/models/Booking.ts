@@ -23,6 +23,9 @@ export interface IPricingBreakdown {
   timbreFiscal?: number;
   contributionLF2026?: number;
   outOfTownFee?: number;
+  pickupLocationFee?: number;
+  returnLocationFee?: number;
+  differentLocationFee?: number;
   depositAmount: number;
   totalAmount: number;
   currency: string;
@@ -137,6 +140,9 @@ const BookingSchema = new Schema<IBooking>(
       timbreFiscal: { type: Number, default: 100 },
       contributionLF2026: { type: Number, default: 0 },
       outOfTownFee: { type: Number, default: 0 },
+      pickupLocationFee: { type: Number, default: 0 },
+      returnLocationFee: { type: Number, default: 0 },
+      differentLocationFee: { type: Number, default: 0 },
       depositAmount: { type: Number, default: 0 },
       totalAmount: { type: Number, required: true },
       currency: { type: String, default: "TND" },

@@ -22,6 +22,8 @@ export interface ILocation extends Document {
   isActive: boolean;
   isOutsideTunis?: boolean;
   customReturnFee?: number; // fee in minor units (e.g. 10000 = 100 DT)
+  pickupFee?: number; // fee for picking up at this location in minor units (e.g. 3000 = 30 DT)
+  returnFee?: number; // fee for returning/recovery at this location in minor units
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,6 +57,8 @@ const LocationSchema = new Schema<ILocation>(
     isActive: { type: Boolean, default: true },
     isOutsideTunis: { type: Boolean, default: false },
     customReturnFee: { type: Number, default: 0 },
+    pickupFee: { type: Number, default: 0 },
+    returnFee: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
