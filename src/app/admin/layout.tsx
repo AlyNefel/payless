@@ -20,6 +20,8 @@ import {
   Menu,
   X,
   ChevronRight,
+  ChevronDown,
+  Layers,
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
@@ -108,6 +110,24 @@ const NAV_GROUPS: NavGroup[] = [
       { title: "Paramètres Agence", href: "/admin/settings", icon: Settings },
     ],
   },
+  {
+    id: "all_managers",
+    groupTitle: { fr: "Tous les Managers (Raccourcis)", en: "All Managers (Quick Access)" },
+    icon: Layers,
+    items: [
+      { title: "Car Model Manager", href: "/admin/fleet", icon: Car },
+      { title: "Garage & Vidanges", href: "/admin/garage", icon: Wrench },
+      { title: "Tarifs Flotte", href: "/admin/fleet", icon: Car },
+      { title: "Customer Manager", href: "/admin/customers", icon: Users },
+      { title: "Notification Manager", href: "/admin/notifications", icon: Bell },
+      { title: "Extras Manager", href: "/admin/fees", icon: SlidersHorizontal },
+      { title: "Location Manager", href: "/admin/locations", icon: MapPin },
+      { title: "Frais & Taxes Manager", href: "/admin/fees", icon: SlidersHorizontal },
+      { title: "Payment & Finance Manager", href: "/admin/finance", icon: Receipt },
+      { title: "Reservation Manager", href: "/admin/bookings", icon: CalendarCheck2 },
+      { title: "Étapes de Réservation", href: "/admin/steps", icon: ListOrdered },
+    ],
+  },
 ];
 
 const MANAGERS_MENU = [
@@ -182,8 +202,19 @@ function AdminLayoutContent({
   const [notifications, setNotifications] = useState(SAMPLE_NOTIFICATIONS);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showQuickBookingModal, setShowQuickBookingModal] = useState(false);
-  const [managersDropdownOpen, setManagersDropdownOpen] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  // Track expanded groups in sidebar (accordion / collapsible submenus)
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({
+    all_managers: true, // collapsed by default to keep sidebar compact
+  });
+
+  const toggleGroup = (groupId: string) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [groupId]: !prev[groupId],
+    }));
+  };
 
   // Live data for Quick Booking modal (direct reservation)
   const [adminLocations, setAdminLocations] = useState<any[]>([]);
@@ -363,7 +394,6 @@ function AdminLayoutContent({
   useEffect(() => {
     setMobileMenuOpen(false);
     setNotificationsOpen(false);
-    setManagersDropdownOpen(false);
   }, [pathname]);
 
   // If path is /admin/login, render children cleanly without the dashboard shell
@@ -410,50 +440,90 @@ function AdminLayoutContent({
           </Link>
         </div>
 
-        {/* Navigation Groups with Submenus */}
-        <div className="flex-1 overflow-y-auto px-3.5 py-4 space-y-4">
+        {/* Navigation Groups with Collapsible Submenus */}
+        <div className="flex-1 overflow-y-auto px-3.5 py-4 space-y-2">
           {NAV_GROUPS.map((group) => {
             const GroupIcon = group.icon;
             const title = lang === "en" ? group.groupTitle.en : group.groupTitle.fr;
+            const isCollapsed = Boolean(collapsedGroups[group.id]);
+            const hasActiveChild = group.items.some(
+              (item) => pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href))
+            );
 
             return (
-              <div key={group.id} className="space-y-1">
-                <div className="px-3 py-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  <GroupIcon className="w-3 h-3 text-blue-500/80" />
-                  <span>{title}</span>
-                </div>
+              <div
+                key={group.id}
+                className={`rounded-2xl transition-all duration-200 ${
+                  group.id === "all_managers"
+                    ? "bg-gradient-to-br from-blue-50/50 to-indigo-50/30 dark:from-blue-950/20 dark:to-indigo-950/10 border border-blue-200/60 dark:border-blue-900/40 p-1"
+                    : ""
+                }`}
+              >
+                {/* Group Header Button (Accordion toggle) */}
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.id)}
+                  className={`w-full px-3 py-2 flex items-center justify-between rounded-xl text-left transition-colors cursor-pointer group ${
+                    hasActiveChild && isCollapsed
+                      ? "bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <GroupIcon className={`w-3.5 h-3.5 ${hasActiveChild ? "text-blue-600 dark:text-blue-400" : "text-slate-400"}`} />
+                    <span className="text-[11px] font-black uppercase tracking-wider truncate">
+                      {title}
+                    </span>
+                  </div>
 
-                <div className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive =
-                      pathname === item.href ||
-                      (item.href !== "/admin" && pathname.startsWith(item.href));
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {group.id === "all_managers" && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
+                        {group.items.length}
+                      </span>
+                    )}
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                        isCollapsed ? "-rotate-90 text-slate-400" : "rotate-0 text-slate-600 dark:text-slate-300"
+                      }`}
+                    />
+                  </div>
+                </button>
 
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all group ${
-                          isActive
-                            ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
-                            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Icon
-                            className={`w-3.5 h-3.5 transition-transform group-hover:scale-110 ${
-                              isActive
-                                ? "text-white"
-                                : "text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300"
-                            }`}
-                          />
-                          <span className="truncate">{getNavTitle(item.href, item.title)}</span>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
+                {/* Submenu Items with smooth expand */}
+                {!isCollapsed && (
+                  <div className="space-y-0.5 pt-1 pl-1.5 pr-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive =
+                        pathname === item.href ||
+                        (item.href !== "/admin" && pathname.startsWith(item.href));
+
+                      return (
+                        <Link
+                          key={item.href + item.title}
+                          href={item.href}
+                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all group ${
+                            isActive
+                              ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
+                              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <Icon
+                              className={`w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-110 ${
+                                isActive
+                                  ? "text-white"
+                                  : "text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300"
+                              }`}
+                            />
+                            <span className="truncate">{getNavTitle(item.href, item.title)}</span>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -511,37 +581,62 @@ function AdminLayoutContent({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto py-3 space-y-3">
+            <div className="flex-1 overflow-y-auto py-3 space-y-2">
               {NAV_GROUPS.map((group) => {
+                const GroupIcon = group.icon;
                 const title = lang === "en" ? group.groupTitle.en : group.groupTitle.fr;
+                const isCollapsed = Boolean(collapsedGroups[group.id]);
+                const hasActiveChild = group.items.some(
+                  (item) => pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href))
+                );
+
                 return (
-                  <div key={group.id} className="space-y-1">
-                    <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      {title}
-                    </p>
-                    <div className="space-y-0.5">
-                      {group.items.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = pathname === item.href;
-                        return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold ${
-                              isActive
-                                ? "bg-blue-600 text-white shadow-sm"
-                                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <Icon className="w-4 h-4" />
-                              <span>{getNavTitle(item.href, item.title)}</span>
-                            </div>
-                          </Link>
-                        );
-                      })}
-                    </div>
+                  <div key={group.id} className="rounded-xl border border-slate-100 dark:border-slate-800/60 p-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.id)}
+                      className={`w-full px-2.5 py-1.5 flex items-center justify-between rounded-lg text-left transition-colors ${
+                        hasActiveChild && isCollapsed
+                          ? "bg-blue-50 text-blue-600 dark:bg-blue-950/40"
+                          : "text-slate-600 dark:text-slate-400"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <GroupIcon className="w-3.5 h-3.5 text-blue-500" />
+                        <span className="text-[10px] font-black uppercase tracking-wider">{title}</span>
+                      </div>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                          isCollapsed ? "-rotate-90" : "rotate-0"
+                        }`}
+                      />
+                    </button>
+
+                    {!isCollapsed && (
+                      <div className="space-y-0.5 pt-1 pl-1">
+                        {group.items.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = pathname === item.href;
+                          return (
+                            <Link
+                              key={item.href + item.title}
+                              href={item.href}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold ${
+                                isActive
+                                  ? "bg-blue-600 text-white shadow-sm"
+                                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Icon className="w-3.5 h-3.5" />
+                                <span>{getNavTitle(item.href, item.title)}</span>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -588,39 +683,6 @@ function AdminLayoutContent({
 
           {/* Right actions */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* MANAGERS DROPDOWN */}
-            <div className="relative">
-              <button
-                onClick={() => setManagersDropdownOpen(!managersDropdownOpen)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-[#0c1017] text-slate-800 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-800 text-xs font-semibold shadow-sm border border-slate-200 dark:border-slate-700/80 transition-colors"
-                title="Accès direct aux Gestionnaires"
-              >
-                <span>Managers</span>
-                <ChevronRight
-                  className={`w-3.5 h-3.5 transition-transform ${
-                    managersDropdownOpen ? "rotate-90" : ""
-                  }`}
-                />
-              </button>
-
-              {managersDropdownOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white dark:bg-[#0c1017] border border-slate-200 dark:border-slate-800 shadow-2xl p-1.5 z-50 divide-y divide-slate-100 dark:divide-slate-800/40 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="py-1">
-                    {MANAGERS_MENU.map((m) => (
-                      <Link
-                        key={m.label}
-                        href={m.href}
-                        onClick={() => setManagersDropdownOpen(false)}
-                        className="block px-3 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors"
-                      >
-                        {m.label}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* LANGUAGE SWITCHER (FR / EN) */}
             <button
               onClick={() => setLang(lang === "fr" ? "en" : "fr")}
