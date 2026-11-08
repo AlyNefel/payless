@@ -354,13 +354,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 7. Compute Final Totals and Deposit (Tunisian fiscal requirements)
+    // 7. Compute Final Totals and Deposit (Tunisian fiscal requirements & Out-of-town Return Fee)
     const taxRate = 0; // TVA: 0% (TTC)
     const taxAmount = 0;
     const timbreFiscal = 100; // 1 DT timbre fiscal flat = 100 centimes
     const contributionLF2026 = 200 * rentalDays; // 2 DT par jour par voiture louée (Contribution LF 2026) = 200 centimes * rentalDays
+
+    // Out-of-town return fee: if return point is outside Tunis, apply fee (default 100 DT = 10000 centimes or location custom fee)
+    let outOfTownFee = 0;
+    const isReturnOutsideTunis =
+      returnLoc.isOutsideTunis ||
+      (returnLoc.city && !returnLoc.city.toLowerCase().includes("tunis") && !returnLoc.city.toLowerCase().includes("ariana") && !returnLoc.city.toLowerCase().includes("soukra") && !returnLoc.city.toLowerCase().includes("carthage"));
+
+    if (isReturnOutsideTunis) {
+      outOfTownFee = returnLoc.customReturnFee && returnLoc.customReturnFee > 0 ? returnLoc.customReturnFee : 10000; // 100 DT in centimes
+    }
+
     const depositAmount = vehicle.pricing.deposit || 0;
-    const totalAmount = Math.max(0, subtotal + extrasTotal - discountAmount + taxAmount + timbreFiscal + contributionLF2026);
+    const totalAmount = Math.max(0, subtotal + extrasTotal - discountAmount + taxAmount + timbreFiscal + contributionLF2026 + outOfTownFee);
     const currency = vehicle.pricing.currency || "TND";
 
     const pricingBreakdown = {
@@ -373,6 +384,7 @@ export async function POST(request: NextRequest) {
       taxRate,
       timbreFiscal,
       contributionLF2026,
+      outOfTownFee,
       depositAmount,
       totalAmount,
       currency,

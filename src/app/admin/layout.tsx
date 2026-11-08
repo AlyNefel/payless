@@ -41,78 +41,72 @@ interface NavItem {
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  badge?: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
+interface NavGroup {
+  id: string;
+  groupTitle: { fr: string; en: string };
+  icon: React.ComponentType<{ className?: string }>;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
-    title: "Tableau de bord",
-    href: "/admin",
+    id: "overview",
+    groupTitle: { fr: "Vue d'ensemble", en: "Overview" },
     icon: LayoutDashboard,
+    items: [
+      { title: "Tableau de bord", href: "/admin", icon: LayoutDashboard },
+      { title: "Calendrier Flotte", href: "/admin/calendar", icon: CalendarDays },
+    ],
   },
   {
-    title: "Car Model Manager",
-    href: "/admin/fleet",
-    icon: Car,
-  },
-  {
-    title: "Reservation Manager",
-    href: "/admin/bookings",
+    id: "operations",
+    groupTitle: { fr: "Réservations & Planning", en: "Bookings & Planning" },
     icon: CalendarCheck2,
+    items: [
+      { title: "Reservation Manager", href: "/admin/bookings", icon: CalendarCheck2 },
+      { title: "Étapes de Réservation", href: "/admin/steps", icon: ListOrdered },
+    ],
   },
   {
-    title: "Étapes de Réservation",
-    href: "/admin/steps",
-    icon: ListOrdered,
+    id: "fleet_management",
+    groupTitle: { fr: "Flotte & Véhicules", en: "Fleet & Vehicles" },
+    icon: Car,
+    items: [
+      { title: "Car Model Manager", href: "/admin/fleet", icon: Car },
+      { title: "Garage & Vidanges", href: "/admin/garage", icon: Wrench },
+      { title: "Location Manager", href: "/admin/locations", icon: MapPin },
+    ],
   },
   {
-    title: "Calendrier Flotte",
-    href: "/admin/calendar",
-    icon: CalendarDays,
-  },
-  {
-    title: "Garage & Vidanges",
-    href: "/admin/garage",
-    icon: Wrench,
-  },
-  {
-    title: "Location Manager",
-    href: "/admin/locations",
-    icon: MapPin,
-  },
-  {
-    title: "Extras & Fee Manager",
-    href: "/admin/fees",
-    icon: SlidersHorizontal,
-  },
-  {
-    title: "Customer Manager",
-    href: "/admin/customers",
-    icon: Users,
-  },
-  {
-    title: "Payment & Finance Manager",
-    href: "/admin/finance",
+    id: "finance_pricing",
+    groupTitle: { fr: "Tarifs, Extras & Finances", en: "Rates, Extras & Finance" },
     icon: Receipt,
+    items: [
+      { title: "Extras & Fee Manager", href: "/admin/fees", icon: SlidersHorizontal },
+      { title: "Payment & Finance Manager", href: "/admin/finance", icon: Receipt },
+      { title: "Promos & Coupons", href: "/admin/promotions", icon: Tag },
+    ],
   },
   {
-    title: "Promos & Coupons",
-    href: "/admin/promotions",
-    icon: Tag,
+    id: "crm_comms",
+    groupTitle: { fr: "Clients & Communications", en: "CRM & Communications" },
+    icon: Users,
+    items: [
+      { title: "Customer Manager", href: "/admin/customers", icon: Users },
+      { title: "Notification Manager", href: "/admin/notifications", icon: Bell },
+      { title: "Journal Emails & Templates", href: "/admin/emails", icon: Mail },
+    ],
   },
   {
-    title: "Notification Manager",
-    href: "/admin/notifications",
-    icon: Bell,
-  },
-  {
-    title: "Notifications Email",
-    href: "/admin/emails",
-    icon: Mail,
-  },
-  {
-    title: "Paramètres Agence",
-    href: "/admin/settings",
+    id: "system",
+    groupTitle: { fr: "Système & Configuration", en: "System & Settings" },
     icon: Settings,
+    items: [
+      { title: "Paramètres Agence", href: "/admin/settings", icon: Settings },
+    ],
   },
 ];
 
@@ -416,38 +410,51 @@ function AdminLayoutContent({
           </Link>
         </div>
 
-        {/* Navigation Items */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
-          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
-            Gestion Principale
-          </p>
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/admin" && pathname.startsWith(item.href));
+        {/* Navigation Groups with Submenus */}
+        <div className="flex-1 overflow-y-auto px-3.5 py-4 space-y-4">
+          {NAV_GROUPS.map((group) => {
+            const GroupIcon = group.icon;
+            const title = lang === "en" ? group.groupTitle.en : group.groupTitle.fr;
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all group ${
-                  isActive
-                    ? "bg-blue-50 text-blue-700 dark:bg-blue-600/15 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30 shadow-sm"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon
-                    className={`w-4 h-4 transition-transform group-hover:scale-110 ${
-                      isActive
-                        ? "text-blue-600 dark:text-blue-400"
-                        : "text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300"
-                    }`}
-                  />
-                  <span>{getNavTitle(item.href, item.title)}</span>
+              <div key={group.id} className="space-y-1">
+                <div className="px-3 py-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <GroupIcon className="w-3 h-3 text-blue-500/80" />
+                  <span>{title}</span>
                 </div>
-              </Link>
+
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive =
+                      pathname === item.href ||
+                      (item.href !== "/admin" && pathname.startsWith(item.href));
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all group ${
+                          isActive
+                            ? "bg-blue-600 text-white shadow-md shadow-blue-500/25"
+                            : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Icon
+                            className={`w-3.5 h-3.5 transition-transform group-hover:scale-110 ${
+                              isActive
+                                ? "text-white"
+                                : "text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300"
+                            }`}
+                          />
+                          <span className="truncate">{getNavTitle(item.href, item.title)}</span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -504,26 +511,38 @@ function AdminLayoutContent({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto py-3 space-y-1">
-              {NAV_ITEMS.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
+            <div className="flex-1 overflow-y-auto py-3 space-y-3">
+              {NAV_GROUPS.map((group) => {
+                const title = lang === "en" ? group.groupTitle.en : group.groupTitle.fr;
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold ${
-                      isActive
-                        ? "bg-blue-50 text-blue-700 dark:bg-blue-600/20 dark:text-blue-400"
-                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Icon className="w-4 h-4" />
-                      <span>{getNavTitle(item.href, item.title)}</span>
+                  <div key={group.id} className="space-y-1">
+                    <p className="px-3 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      {title}
+                    </p>
+                    <div className="space-y-0.5">
+                      {group.items.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = pathname === item.href;
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold ${
+                              isActive
+                                ? "bg-blue-600 text-white shadow-sm"
+                                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <Icon className="w-4 h-4" />
+                              <span>{getNavTitle(item.href, item.title)}</span>
+                            </div>
+                          </Link>
+                        );
+                      })}
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>

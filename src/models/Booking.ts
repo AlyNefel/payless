@@ -22,6 +22,7 @@ export interface IPricingBreakdown {
   taxRate: number;
   timbreFiscal?: number;
   contributionLF2026?: number;
+  outOfTownFee?: number;
   depositAmount: number;
   totalAmount: number;
   currency: string;
@@ -135,6 +136,7 @@ const BookingSchema = new Schema<IBooking>(
       taxRate: { type: Number, default: 0 },
       timbreFiscal: { type: Number, default: 100 },
       contributionLF2026: { type: Number, default: 0 },
+      outOfTownFee: { type: Number, default: 0 },
       depositAmount: { type: Number, default: 0 },
       totalAmount: { type: Number, required: true },
       currency: { type: String, default: "TND" },

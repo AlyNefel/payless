@@ -20,6 +20,8 @@ export interface ILocation extends Document {
   };
   isAirport: boolean;
   isActive: boolean;
+  isOutsideTunis?: boolean;
+  customReturnFee?: number; // fee in minor units (e.g. 10000 = 100 DT)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +53,8 @@ const LocationSchema = new Schema<ILocation>(
     },
     isAirport: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+    isOutsideTunis: { type: Boolean, default: false },
+    customReturnFee: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

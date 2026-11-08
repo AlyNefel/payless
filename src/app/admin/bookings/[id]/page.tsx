@@ -80,6 +80,7 @@ interface PopulatedBooking {
     discountAmount?: number;
     timbreFiscal?: number;
     contributionLF2026?: number;
+    outOfTownFee?: number;
     depositAmount?: number;
     totalAmount?: number;
     currency?: string;
@@ -748,6 +749,13 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 <span>Contribution LF 2026</span>
                 <span>{fmt(booking.pricingBreakdown?.contributionLF2026 ?? (200 * (booking.rentalDuration || 1)))} TND</span>
               </div>
+
+              {(booking.pricingBreakdown?.outOfTownFee || 0) > 0 && (
+                <div className="flex justify-between text-amber-600 dark:text-amber-400 font-semibold">
+                  <span>Frais restitution hors Tunis</span>
+                  <span>+{fmt(booking.pricingBreakdown?.outOfTownFee)} TND</span>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between items-center pt-1">

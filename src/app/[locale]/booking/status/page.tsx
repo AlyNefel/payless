@@ -71,6 +71,7 @@ interface TrackedBooking {
     totalAmount?: number;
     subtotal?: number;
     depositAmount?: number;
+    outOfTownFee?: number;
     currency?: string;
   };
   modificationRequest?: {
@@ -677,6 +678,12 @@ function BookingStatusContent() {
                       {fmt(booking.pricingBreakdown?.totalAmount)} TND
                     </span>
                   </div>
+                  {(booking.pricingBreakdown?.outOfTownFee || 0) > 0 && (
+                    <div className="flex justify-between text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                      <span>Frais restitution hors Tunis :</span>
+                      <span>+{fmt(booking.pricingBreakdown?.outOfTownFee)} TND</span>
+                    </div>
+                  )}
                   {booking.pricingBreakdown?.depositAmount !== undefined && (
                     <div className="flex justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-200 dark:border-neutral-700">
                       <span>{t.deposit} :</span>

@@ -125,6 +125,7 @@ export async function GET(request: NextRequest) {
         dailyRate: b.pricingBreakdown?.dailyRate || 0,
         timbreFiscal: b.pricingBreakdown?.timbreFiscal ?? 100,
         contributionLF2026: b.pricingBreakdown?.contributionLF2026 ?? (200 * (b.rentalDuration || 1)),
+        outOfTownFee: b.pricingBreakdown?.outOfTownFee || 0,
         depositAmount: b.pricingBreakdown?.depositAmount || 0,
         extras: b.extras || [],
         customerLanguage: b.customerLanguage || "fr",

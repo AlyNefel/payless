@@ -17,6 +17,8 @@ interface LocationItem {
   name: { fr: string; en: string; ar: string } | string;
   city: string;
   isAirport?: boolean;
+  isOutsideTunis?: boolean;
+  customReturnFee?: number;
 }
 
 interface ExtraItem {
@@ -261,9 +263,31 @@ function BookingContent() {
   // TVA: 0% (inclus TTC)
   // Timbre fiscal: 1 DT flat (= 100 centimes)
   // Contribution LF 2026: 2 DT par jour par véhicule (= 200 centimes * rentalDays)
+  // Frais restitution hors Tunis : 100 DT (= 10000 centimes) si hors Grand Tunis
+  const selectedReturnLoc = locations.find((l) => l._id === data.returnLocationId);
+  const isReturnOutsideTunis = useMemo(() => {
+    if (!selectedReturnLoc) return false;
+    if (selectedReturnLoc.isOutsideTunis) return true;
+    const city = (selectedReturnLoc.city || "").toLowerCase();
+    const name = typeof selectedReturnLoc.name === "string" ? selectedReturnLoc.name.toLowerCase() : (selectedReturnLoc.name?.fr || "").toLowerCase();
+    return (
+      (city && !city.includes("tunis") && !city.includes("ariana") && !city.includes("soukra") && !city.includes("carthage")) ||
+      name.includes("monastir") ||
+      name.includes("enfidha") ||
+      name.includes("bizerte") ||
+      name.includes("nabeul") ||
+      name.includes("hammamet") ||
+      name.includes("sfax") ||
+      name.includes("sousse") ||
+      name.includes("jendouba")
+    );
+  }, [selectedReturnLoc]);
+
+  const outOfTownFee = isReturnOutsideTunis ? (selectedReturnLoc?.customReturnFee && selectedReturnLoc.customReturnFee > 0 ? selectedReturnLoc.customReturnFee : 10000) : 0;
+
   const timbreFiscal = 100;
   const contributionLF2026 = 200 * rentalDays;
-  const totalAmount = Math.max(0, subtotal + extrasTotal - discountAmount + timbreFiscal + contributionLF2026);
+  const totalAmount = Math.max(0, subtotal + extrasTotal - discountAmount + timbreFiscal + contributionLF2026 + outOfTownFee);
 
   async function validateCoupon() {
     if (!data.couponCode.trim()) return;
@@ -538,6 +562,22 @@ function BookingContent() {
                     />
                   </div>
                 </div>
+
+                {isReturnOutsideTunis && (
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-900 dark:text-amber-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>
+                        {locale === "ar"
+                          ? "تسليم خارج تونس الكبرى: يتم احتساب معلوم استرجاع بقيمة 100 د.ت"
+                          : locale === "en"
+                          ? "Drop-off outside Greater Tunis: 100 TND out-of-town return fee applies"
+                          : "Restitution hors Grand Tunis : Frais de rapatriement de 100 TND appliqués"}
+                      </span>
+                    </div>
+                    <span className="font-bold font-mono">+{outOfTownFee / 100} TND</span>
+                  </div>
+                )}
 
                 {data.pickupDate && data.returnDate && (
                   <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-xl p-4 text-sm text-blue-900 dark:text-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">

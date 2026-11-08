@@ -41,9 +41,11 @@ export default function LocationManagerPage() {
     name: "",
     city: "Tunis",
     address: "",
-    phone: "+216 ",
-    email: "Reservations@hmlrentcar.tn",
+    phone: "+216 25 120 130",
+    email: "contact@paylesscarrental.tn",
     isAirport: true,
+    isOutsideTunis: false,
+    customReturnFee: 100,
     openingHours: "08:00 - 20:00 (24/7 sur demande)",
   });
 
@@ -116,9 +118,11 @@ export default function LocationManagerPage() {
       name: "",
       city: "Tunis",
       address: "",
-      phone: "+216 ",
-      email: "@payless.tn",
+      phone: "+216 25 120 130",
+      email: "contact@paylesscarrental.tn",
       isAirport: true,
+      isOutsideTunis: false,
+      customReturnFee: 100,
       openingHours: "07:00 - 23:00",
     });
   };
@@ -655,6 +659,35 @@ export default function LocationManagerPage() {
                 <label htmlFor="isAirport" className="text-slate-700 dark:text-slate-300 font-medium">
                   Comptoir d'aéroport (avec prise en charge 24h/24)
                 </label>
+              </div>
+
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isOutsideTunis"
+                    checked={formData.isOutsideTunis}
+                    onChange={(e) => setFormData({ ...formData, isOutsideTunis: e.target.checked })}
+                    className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300"
+                  />
+                  <label htmlFor="isOutsideTunis" className="text-amber-900 dark:text-amber-200 font-bold">
+                    Emplacement situé hors de Tunis (Frais de rapatriement requis)
+                  </label>
+                </div>
+                {formData.isOutsideTunis && (
+                  <div className="pt-1">
+                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                      Frais de restitution pour cet emplacement (DT) :
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={formData.customReturnFee}
+                      onChange={(e) => setFormData({ ...formData, customReturnFee: Number(e.target.value) })}
+                      className="w-36 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 px-3 py-1.5 text-slate-900 dark:text-white font-mono font-bold"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3">
