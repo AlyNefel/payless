@@ -9,7 +9,7 @@ import {
   MapPin, Calendar, Clock, ChevronRight, Car, Users, Fuel,
   Gauge, Plus, Minus, Check, AlertCircle, Loader2, Copy, Tag,
   ShieldCheck, Phone, Mail, UserCheck, Search, FileText, MessageSquare,
-  Download, CheckCircle2, Shield, Sparkles
+  Download, CheckCircle2, Shield, Sparkles, Send, ExternalLink
 } from "lucide-react";
 import { CarSpinner } from "@/components/ui/CarSpinner";
 import { useCompanySettings } from "@/contexts/CompanySettingsContext";
@@ -129,6 +129,16 @@ function BookingContent() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [bookingRef, setBookingRef] = useState("");
   const [error, setError] = useState("");
+
+  // Post-booking dispatch actions: Download, Email, WhatsApp
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [customEmail, setCustomEmail] = useState("");
+  const [showEmailEdit, setShowEmailEdit] = useState(false);
+  const [customPhone, setCustomPhone] = useState("");
+  const [showPhoneEdit, setShowPhoneEdit] = useState(false);
+  const [copiedWaLink, setCopiedWaLink] = useState(false);
 
   const [data, setData] = useState<BookingData>({
     pickupLocationId: searchParams.get("pickupLocation") || "tun-airport",
@@ -451,7 +461,10 @@ function BookingContent() {
         throw new Error(json.error || "Une erreur est survenue lors de l'enregistrement de votre réservation.");
       }
 
-      setBookingRef(json.booking?.bookingReference || json.bookingReference || "PAY-2026");
+      const createdRef = json.booking?.bookingReference || json.bookingReference || "PAY-2026";
+      setBookingRef(createdRef);
+      setCustomEmail(data.email.trim());
+      setCustomPhone(data.phone.trim());
       setStep(6);
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -460,6 +473,92 @@ function BookingContent() {
       setError(e instanceof Error ? e.message : "Erreur de communication avec le serveur.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSendEmail(targetEmail?: string) {
+    const toEmail = (targetEmail || customEmail || data.email).trim().toLowerCase();
+    if (!toEmail || !toEmail.includes("@")) {
+      setEmailError(
+        locale === "ar"
+          ? "الرجاء إدخال بريد إلكتروني صحيح."
+          : locale === "en"
+          ? "Please enter a valid email address."
+          : "Veuillez renseigner une adresse email valide."
+      );
+      return;
+    }
+    setSendingEmail(true);
+    setEmailSuccess("");
+    setEmailError("");
+    try {
+      const res = await fetch("/api/bookings/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingReference: bookingRef,
+          email: toEmail,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setEmailSuccess(
+          json.message ||
+            (locale === "ar"
+              ? `تم إرسال وصل الحجز والفاكتورة الرسمية إلى ${toEmail} بنجاح!`
+              : locale === "en"
+              ? `Official voucher & invoice sent successfully to ${toEmail}!`
+              : `Bon de réservation officiel et facture PDF envoyés avec succès à ${toEmail} !`)
+        );
+      } else {
+        setEmailError(
+          json.error ||
+            (locale === "ar"
+              ? "تعذر إرسال البريد حالياً. الرجاء المحاولة لاحقاً."
+              : locale === "en"
+              ? "Failed to dispatch confirmation email."
+              : "Impossible d'envoyer l'email pour le moment.")
+        );
+      }
+    } catch {
+      setEmailError(
+        locale === "ar"
+          ? "خطأ في الاتصال بالخادم."
+          : locale === "en"
+          ? "Network error while sending email."
+          : "Erreur réseau lors de l'envoi de l'email."
+      );
+    } finally {
+      setSendingEmail(false);
+    }
+  }
+
+  function getWhatsAppUrl() {
+    const cleanPhone = (customPhone || data.phone || "").replace(/[^0-9]/g, "");
+    const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://payless.tn";
+    const pdfUrl = `${siteUrl}/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}`;
+    const msg = encodeURIComponent(
+      `🚗 *Payless Car Rental Tunisie — Confirmation de Réservation*\n\n` +
+      `Bonjour *${data.firstName} ${data.lastName}*,\n` +
+      `Votre réservation *${bookingRef}* est ✅ *Confirmée Immédiatement* !\n\n` +
+      `• *Véhicule* : ${selectedVehicle?.brand} ${selectedVehicle?.model}\n` +
+      `• *Prise en charge* : ${data.pickupDate} à ${data.pickupTime} (${selectedPickupLocName})\n` +
+      `• *Restitution* : ${data.returnDate} à ${data.returnTime} (${selectedReturnLocName})\n` +
+      `• *Durée* : ${rentalDays} jour(s)\n` +
+      `• *Montant Total TTC* : ${fmt(totalAmount)} TND\n\n` +
+      `📄 *Télécharger votre Facture & Bon de Réservation officiel (PDF)* :\n${pdfUrl}\n\n` +
+      `Assistance Payless Tunisie 24/7 au : +216 80 80 80 80.`
+    );
+    return `https://api.whatsapp.com/send?phone=${encodeURIComponent(cleanPhone)}&text=${msg}`;
+  }
+
+  function handleCopyPdfLink() {
+    const siteUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const pdfUrl = `${siteUrl}/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(pdfUrl);
+      setCopiedWaLink(true);
+      setTimeout(() => setCopiedWaLink(false), 3000);
     }
   }
 
@@ -1604,37 +1703,169 @@ function BookingContent() {
                   </div>
                 </div>
 
-                {/* Primary Automated Dispatch Buttons: PDF + WhatsApp */}
-                <div className="space-y-3 pt-2">
-                  <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Documents & Envois Automatiques
+                {/* 3 Interactive Automated Actions: Download PDF, Send Email, Send WhatsApp */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                      {locale === "ar"
+                        ? "خيارات استلام وثائق الحجز"
+                        : locale === "en"
+                        ? "Reservation Document Options"
+                        : "Recevoir et Enregistrer vos Documents"}
+                    </span>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                    {/* Direct PDF Download button */}
-                    <a
-                      href={`/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
-                    >
-                      <FileText className="w-4 h-4" />
-                      <span>Télécharger le Bon PDF de Réservation</span>
-                    </a>
 
-                    {/* Direct WhatsApp notification button */}
-                    <a
-                      href={`https://api.whatsapp.com/send?phone=${encodeURIComponent(
-                        (data.phone || "").replace(/[^0-9]/g, "")
-                      )}&text=${encodeURIComponent(
-                        `Bonjour ${data.firstName} ${data.lastName},\n\n✅ Votre réservation chez Payless Car Rental Tunisie est CONFIRMÉE !\n\n📋 Référence : ${bookingRef}\n🚗 Véhicule : ${selectedVehicle?.brand} ${selectedVehicle?.model}\n📅 Prise en charge : ${data.pickupDate} à ${data.pickupTime} (${selectedPickupLocName})\n📅 Restitution : ${data.returnDate} à ${data.returnTime} (${selectedReturnLocName})\n⏱️ Durée : ${rentalDays} jour(s)\n💰 Total TTC : ${fmt(totalAmount)} TND\n\n📄 Téléchargez votre bon officiel de réservation (PDF) :\n${typeof window !== "undefined" ? window.location.origin : ""}/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}\n\nAssistance VIP Payless Tunisie : +216 80 80 80 80.`
-                      )}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      <span>Recevoir sur WhatsApp</span>
-                    </a>
+                  {/* Feedback alerts */}
+                  {emailSuccess && (
+                    <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 animate-in fade-in">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                      <span>{emailSuccess}</span>
+                    </div>
+                  )}
+
+                  {emailError && (
+                    <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 text-xs font-semibold flex items-center justify-center gap-2 animate-in fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                      <span>{emailError}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-left">
+                    {/* Action 1: Download PDF */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 shadow-xs flex flex-col justify-between space-y-3">
+                      <div>
+                        <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2">
+                          <Download className="w-5 h-5" />
+                        </div>
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                          {locale === "ar" ? "تحميل وصل الحجز (PDF)" : locale === "en" ? "Download PDF Voucher" : "Télécharger Bon & Facture"}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                          {locale === "ar"
+                            ? "وثيقة رسمية بالأبيض والأسود مع كافة التفاصيل"
+                            : locale === "en"
+                            ? "Official black & white voucher ready to print"
+                            : "Document officiel A4 avec QR Code et grille comptable"}
+                        </p>
+                      </div>
+                      <a
+                        href={`/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold transition-all shadow-xs active:scale-95"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>{locale === "ar" ? "تحميل PDF" : locale === "en" ? "Download PDF" : "Télécharger PDF"}</span>
+                      </a>
+                    </div>
+
+                    {/* Action 2: Send Email */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 shadow-xs flex flex-col justify-between space-y-3">
+                      <div>
+                        <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2">
+                          <Mail className="w-5 h-5" />
+                        </div>
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                          {locale === "ar" ? "إرسال إلى بريدي الإلكتروني" : locale === "en" ? "Send to My Email" : "Envoyer par Email"}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 truncate" title={customEmail || data.email}>
+                          À : <strong className="text-slate-700 dark:text-slate-200">{customEmail || data.email}</strong>
+                        </p>
+                      </div>
+
+                      {showEmailEdit && (
+                        <input
+                          type="email"
+                          value={customEmail}
+                          onChange={(e) => setCustomEmail(e.target.value)}
+                          placeholder="votre-email@example.com"
+                          className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-900"
+                        />
+                      )}
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleSendEmail()}
+                          disabled={sendingEmail}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs disabled:opacity-50 active:scale-95"
+                        >
+                          {sendingEmail ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Envoi...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-3.5 h-3.5" />
+                              <span>{locale === "ar" ? "إرسال" : locale === "en" ? "Send Email" : "Envoyer par Email"}</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowEmailEdit(!showEmailEdit)}
+                          title="Modifier l'email destinataire"
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 text-xs"
+                        >
+                          ✎
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Action 3: Send to WhatsApp */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 shadow-xs flex flex-col justify-between space-y-3">
+                      <div>
+                        <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2">
+                          <MessageSquare className="w-5 h-5" />
+                        </div>
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                          {locale === "ar" ? "إرسال إلى واتساب" : locale === "en" ? "Send to WhatsApp" : "Envoyer sur WhatsApp"}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 truncate">
+                          N° : <strong className="text-slate-700 dark:text-slate-200">{customPhone || data.phone}</strong>
+                        </p>
+                      </div>
+
+                      {showPhoneEdit && (
+                        <input
+                          type="tel"
+                          value={customPhone}
+                          onChange={(e) => setCustomPhone(e.target.value)}
+                          placeholder="+216 00 000 000"
+                          className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-900"
+                        />
+                      )}
+
+                      <div className="flex items-center gap-1.5">
+                        <a
+                          href={getWhatsAppUrl()}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs active:scale-95"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>{locale === "ar" ? "فتح واتساب" : locale === "en" ? "Open WhatsApp" : "Ouvrir WhatsApp"}</span>
+                        </a>
+                        <button
+                          type="button"
+                          onClick={handleCopyPdfLink}
+                          title="Copier le lien direct vers le PDF"
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 text-xs flex items-center justify-center"
+                        >
+                          {copiedWaLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowPhoneEdit(!showPhoneEdit)}
+                          title="Modifier le numéro WhatsApp"
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 text-xs"
+                        >
+                          ✎
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

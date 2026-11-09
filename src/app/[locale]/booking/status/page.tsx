@@ -22,6 +22,8 @@ import {
   X,
   Send,
   Info,
+  Download,
+  Mail,
 } from "lucide-react";
 import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 
@@ -101,6 +103,8 @@ function BookingStatusContent() {
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [emailStatusMsg, setEmailStatusMsg] = useState("");
   const { settings } = useCompanySettings();
 
   // Modification modal states
@@ -335,6 +339,32 @@ function BookingStatusContent() {
     }
   }, []);
 
+  const handleResendEmail = async () => {
+    if (!booking) return;
+    setResendingEmail(true);
+    setEmailStatusMsg("");
+    try {
+      const res = await fetch("/api/bookings/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingReference: booking.bookingReference,
+          email: booking.customerId?.email || email,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setEmailStatusMsg(json.message || "Facture PDF et bon de réservation renvoyés avec succès par email !");
+      } else {
+        setEmailStatusMsg(json.error || "Impossible d'envoyer l'email.");
+      }
+    } catch {
+      setEmailStatusMsg("Erreur réseau lors de l'envoi.");
+    } finally {
+      setResendingEmail(false);
+    }
+  };
+
   const openModifyModal = () => {
     if (!booking) return;
     setModPickupDate(new Date(booking.pickupDate).toISOString().split("T")[0]);
@@ -529,28 +559,57 @@ function BookingStatusContent() {
                     </button>
                   )}
 
+                  <a
+                    href={`/api/bookings/pdf?ref=${booking.bookingReference}&email=${encodeURIComponent(booking.customerId?.email || email)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold shadow-xs transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Télécharger PDF</span>
+                  </a>
+
+                  <button
+                    onClick={handleResendEmail}
+                    disabled={resendingEmail}
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
+                  >
+                    {resendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                    <span>Renvoyer Email</span>
+                  </button>
+
+                  <a
+                    href={`https://api.whatsapp.com/send?phone=${encodeURIComponent(
+                      (booking.customerId?.phone || "").replace(/[^0-9]/g, "")
+                    )}&text=${encodeURIComponent(
+                      `Bonjour,\n\nVoici le lien officiel pour télécharger le bon de réservation et la facture Payless (Réf: ${booking.bookingReference}) :\n${typeof window !== "undefined" ? window.location.origin : ""}/api/bookings/pdf?ref=${booking.bookingReference}&email=${encodeURIComponent(booking.customerId?.email || email)}`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all"
+                  >
+                    <MessageCircle className="w-4 h-4 fill-white" />
+                    <span>WhatsApp</span>
+                  </a>
+
                   <button
                     onClick={() => window.print()}
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-neutral-700 transition-colors"
                   >
                     <Printer className="w-4 h-4" />
                     <span>{t.printVoucher}</span>
                   </button>
-
-                  <a
-                    href={`https://wa.me/21625120130?text=${encodeURIComponent(
-                      `Bonjour Payless, je vous contacte au sujet de ma réservation ${booking.bookingReference}`
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all"
-                  >
-                    <MessageCircle className="w-4 h-4 fill-white" />
-                    <span>WhatsApp 24/7</span>
-                  </a>
                 </div>
               </div>
+
+              {emailStatusMsg && (
+                <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-blue-600" />
+                  <span>{emailStatusMsg}</span>
+                </div>
+              )}
 
               {/* Status Context Banner */}
               {isPending && (
