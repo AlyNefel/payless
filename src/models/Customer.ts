@@ -14,6 +14,7 @@ export interface ICustomer extends Document {
   drivingLicence?: {
     number: string;
     country: string;
+    issueYear?: number;
     expiryDate?: Date;
   };
   passportNumber?: string;
@@ -49,6 +50,7 @@ const CustomerSchema = new Schema<ICustomer>(
     drivingLicence: {
       number: String,
       country: String,
+      issueYear: Number,
       expiryDate: Date,
     },
     passportNumber: String,

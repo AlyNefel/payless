@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import AgencySetting from "@/models/AgencySetting";
 import { auth } from "@/lib/auth";
-import { getLocationFeeConfig, DEFAULT_ZONES } from "@/lib/locationFees";
+import { DEFAULT_ZONES } from "@/lib/locationFees";
+import { getLocationFeeConfig } from "@/lib/locationFeesServer";
 
 export const dynamic = "force-dynamic";
 

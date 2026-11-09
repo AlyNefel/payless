@@ -21,7 +21,8 @@ import {
 } from "@/lib/utils";
 import { sendEmail, buildBookingConfirmationEmail } from "@/lib/email";
 import { generateBookingPDF } from "@/lib/pdf";
-import { getLocationFeeConfig, matchZone } from "@/lib/locationFees";
+import { matchZone } from "@/lib/locationFees";
+import { getLocationFeeConfig } from "@/lib/locationFeesServer";
 import { sanitizeBookingForClient } from "@/lib/sanitize";
 import { z } from "zod";
 import mongoose from "mongoose";
@@ -63,6 +64,7 @@ const createBookingSchema = z.object({
       .object({
         number: z.string().optional(),
         country: z.string().optional().default("Tunisie"),
+        issueYear: z.union([z.string(), z.number()]).optional(),
         expiryDate: z.string().optional(),
       })
       .optional()
@@ -488,6 +490,7 @@ export async function POST(request: NextRequest) {
           ? {
               number: custInput.drivingLicence.number || "",
               country: custInput.drivingLicence.country || custInput.country || "Tunisie",
+              issueYear: custInput.drivingLicence.issueYear ? Number(custInput.drivingLicence.issueYear) : undefined,
               expiryDate: custInput.drivingLicence.expiryDate
                 ? new Date(custInput.drivingLicence.expiryDate)
                 : undefined,
@@ -619,6 +622,7 @@ export async function POST(request: NextRequest) {
         customerEmail: customer.email,
         customerPhone: customer.phone,
         customerCountry: customer.country,
+        drivingLicenceYear: (customer.drivingLicence as any)?.issueYear,
         vehicleBrand: vehicle.brand,
         vehicleModel: vehicle.model,
         vehicleYear: vehicle.year,

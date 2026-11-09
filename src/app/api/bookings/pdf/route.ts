@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
       customerEmail: cust?.email || "",
       customerPhone: cust?.phone || "",
       customerCountry: cust?.country || "Tunisie",
+      drivingLicenceYear: (cust?.drivingLicence as any)?.issueYear,
       vehicleBrand: v?.brand || "Véhicule",
       vehicleModel: v?.model || "Garanti",
       vehicleYear: v?.year || new Date().getFullYear(),

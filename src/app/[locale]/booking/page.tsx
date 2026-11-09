@@ -76,6 +76,7 @@ interface BookingData {
   phone: string;
   country: string;
   licenceNumber: string;
+  licenceYear: string;
   notes: string;
   couponCode: string;
 }
@@ -144,6 +145,7 @@ function BookingContent() {
     phone: "",
     country: "Tunisie",
     licenceNumber: "",
+    licenceYear: "",
     notes: "",
     couponCode: searchParams.get("coupon") || "",
   });
@@ -396,8 +398,8 @@ function BookingContent() {
       setStep(2);
       return;
     }
-    if (!data.firstName || !data.lastName || !data.email || !data.phone) {
-      setError("Veuillez remplir vos informations personnelles obligatoires.");
+    if (!data.firstName || !data.lastName || !data.email || !data.phone || !data.licenceYear.trim()) {
+      setError("Veuillez renseigner vos informations obligatoires (Nom, Prénom, Email, Téléphone et Année de permis).");
       setStep(4);
       return;
     }
@@ -425,7 +427,11 @@ function BookingContent() {
           email: data.email.trim().toLowerCase(),
           phone: data.phone.trim(),
           country: data.country || "Tunisie",
-          drivingLicence: data.licenceNumber ? { number: data.licenceNumber.trim(), country: data.country || "Tunisie" } : undefined,
+          drivingLicence: {
+            number: data.licenceNumber ? data.licenceNumber.trim() : "À vérifier à la livraison",
+            country: data.country || "Tunisie",
+            issueYear: data.licenceYear ? Number(data.licenceYear) : undefined,
+          },
           preferredLanguage: locale || "fr",
         },
         customerNotes: data.notes || "",
@@ -469,7 +475,7 @@ function BookingContent() {
   const canProceed = (s: Step) => {
     if (s === 1) return data.pickupDate && data.returnDate && data.pickupLocationId;
     if (s === 2) return !!selectedVehicle;
-    if (s === 4) return data.firstName.trim() && data.lastName.trim() && data.email.trim() && data.phone.trim();
+    if (s === 4) return Boolean(data.firstName.trim() && data.lastName.trim() && data.email.trim() && data.phone.trim() && data.licenceYear.trim());
     return true;
   };
 
@@ -766,8 +772,7 @@ function BookingContent() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="font-bold text-base text-foreground">
-                                {v.brand} {v.model}{" "}
-                                <span className="text-muted-foreground font-normal text-xs">{v.year}</span>
+                                {v.brand} {v.model}
                               </h4>
                               <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
@@ -1013,6 +1018,23 @@ function BookingContent() {
                   </div>
 
                   <div>
+                    <label className="block text-sm font-semibold mb-1.5 flex items-center justify-between">
+                      <span>{locale === "ar" ? "سنة الحصول على رخصة القيادة *" : locale === "en" ? "Driving Licence Year *" : "Année d'obtention du permis *"}</span>
+                      <span className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">Obligatoire</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1950"
+                      max={new Date().getFullYear()}
+                      placeholder="Ex: 2018"
+                      value={data.licenceYear}
+                      onChange={(e) => setData((d) => ({ ...d, licenceYear: e.target.value }))}
+                      className="w-full px-4 py-3 rounded-xl border border-border dark:border-neutral-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm bg-white dark:bg-neutral-800"
+                      required
+                    />
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-semibold mb-1.5">
                       {locale === "ar" ? "رقم رخصة القيادة" : locale === "en" ? "Driving Licence Number" : "N° Permis de conduire"}
                     </label>
@@ -1086,8 +1108,7 @@ function BookingContent() {
                       />
                       <div className="flex-1 space-y-1">
                         <div className="font-extrabold text-lg text-foreground">
-                          {selectedVehicle.brand} {selectedVehicle.model}{" "}
-                          <span className="text-muted-foreground text-sm font-normal">({selectedVehicle.year})</span>
+                          {selectedVehicle.brand} {selectedVehicle.model}
                         </div>
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           <span className="px-2 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-700/70">
@@ -1320,7 +1341,10 @@ function BookingContent() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Permis de conduire :</span>
-                      <p className="font-semibold text-foreground">{data.licenceNumber || "À présenter à l'arrivée"}</p>
+                      <p className="font-semibold text-foreground">
+                        {data.licenceNumber ? `N° ${data.licenceNumber}` : "À présenter à l'arrivée"}{" "}
+                        {data.licenceYear ? `(Délivré en ${data.licenceYear})` : ""}
+                      </p>
                     </div>
                   </div>
                   {data.notes && (
@@ -1602,7 +1626,7 @@ function BookingContent() {
                       href={`https://api.whatsapp.com/send?phone=${encodeURIComponent(
                         (data.phone || "").replace(/[^0-9]/g, "")
                       )}&text=${encodeURIComponent(
-                        `Bonjour ${data.firstName} ${data.lastName},\n\n✅ Votre réservation chez Payless Car Rental Tunisie est CONFIRMÉE !\n\n📋 Référence : ${bookingRef}\n🚗 Véhicule : ${selectedVehicle?.brand} ${selectedVehicle?.model} (${selectedVehicle?.year})\n📅 Prise en charge : ${data.pickupDate} à ${data.pickupTime} (${selectedPickupLocName})\n📅 Restitution : ${data.returnDate} à ${data.returnTime} (${selectedReturnLocName})\n⏱️ Durée : ${rentalDays} jour(s)\n💰 Total TTC : ${fmt(totalAmount)} TND\n\n📄 Téléchargez votre bon officiel de réservation (PDF) :\n${typeof window !== "undefined" ? window.location.origin : ""}/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}\n\nAssistance VIP Payless Tunisie : +216 80 80 80 80.`
+                        `Bonjour ${data.firstName} ${data.lastName},\n\n✅ Votre réservation chez Payless Car Rental Tunisie est CONFIRMÉE !\n\n📋 Référence : ${bookingRef}\n🚗 Véhicule : ${selectedVehicle?.brand} ${selectedVehicle?.model}\n📅 Prise en charge : ${data.pickupDate} à ${data.pickupTime} (${selectedPickupLocName})\n📅 Restitution : ${data.returnDate} à ${data.returnTime} (${selectedReturnLocName})\n⏱️ Durée : ${rentalDays} jour(s)\n💰 Total TTC : ${fmt(totalAmount)} TND\n\n📄 Téléchargez votre bon officiel de réservation (PDF) :\n${typeof window !== "undefined" ? window.location.origin : ""}/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}\n\nAssistance VIP Payless Tunisie : +216 80 80 80 80.`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"

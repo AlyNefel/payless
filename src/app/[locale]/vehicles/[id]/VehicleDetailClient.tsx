@@ -219,7 +219,6 @@ export function VehicleDetailClient({ vehicleId, locale }: Props) {
                     <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-display text-white tracking-tight">
                       {vehicle.brand} <span className="text-amber-400">{vehicle.model}</span>
                     </h1>
-                    <p className="text-white/50 mt-1">{vehicle.year || 2024}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-white/40 text-sm mb-1">
@@ -306,7 +305,6 @@ export function VehicleDetailClient({ vehicleId, locale }: Props) {
                     { icon: Users, label: getLabel("seats"), value: `${vehicle.seats} ${locale === "fr" ? "places" : locale === "ar" ? "مقاعد" : "seats"}` },
                     { icon: Luggage, label: getLabel("luggage"), value: `${vehicle.luggage} ${locale === "fr" ? "valises" : locale === "ar" ? "حقائب" : "bags"}` },
                     { icon: Wind, label: getLabel("ac"), value: vehicle.airConditioning ? (locale === "fr" ? "Oui" : locale === "ar" ? "نعم" : "Yes") : "No" },
-                    { icon: Calendar, label: getLabel("year"), value: vehicle.year.toString() },
                     { icon: Car, label: getLabel("doors"), value: `${vehicle.doors}` },
                     { icon: Gauge, label: locale === "fr" ? "Catégorie" : locale === "ar" ? "الفئة" : "Category", value: vehicle.category },
                   ].map((spec, i) => (

@@ -9,7 +9,8 @@ export function sanitizeVehicleForClient<T extends Record<string, any>>(vehicle:
 
   const sanitized = { ...vehicle };
 
-  // Strip sensitive client-facing vehicle information
+  // Strip sensitive client-facing vehicle information (visible exclusively to admins)
+  delete sanitized.year;
   delete sanitized.licensePlate;
   delete sanitized.mileage;
   delete sanitized.lastVidangeMileage;

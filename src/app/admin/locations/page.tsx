@@ -21,6 +21,11 @@ import {
   Trash2,
   Filter,
   Sparkles,
+  LayoutGrid,
+  List,
+  MoreVertical,
+  ChevronDown,
+  Eye,
 } from "lucide-react";
 import { MOCK_LOCATIONS, INITIAL_VEHICLES, LocationItem, VehicleItem } from "../mockData";
 
@@ -35,6 +40,26 @@ export default function LocationManagerPage() {
   const [targetLocationName, setTargetLocationName] = useState("");
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [editingLocation, setEditingLocation] = useState<LocationItem | null>(null);
+  const [viewMode, setViewMode] = useState<"card" | "table">("table");
+  const [actionMenuOpenId, setActionMenuOpenId] = useState<string | null>(null);
+
+  const handleDeleteLocation = async (id: string, name: string) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'agence "${name}" ?`)) return;
+    try {
+      const res = await fetch(`/api/admin/locations?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast(`Agence "${name}" supprimée avec succès`);
+        loadLocations();
+      } else {
+        setLocations((prev) => prev.filter((l) => l.id !== id));
+        showToast(`Agence "${name}" retirée de la liste`);
+      }
+    } catch {
+      setLocations((prev) => prev.filter((l) => l.id !== id));
+      showToast(`Agence "${name}" retirée`);
+    }
+    setActionMenuOpenId(null);
+  };
 
   // Form for new location
   const [formData, setFormData] = useState({
@@ -325,7 +350,7 @@ export default function LocationManagerPage() {
       </div>
 
       {/* SEARCH AND FILTER BAR */}
-      <div className="p-3.5 rounded-2xl bg-white dark:bg-[#0f141f] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3">
+      <div className="p-3.5 rounded-2xl bg-white dark:bg-[#0f141f] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -336,141 +361,347 @@ export default function LocationManagerPage() {
             className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-blue-500"
           />
         </div>
-        <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
-          {filteredLocations.length} agences trouvées
-        </span>
+
+        <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+          <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
+            {filteredLocations.length} agences
+          </span>
+
+          {/* View mode toggle: Table or Cards */}
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setViewMode("table")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === "table"
+                  ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Tableau</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("card")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === "card"
+                  ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Cartes</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* LOCATION CARDS GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredLocations.map((loc, idx) => {
-          const locationCars = vehicles.filter(
-            (v) => v.location.includes(loc.code) || v.location.includes(loc.city)
-          );
+      {/* LOCATIONS CONTENT: TABLE OR CARDS */}
+      {viewMode === "table" ? (
+        <div className="bg-white dark:bg-[#0f141f] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+                <tr>
+                  <th className="py-3.5 px-4">Agence / Code</th>
+                  <th className="py-3.5 px-4">Type</th>
+                  <th className="py-3.5 px-4">Ville & Adresse</th>
+                  <th className="py-3.5 px-4">Contact</th>
+                  <th className="py-3.5 px-4 text-center">Frais Départ</th>
+                  <th className="py-3.5 px-4 text-center">Frais Restitution</th>
+                  <th className="py-3.5 px-4 text-center">Flotte</th>
+                  <th className="py-3.5 px-4 text-center">Statut</th>
+                  <th className="py-3.5 px-4 text-center">Options</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                {filteredLocations.map((loc) => {
+                  const locationCars = vehicles.filter(
+                    (v) => v.location.includes(loc.code) || v.location.includes(loc.city)
+                  );
+                  const isMenuOpen = actionMenuOpenId === loc.id;
 
-          return (
-            <motion.div
-              key={loc.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              whileHover={{ y: -4 }}
-              className="p-5 rounded-2xl bg-white dark:bg-[#0f141f] border border-slate-200 dark:border-slate-800/80 shadow-sm hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-500/40 transition-all flex flex-col justify-between group"
-            >
-              <div>
-                {/* Card Top Header */}
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-md shadow-blue-500/20 shrink-0">
-                      {loc.code}
+                  return (
+                    <tr
+                      key={loc.id}
+                      className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition-colors"
+                    >
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+                            {loc.code}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {loc.name}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            loc.isAirport
+                              ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30"
+                              : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/30"
+                          }`}
+                        >
+                          {loc.isAirport ? "✈️ Aéroport" : "🏢 Centre Ville"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">{loc.city}</div>
+                        <div className="text-[11px] text-slate-400 truncate max-w-[200px]">{loc.address}</div>
+                      </td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <div className="font-mono text-slate-700 dark:text-slate-300">{loc.phone}</div>
+                        <div className="text-[11px] text-slate-400">{loc.openingHours}</div>
+                      </td>
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className="font-bold text-blue-700 dark:text-blue-300 font-mono">
+                          {loc.pickupFee && loc.pickupFee > 0 ? `+${loc.pickupFee} DT` : "Gratuit (0 DT)"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className="font-bold text-amber-700 dark:text-amber-300 font-mono">
+                          {loc.customReturnFee && loc.customReturnFee > 0
+                            ? `+${loc.customReturnFee} DT`
+                            : loc.isOutsideTunis
+                            ? "+100 DT (Hors Tunis)"
+                            : "Standard (0 DT)"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedLocation(loc)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-bold text-xs transition-colors cursor-pointer"
+                        >
+                          <Car className="w-3.5 h-3.5" />
+                          <span>{locationCars.length > 0 ? locationCars.length : loc.assignedVehiclesCount}</span>
+                        </button>
+                      </td>
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            loc.isActive !== false
+                              ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                          }`}
+                        >
+                          {loc.isActive !== false ? "Actif" : "Inactif"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center relative">
+                        {/* Options Dropdown Menu */}
+                        <div className="relative inline-block text-left">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActionMenuOpenId(isMenuOpen ? null : loc.id);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                          >
+                            <span>Options</span>
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                          </button>
+
+                          {isMenuOpen && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-30"
+                                onClick={() => setActionMenuOpenId(null)}
+                              />
+                              <div className="absolute right-0 mt-1 w-48 rounded-xl bg-white dark:bg-[#0f141f] border border-slate-200 dark:border-slate-700 shadow-xl py-1 z-40 text-xs text-left animate-in fade-in zoom-in-95">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingLocation({ ...loc });
+                                    setActionMenuOpenId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5 text-amber-500" />
+                                  <span>Modifier l'agence</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedLocation(loc);
+                                    setActionMenuOpenId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                >
+                                  <Eye className="w-3.5 h-3.5 text-blue-500" />
+                                  <span>Voir la flotte</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTargetLocationName(`${loc.city} - ${loc.name}`);
+                                    setShowAssignModal(true);
+                                    setActionMenuOpenId(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3.5 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                >
+                                  <Plus className="w-3.5 h-3.5 text-emerald-500" />
+                                  <span>Assigner un véhicule</span>
+                                </button>
+                                <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteLocation(loc.id, loc.name)}
+                                  className="w-full flex items-center gap-2 px-3.5 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Supprimer l'agence</span>
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        /* LOCATION CARDS GRID */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredLocations.map((loc, idx) => {
+            const locationCars = vehicles.filter(
+              (v) => v.location.includes(loc.code) || v.location.includes(loc.city)
+            );
+
+            return (
+              <motion.div
+                key={loc.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                whileHover={{ y: -4 }}
+                className="p-5 rounded-2xl bg-white dark:bg-[#0f141f] border border-slate-200 dark:border-slate-800/80 shadow-sm hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-500/40 transition-all flex flex-col justify-between group"
+              >
+                <div>
+                  {/* Card Top Header */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-md shadow-blue-500/20 shrink-0">
+                        {loc.code}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-tight">
+                          {loc.name}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                          {loc.city}, Tunisie
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-tight">
-                        {loc.name}
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                        {loc.city}, Tunisie
+
+                    <span
+                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap border ${
+                        loc.isAirport
+                          ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30"
+                          : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/30"
+                      }`}
+                    >
+                      {loc.isAirport ? "✈️ Aéroport" : "🏢 Centre Ville"}
+                    </span>
+                  </div>
+
+                  {/* Details list */}
+                  <div className="space-y-2 py-3 border-y border-slate-100 dark:border-slate-800/80 text-xs text-slate-600 dark:text-slate-400">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                      <span className="truncate">{loc.address}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="font-mono text-slate-700 dark:text-slate-300">{loc.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{loc.openingHours}</span>
+                    </div>
+                  </div>
+
+                  {/* Pricing Badges: Pickup & Return Fees */}
+                  <div className="grid grid-cols-2 gap-2 my-2 text-[11px]">
+                    <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/50 dark:border-blue-900/40">
+                      <p className="text-slate-500 dark:text-slate-400 font-medium text-[10px]">Prise en charge</p>
+                      <p className="font-bold text-blue-700 dark:text-blue-300">
+                        {loc.pickupFee && loc.pickupFee > 0 ? `+${loc.pickupFee} DT` : "Gratuit (0 DT)"}
+                      </p>
+                    </div>
+                    <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/50 dark:border-amber-900/40">
+                      <p className="text-slate-500 dark:text-slate-400 font-medium text-[10px]">Restitution / Ramassage</p>
+                      <p className="font-bold text-amber-700 dark:text-amber-300">
+                        {loc.customReturnFee && loc.customReturnFee > 0
+                          ? `+${loc.customReturnFee} DT`
+                          : loc.isOutsideTunis
+                          ? "+100 DT (Hors Tunis)"
+                          : "Standard (0 DT)"}
                       </p>
                     </div>
                   </div>
 
-                  <span
-                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap border ${
-                      loc.isAirport
-                        ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30"
-                        : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/30"
-                    }`}
-                  >
-                    {loc.isAirport ? "✈️ Aéroport" : "🏢 Centre Ville"}
-                  </span>
-                </div>
-
-                {/* Details list */}
-                <div className="space-y-2 py-3 border-y border-slate-100 dark:border-slate-800/80 text-xs text-slate-600 dark:text-slate-400">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                    <span className="truncate">{loc.address}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="font-mono text-slate-700 dark:text-slate-300">{loc.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>{loc.openingHours}</span>
-                  </div>
-                </div>
-
-                {/* Pricing Badges: Pickup & Return Fees */}
-                <div className="grid grid-cols-2 gap-2 my-2 text-[11px]">
-                  <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/50 dark:border-blue-900/40">
-                    <p className="text-slate-500 dark:text-slate-400 font-medium text-[10px]">Prise en charge</p>
-                    <p className="font-bold text-blue-700 dark:text-blue-300">
-                      {loc.pickupFee && loc.pickupFee > 0 ? `+${loc.pickupFee} DT` : "Gratuit (0 DT)"}
-                    </p>
-                  </div>
-                  <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/50 dark:border-amber-900/40">
-                    <p className="text-slate-500 dark:text-slate-400 font-medium text-[10px]">Restitution / Ramassage</p>
-                    <p className="font-bold text-amber-700 dark:text-amber-300">
-                      {loc.customReturnFee && loc.customReturnFee > 0
-                        ? `+${loc.customReturnFee} DT`
-                        : loc.isOutsideTunis
-                        ? "+100 DT (Hors Tunis)"
-                        : "Standard (0 DT)"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Assigned Cars Pill */}
-                <div className="mt-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Car className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Flotte sur place
+                  {/* Assigned Cars Pill */}
+                  <div className="mt-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Car className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Flotte sur place
+                      </span>
+                    </div>
+                    <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-lg bg-blue-100/70 dark:bg-blue-600/20">
+                      {locationCars.length > 0 ? locationCars.length : loc.assignedVehiclesCount} véhicules
                     </span>
                   </div>
-                  <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-lg bg-blue-100/70 dark:bg-blue-600/20">
-                    {locationCars.length > 0 ? locationCars.length : loc.assignedVehiclesCount} véhicules
-                  </span>
                 </div>
-              </div>
 
-              {/* Bottom Card Actions */}
-              <div className="pt-4 mt-2 flex items-center justify-between gap-2">
-                <button
-                  onClick={() => setEditingLocation({ ...loc })}
-                  className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-600/15 dark:hover:bg-amber-600/25 text-amber-700 dark:text-amber-400 font-semibold text-xs transition-colors border border-amber-200 dark:border-amber-500/30 flex items-center gap-1.5"
-                  title="Modifier les frais et paramètres de cette agence"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  <span>Modifier</span>
-                </button>
+                {/* Bottom Card Actions */}
+                <div className="pt-4 mt-2 flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => setEditingLocation({ ...loc })}
+                    className="px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-600/15 dark:hover:bg-amber-600/25 text-amber-700 dark:text-amber-400 font-semibold text-xs transition-colors border border-amber-200 dark:border-amber-500/30 flex items-center gap-1.5"
+                    title="Modifier les frais et paramètres de cette agence"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Modifier</span>
+                  </button>
 
-                <button
-                  onClick={() => {
-                    setSelectedLocation(loc);
-                  }}
-                  className="flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <Car className="w-3.5 h-3.5" />
-                  <span>Voir la Flotte</span>
-                </button>
+                  <button
+                    onClick={() => {
+                      setSelectedLocation(loc);
+                    }}
+                    className="flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Car className="w-3.5 h-3.5" />
+                    <span>Voir la Flotte</span>
+                  </button>
 
-                <button
-                  onClick={() => {
-                    setTargetLocationName(`${loc.city} - ${loc.name}`);
-                    setShowAssignModal(true);
-                  }}
-                  className="px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-600/15 dark:hover:bg-blue-600/25 text-blue-700 dark:text-blue-400 font-semibold text-xs transition-colors border border-blue-200 dark:border-blue-500/30"
-                  title="Assigner un véhicule à cette agence"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+                  <button
+                    onClick={() => {
+                      setTargetLocationName(`${loc.city} - ${loc.name}`);
+                      setShowAssignModal(true);
+                    }}
+                    className="px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-600/15 dark:hover:bg-blue-600/25 text-blue-700 dark:text-blue-400 font-semibold text-xs transition-colors border border-blue-200 dark:border-blue-500/30"
+                    title="Assigner un véhicule à cette agence"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
 
       {/* DRAWER / MODAL: VIEW FLEET STATIONED AT SELECTED LOCATION */}
       {selectedLocation && (

@@ -1,5 +1,3 @@
-import AgencySetting from "@/models/AgencySetting";
-
 export interface ZoneFeeConfig {
   id: string;
   name: string;
@@ -83,32 +81,6 @@ export const DEFAULT_ZONES: ZoneFeeConfig[] = [
     isActive: true,
   },
 ];
-
-export async function getLocationFeeConfig(): Promise<{
-  enabled: boolean;
-  zones: ZoneFeeConfig[];
-  differentLocationFee: number;
-}> {
-  try {
-    const setting = await AgencySetting.findOne({ key: "deliveryAndCollectionFees" }).lean();
-    if (setting && setting.value && typeof setting.value === "object") {
-      const val = setting.value as any;
-      return {
-        enabled: val.enabled !== false,
-        zones: Array.isArray(val.zones) && val.zones.length > 0 ? val.zones : DEFAULT_ZONES,
-        differentLocationFee: Number(val.differentLocationFee ?? 50),
-      };
-    }
-  } catch (err) {
-    console.warn("Could not load deliveryAndCollectionFees from DB:", err);
-  }
-
-  return {
-    enabled: true,
-    zones: DEFAULT_ZONES,
-    differentLocationFee: 50,
-  };
-}
 
 export function matchZone(
   location: { city?: string; name?: any; address?: string } | null,

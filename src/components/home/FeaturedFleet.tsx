@@ -363,7 +363,7 @@ export function FeaturedFleet() {
                         {vehicle.brand} {vehicle.model}
                       </h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {tl.yearLabel} {vehicle.year} • {tl.kmLabel}
+                        {tl.kmLabel}
                       </p>
                     </div>
 

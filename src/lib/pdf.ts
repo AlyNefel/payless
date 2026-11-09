@@ -6,6 +6,7 @@ export interface PDFBookingData {
   customerEmail: string;
   customerPhone: string;
   customerCountry?: string;
+  drivingLicenceYear?: string | number;
   vehicleBrand: string;
   vehicleModel: string;
   vehicleYear: number;
@@ -110,7 +111,7 @@ export function generateBookingPDF(data: PDFBookingData): Buffer {
   doc.text(`Nom complet : ${data.customerName}`, 18, y + 14);
   doc.text(`Téléphone / WhatsApp : ${data.customerPhone}`, 18, y + 20);
   doc.text(`Email : ${data.customerEmail}`, 18, y + 26);
-  doc.text(`Pays : ${data.customerCountry || "Tunisie"}`, 18, y + 32);
+  doc.text(`Pays : ${data.customerCountry || "Tunisie"}${data.drivingLicenceYear ? ` | Année Permis : ${data.drivingLicenceYear}` : ""}`, 18, y + 32);
 
   // Vehicle Box (NO SENSITIVE DATA: No license plate, no mileage, no color)
   doc.roundedRect(14 + colWidth + 4, y, colWidth, 38, 2, 2, "FD");
@@ -123,7 +124,7 @@ export function generateBookingPDF(data: PDFBookingData): Buffer {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(37, 99, 235);
-  doc.text(`${data.vehicleBrand} ${data.vehicleModel} (${data.vehicleYear})`, 18 + colWidth + 4, y + 15);
+  doc.text(`${data.vehicleBrand} ${data.vehicleModel}`, 18 + colWidth + 4, y + 15);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);

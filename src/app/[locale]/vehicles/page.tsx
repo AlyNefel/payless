@@ -377,11 +377,6 @@ function VehiclesContent() {
                             </span>
                           )}
                         </div>
-
-                        {/* Year pill */}
-                        <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                          {v.year || 2024}
-                        </div>
                       </div>
 
                       {/* Content Info */}
@@ -530,10 +525,10 @@ function VehiclesContent() {
                     </h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {locale === "en"
-                        ? `Model year ${modalVehicle.year || 2024} · Unlimited mileage included · 24/7 Roadside Assistance in Tunisia`
+                        ? `Unlimited mileage included · 24/7 Roadside Assistance in Tunisia`
                         : locale === "ar"
-                        ? `سنة الموديل ${modalVehicle.year || 2024} · مسافة غير محدودة مشمولة · مساعدة على الطريق 24/7 في تونس`
-                        : `Année modèle ${modalVehicle.year || 2024} · Kilométrage illimité inclus · Assistance 24/7 en Tunisie`}
+                        ? `مسافة غير محدودة مشمولة · مساعدة على الطريق 24/7 في تونس`
+                        : `Kilométrage illimité inclus · Assistance 24/7 en Tunisie`}
                     </p>
                   </div>
                   <div className="sm:text-right">
