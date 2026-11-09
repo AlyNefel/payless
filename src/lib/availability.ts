@@ -31,7 +31,10 @@ export async function getVehicleStockAvailability(
   await connectDB();
 
   const vehicle = await Vehicle.findById(vehicleId).select("totalUnits availableUnits status isActive").lean();
-  if (!vehicle || !vehicle.isActive || vehicle.status === "archived" || vehicle.status === "maintenance" || vehicle.status === "unavailable") {
+  // Only "archived" or inactive vehicles are excluded.
+  // Vehicles marked with internal statuses like "rented" or at another garage/location
+  // still belong to the centralized fleet pool; availability is strictly determined by booking count vs totalUnits.
+  if (!vehicle || !vehicle.isActive || vehicle.status === "archived") {
     return { totalUnits: 0, bookedUnits: 0, availableUnits: 0, isAvailable: false };
   }
 
@@ -82,9 +85,12 @@ export async function getFleetStockMap(
   await connectDB();
 
   // 1. Fetch all active vehicles with their totalUnits
+  // The fleet is treated as a single centralized garage/pool for clients:
+  // vehicles physically at any branch (Sfax, Tunis, Sousse, etc.) are available for all client searches.
+  // Real availability is purely time-overlap based against total physical units.
   const vehicles = await Vehicle.find({
     isActive: true,
-    status: { $nin: ["archived", "maintenance", "unavailable"] },
+    status: { $nin: ["archived"] },
   })
     .select("_id totalUnits")
     .lean();

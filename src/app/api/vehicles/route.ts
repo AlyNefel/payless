@@ -61,8 +61,10 @@ export async function GET(request: NextRequest) {
       isActive: true,
     };
 
-    // Filter by vehicle status (default: available)
-    if (status) {
+    // Filter by vehicle status
+    // Admin can filter by any status (maintenance, rented, etc.);
+    // For clients, all non-archived vehicles are shown (availability is strictly time-based)
+    if (isAdmin && status) {
       query.status = status;
     } else {
       query.status = { $ne: "archived" };
@@ -112,8 +114,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Filter by Location
-    if (location && mongoose.Types.ObjectId.isValid(location)) {
+    // Filter by Location — ADMIN ONLY
+    // Clients see ALL vehicles regardless of their physical garage/branch location.
+    // The fleet is treated as a single unified pool (e.g. car in Sfax is visible for Tunis search).
+    if (location && mongoose.Types.ObjectId.isValid(location) && isAdmin) {
       query.location = new mongoose.Types.ObjectId(location);
     }
 

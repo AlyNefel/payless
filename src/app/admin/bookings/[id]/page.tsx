@@ -59,7 +59,7 @@ interface PopulatedBooking {
     phone: string;
     country?: string;
     passportNumber?: string;
-    drivingLicence?: { number?: string; country?: string };
+    drivingLicence?: { number?: string; country?: string; issueYear?: string | number };
   };
   pickupLocationId?: {
     _id: string;
@@ -307,13 +307,24 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          <a
+            href={`/api/bookings/pdf?ref=${booking.bookingReference}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-900 bg-slate-900 text-white hover:bg-black text-xs font-semibold shadow-xs transition-colors"
+            title="Télécharger la facture officielle en noir & blanc"
+          >
+            <FileText className="w-4 h-4" />
+            <span>Facture PDF (N&B)</span>
+          </a>
+
           <button
             onClick={() => window.print()}
             type="button"
             className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/60 shadow-xs"
           >
             <Printer className="w-4 h-4" />
-            <span>Imprimer Bon</span>
+            <span>Imprimer</span>
           </button>
 
           <button
@@ -698,12 +709,17 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
                 </a>
               </div>
 
-              {booking.customerId?.drivingLicence?.number && (
+              {booking.customerId?.drivingLicence && (
                 <div>
                   <p className="text-slate-400 text-[11px]">Permis de conduire</p>
                   <p className="font-mono font-bold text-slate-900 dark:text-white">
-                    {booking.customerId.drivingLicence.number} ({booking.customerId.drivingLicence.country || "Tunisie"})
+                    {booking.customerId.drivingLicence.number || "Présentation au comptoir"} ({booking.customerId.drivingLicence.country || "Tunisie"})
                   </p>
+                  {booking.customerId.drivingLicence.issueYear && (
+                    <p className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold mt-0.5">
+                      Année d'obtention : {booking.customerId.drivingLicence.issueYear}
+                    </p>
+                  )}
                 </div>
               )}
 
