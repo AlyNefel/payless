@@ -8,10 +8,12 @@ import { Link } from "@/i18n/navigation";
 import {
   MapPin, Calendar, Clock, ChevronRight, Car, Users, Fuel,
   Gauge, Plus, Minus, Check, AlertCircle, Loader2, Copy, Tag,
-  ShieldCheck, Phone, Mail, UserCheck, Search
+  ShieldCheck, Phone, Mail, UserCheck, Search, FileText, MessageSquare,
+  Download, CheckCircle2, Shield, Sparkles
 } from "lucide-react";
 import { CarSpinner } from "@/components/ui/CarSpinner";
 import { useCompanySettings } from "@/contexts/CompanySettingsContext";
+import { DEFAULT_ZONES, matchZone, type ZoneFeeConfig } from "@/lib/locationFees";
 
 interface LocationItem {
   _id: string;
@@ -88,6 +90,8 @@ interface Vehicle {
   transmission: string;
   fuelType: string;
   seats: number;
+  availableUnits?: number;
+  totalUnits?: number;
 }
 
 function getLocalizedName(name: { fr: string; en: string; ar: string } | string | undefined, locale: string): string {
@@ -263,13 +267,33 @@ function BookingContent() {
   }, [couponStatus]);
 
   const depositAmount = selectedVehicle?.pricing?.deposit || 0;
-  // Fiscal calculations & Location Fees:
-  // TVA: 0% (inclus TTC)
-  // Timbre fiscal: 1 DT flat (= 100 centimes)
-  // Contribution LF 2026: 2 DT par jour par véhicule (= 200 centimes * rentalDays)
-  // Frais prise en charge spécifique par point de départ
-  // Frais restitution agence différente (Aller-simple)
-  // Frais restitution hors Tunis / Ramassage
+
+  // Zone configuration state (configurable by Admin)
+  const [zoneConfig, setZoneConfig] = useState<{
+    enabled: boolean;
+    zones: ZoneFeeConfig[];
+    differentLocationFee: number;
+  }>({
+    enabled: true,
+    zones: DEFAULT_ZONES,
+    differentLocationFee: 50,
+  });
+
+  useEffect(() => {
+    fetch("/api/locations/fees")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.zones)) {
+          setZoneConfig({
+            enabled: json.enabled !== false,
+            zones: json.zones,
+            differentLocationFee: Number(json.differentLocationFee ?? 50),
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const selectedPickupLoc = locations.find((l) => l._id === data.pickupLocationId);
   const selectedReturnLoc = locations.find((l) => l._id === data.returnLocationId);
 
@@ -285,33 +309,35 @@ function BookingContent() {
       : selectedReturnLoc.name[locale as "fr" | "en" | "ar"] || selectedReturnLoc.name.fr
     : "";
 
-  const pickupLocationFee = selectedPickupLoc?.pickupFee ? Number(selectedPickupLoc.pickupFee) : 0;
-  const returnLocationFee = selectedReturnLoc?.returnFee ? Number(selectedReturnLoc.returnFee) : (selectedReturnLoc?.customReturnFee ? Number(selectedReturnLoc.customReturnFee) : 0);
+  const matchedPickupZone = useMemo(() => {
+    return matchZone(selectedPickupLoc || null, zoneConfig.zones);
+  }, [selectedPickupLoc, zoneConfig.zones]);
 
-  const isReturnOutsideTunis = useMemo(() => {
-    if (!selectedReturnLoc) return false;
-    if (selectedReturnLoc.isOutsideTunis) return true;
-    const city = (selectedReturnLoc.city || "").toLowerCase();
-    const name = typeof selectedReturnLoc.name === "string" ? selectedReturnLoc.name.toLowerCase() : (selectedReturnLoc.name?.fr || "").toLowerCase();
-    return (
-      (city && !city.includes("tunis") && !city.includes("ariana") && !city.includes("soukra") && !city.includes("carthage")) ||
-      name.includes("monastir") ||
-      name.includes("enfidha") ||
-      name.includes("bizerte") ||
-      name.includes("nabeul") ||
-      name.includes("hammamet") ||
-      name.includes("sfax") ||
-      name.includes("sousse") ||
-      name.includes("jendouba")
-    );
-  }, [selectedReturnLoc]);
+  const matchedReturnZone = useMemo(() => {
+    return matchZone(selectedReturnLoc || null, zoneConfig.zones);
+  }, [selectedReturnLoc, zoneConfig.zones]);
 
-  const outOfTownFee = isReturnOutsideTunis
-    ? (returnLocationFee > 0 ? returnLocationFee : (settings.outOfTownReturnFee ? settings.outOfTownReturnFee * 100 : 10000))
-    : returnLocationFee;
+  const deliveryFee = useMemo(() => {
+    if (selectedPickupLoc?.pickupFee && Number(selectedPickupLoc.pickupFee) > 0) {
+      return Number(selectedPickupLoc.pickupFee);
+    }
+    return (matchedPickupZone?.deliveryFee ?? 0) * 100;
+  }, [selectedPickupLoc, matchedPickupZone]);
+
+  const ramassageFee = useMemo(() => {
+    if (selectedReturnLoc?.returnFee && Number(selectedReturnLoc.returnFee) > 0) {
+      return Number(selectedReturnLoc.returnFee);
+    }
+    if (selectedReturnLoc?.customReturnFee && Number(selectedReturnLoc.customReturnFee) > 0) {
+      return Number(selectedReturnLoc.customReturnFee);
+    }
+    return (matchedReturnZone?.returnFee ?? 0) * 100;
+  }, [selectedReturnLoc, matchedReturnZone]);
 
   const isDifferentLocation = Boolean(data.pickupLocationId && data.returnLocationId && data.pickupLocationId !== data.returnLocationId);
-  const differentLocationFee = (isDifferentLocation && settings.differentLocationFee) ? settings.differentLocationFee * 100 : 0;
+  const differentLocationFee = isDifferentLocation
+    ? (zoneConfig.differentLocationFee || settings.differentLocationFee || 50) * 100
+    : 0;
 
   const timbreFiscal = (settings.timbreFiscal !== undefined ? settings.timbreFiscal : 1) * 100;
   const contributionLF2026 = (settings.contributionLF2026 !== undefined ? settings.contributionLF2026 : 2) * 100 * rentalDays;
@@ -323,8 +349,8 @@ function BookingContent() {
       discountAmount +
       timbreFiscal +
       contributionLF2026 +
-      outOfTownFee +
-      pickupLocationFee +
+      deliveryFee +
+      ramassageFee +
       differentLocationFee
   );
 
@@ -602,19 +628,35 @@ function BookingContent() {
                   </div>
                 </div>
 
-                {pickupLocationFee > 0 && (
+                {deliveryFee > 0 && (
                   <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 text-xs text-blue-900 dark:text-blue-200 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
                       <span>
                         {locale === "ar"
-                          ? `معلوم الاستلام في الموقع (${selectedPickupLocName}) :`
+                          ? `معلوم تسليم السيارة (${selectedPickupLocName}) :`
                           : locale === "en"
-                          ? `Pickup location fee (${selectedPickupLocName}) :`
-                          : `Frais de prise en charge (${selectedPickupLocName}) :`}
+                          ? `Delivery fee (${selectedPickupLocName}) :`
+                          : `Frais de livraison (${selectedPickupLocName}) :`}
                       </span>
                     </div>
-                    <span className="font-bold font-mono">+{pickupLocationFee / 100} TND</span>
+                    <span className="font-bold font-mono">+{deliveryFee / 100} TND</span>
+                  </div>
+                )}
+
+                {ramassageFee > 0 && (
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-900 dark:text-amber-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>
+                        {locale === "ar"
+                          ? `معلوم استرجاع / رَمَس السيارة (${selectedReturnLocName}) :`
+                          : locale === "en"
+                          ? `Collection / Recovery fee (${selectedReturnLocName}) :`
+                          : `Frais de ramassage (${selectedReturnLocName}) :`}
+                      </span>
+                    </div>
+                    <span className="font-bold font-mono">+{ramassageFee / 100} TND</span>
                   </div>
                 )}
 
@@ -631,22 +673,6 @@ function BookingContent() {
                       </span>
                     </div>
                     <span className="font-bold font-mono">+{differentLocationFee / 100} TND</span>
-                  </div>
-                )}
-
-                {(isReturnOutsideTunis || outOfTownFee > 0) && (
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-900 dark:text-amber-200 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>
-                        {locale === "ar"
-                          ? `تسليم خارج تونس الكبرى / استرجاع (${selectedReturnLocName}) : معلوم استرجاع مطبق`
-                          : locale === "en"
-                          ? `Drop-off outside Tunis / Recovery (${selectedReturnLocName}) : Out-of-town fee applies`
-                          : `Restitution hors Tunis / Ramassage (${selectedReturnLocName}) : Frais appliqués`}
-                      </span>
-                    </div>
-                    <span className="font-bold font-mono">+{outOfTownFee / 100} TND</span>
                   </div>
                 )}
 
@@ -767,6 +793,22 @@ function BookingContent() {
                                   {v.fuelType}
                                 </span>
                               </div>
+                              {v.availableUnits !== undefined && (
+                                <div className="flex items-center gap-1.5 mt-2">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+                                      v.availableUnits <= 1
+                                        ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700 animate-pulse"
+                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700"
+                                    }`}
+                                  >
+                                    {v.availableUnits <= 1 ? "🔥 " : "✓ "}
+                                    {v.availableUnits <= 1
+                                      ? (locale === "ar" ? "آخر سيارة متوفرة !" : locale === "en" ? "Only 1 vehicle left!" : "Dernier véhicule disponible !")
+                                      : (locale === "ar" ? `${v.availableUnits} متوفرة من أصل ${v.totalUnits || v.availableUnits}` : locale === "en" ? `${v.availableUnits} available out of ${v.totalUnits || v.availableUnits}` : `${v.availableUnits} disponibles sur ${v.totalUnits || v.availableUnits} en flotte`)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                             <div className="w-full sm:w-auto flex items-center justify-between sm:flex-col sm:items-end gap-1 border-t sm:border-t-0 border-border/50 pt-2 sm:pt-0 shrink-0">
                               <div className="text-lg sm:text-xl font-bold text-blue-700 dark:text-blue-400">
@@ -1009,149 +1051,282 @@ function BookingContent() {
             {step === 5 && (
               <div className="space-y-6">
                 <div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold mb-2">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Confirmation Automatique & Immédiate (Sans attente d'agence)</span>
+                  </div>
                   <h2 className="text-2xl font-bold mb-1">
-                    {locale === "ar" ? "ملخص الحجز" : locale === "en" ? "Booking Summary" : "Récapitulatif de votre réservation"}
+                    {locale === "ar" ? "ملخص الحجز والتكلفة" : locale === "en" ? "Booking & Pricing Summary" : "Résumé de votre réservation"}
                   </h2>
                   <p className="text-muted-foreground text-sm">
                     {locale === "ar"
-                      ? "تحقق من جميع التفاصيل قبل التأكيد النهائي"
+                      ? "تحقق من جميع التفاصيل المالية والتعاقدية قبل التأكيد النهائي المباشر"
                       : locale === "en"
-                      ? "Review your details before confirming. Pay upon vehicle delivery."
-                      : "Vérifiez vos données. Paiement à la livraison du véhicule."}
+                      ? "Review complete vehicle, itinerary, and itemised costs before instant confirmation"
+                      : "Vérifiez le détail complet des coûts et de votre itinéraire avant validation finale"}
                   </p>
                 </div>
 
-                {/* Selected vehicle summary card */}
+                {/* 1. Selected Vehicle card */}
                 {selectedVehicle && (
-                  <div className="flex items-center gap-4 p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-xl border border-border dark:border-neutral-700">
-                    <img
-                      src={
-                        selectedVehicle.images?.find((i) => i.isPrimary)?.url ||
-                        selectedVehicle.images?.[0]?.url ||
-                        ""
-                      }
-                      alt=""
-                      className="w-24 h-16 object-cover rounded-lg bg-neutral-200 dark:bg-neutral-700"
-                    />
-                    <div className="flex-1">
-                      <div className="font-bold text-base">
-                        {selectedVehicle.brand} {selectedVehicle.model} ({selectedVehicle.year})
+                  <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-border dark:border-neutral-700 space-y-3">
+                    <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Car className="w-4 h-4 text-blue-600" />
+                      <span>1. Véhicule Sélectionné</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                      <img
+                        src={
+                          selectedVehicle.images?.find((i) => i.isPrimary)?.url ||
+                          selectedVehicle.images?.[0]?.url ||
+                          "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=400&q=80"
+                        }
+                        alt=""
+                        className="w-full sm:w-32 h-24 object-cover rounded-xl bg-neutral-200 dark:bg-neutral-700"
+                      />
+                      <div className="flex-1 space-y-1">
+                        <div className="font-extrabold text-lg text-foreground">
+                          {selectedVehicle.brand} {selectedVehicle.model}{" "}
+                          <span className="text-muted-foreground text-sm font-normal">({selectedVehicle.year})</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span className="px-2 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-700/70">
+                            {selectedVehicle.transmission === "automatic" ? "Boîte Automatique" : "Boîte Manuelle"}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-700/70">
+                            {selectedVehicle.seats} Places
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-700/70">
+                            Carburant: {selectedVehicle.fuelType}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold">
+                            ✓ Kilométrage Illimité
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {rentalDays} {rentalDays > 1 ? "jours" : "jour"} × {fmt(selectedVehicle.pricing?.daily)} {currencySymbol}
+                      <div className="text-right sm:border-l sm:border-border sm:dark:border-neutral-700 sm:pl-4">
+                        <div className="text-xs text-muted-foreground">Prix journalier</div>
+                        <div className="text-xl font-bold text-blue-700 dark:text-blue-400">
+                          {fmt(selectedVehicle.pricing?.daily)} {currencySymbol}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">/ jour TTC</div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Price breakdown in TND */}
-                <div className="space-y-2 text-sm border-t border-b border-border dark:border-neutral-800 py-3">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      {locale === "ar" ? "المجموع الفرعي للإيجار" : locale === "en" ? "Rental Subtotal" : "Sous-total location"}
+                {/* 2. Dates & Itinerary card */}
+                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-border dark:border-neutral-700 space-y-3">
+                  <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    <span>2. Dates & Itinéraire de Location</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3 bg-white dark:bg-neutral-900 rounded-xl border border-border dark:border-neutral-800">
+                      <div className="text-muted-foreground font-medium mb-1 flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-blue-600" /> Prise en charge (Livraison)
+                      </div>
+                      <div className="font-bold text-sm text-foreground">{data.pickupDate} à {data.pickupTime}</div>
+                      <div className="text-muted-foreground truncate mt-0.5">{selectedPickupLocName}</div>
+                    </div>
+                    <div className="p-3 bg-white dark:bg-neutral-900 rounded-xl border border-border dark:border-neutral-800">
+                      <div className="text-muted-foreground font-medium mb-1 flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-amber-500" /> Restitution (Ramassage)
+                      </div>
+                      <div className="font-bold text-sm text-foreground">{data.returnDate} à {data.returnTime}</div>
+                      <div className="text-muted-foreground truncate mt-0.5">{selectedReturnLocName}</div>
+                    </div>
+                    <div className="p-3 bg-white dark:bg-neutral-900 rounded-xl border border-border dark:border-neutral-800">
+                      <div className="text-muted-foreground font-medium mb-1 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-indigo-600" /> Durée Totale Facturée
+                      </div>
+                      <div className="font-bold text-lg text-blue-600 dark:text-blue-400">{rentalDays} Jour{rentalDays > 1 ? "s" : ""}</div>
+                      <div className="text-muted-foreground text-[11px]">Tarif dégressif appliqué</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Itemized Cost Breakdown (14 Points) */}
+                <div className="p-5 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-border dark:border-neutral-700 space-y-3">
+                  <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Tag className="w-4 h-4 text-blue-600" />
+                      <span>3. Détail Complet des Coûts & Taxes (TTC)</span>
                     </span>
-                    <span className="font-medium">
-                      {fmt(subtotal)} {currencySymbol}
-                    </span>
+                    <span className="text-[11px] font-normal text-emerald-600 dark:text-emerald-400 font-semibold">100% Transparent sans frais cachés</span>
                   </div>
 
-                  {extrasTotal > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        {locale === "ar" ? "الخيارات الإضافية" : locale === "en" ? "Additional Options" : "Options additionnelles"}
-                      </span>
-                      <span className="font-medium">
-                        +{fmt(extrasTotal)} {currencySymbol}
+                  <div className="space-y-2.5 text-xs sm:text-sm pt-2">
+                    {/* Prix journalier & sous-total */}
+                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
+                      <div>
+                        <span className="font-medium text-foreground">Prix total location ({rentalDays} jours × {fmt(selectedVehicle?.pricing?.daily)} {currencySymbol})</span>
+                        <div className="text-[11px] text-muted-foreground">Tarif de base journalier garanti</div>
+                      </div>
+                      <span className="font-bold font-mono text-foreground">{fmt(subtotal)} {currencySymbol}</span>
+                    </div>
+
+                    {/* Assurance */}
+                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
+                      <div>
+                        <span className="font-medium text-foreground">Assurance Tous Risques & CDW de base</span>
+                        <div className="text-[11px] text-muted-foreground">Responsabilité civile, vol, bris de glace et assistance 24/7</div>
+                      </div>
+                      <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400">Offerte (0 TND)</span>
+                    </div>
+
+                    {/* Options supplémentaires */}
+                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
+                      <div>
+                        <span className="font-medium text-foreground">Options & équipements additionnels</span>
+                        {data.extras.length === 0 ? (
+                          <div className="text-[11px] text-muted-foreground">Aucune option payante sélectionnée</div>
+                        ) : (
+                          <div className="text-[11px] text-muted-foreground">
+                            {data.extras.map((ex) => {
+                              const item = availableExtras.find((e) => e._id === ex.id);
+                              return `${getLocalizedName(item?.name, locale)} (x${ex.quantity})`;
+                            }).join(", ")}
+                          </div>
+                        )}
+                      </div>
+                      <span className="font-bold font-mono text-foreground">
+                        {extrasTotal > 0 ? `+${fmt(extrasTotal)} ${currencySymbol}` : `0 ${currencySymbol}`}
                       </span>
                     </div>
-                  )}
 
-                  {discountAmount > 0 && (
-                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
-                      <span>
-                        {locale === "ar" ? "خصم الرمز الترويجي" : locale === "en" ? "Promo Code Discount" : "Remise Code Promo"}
-                      </span>
-                      <span>
-                        -{fmt(discountAmount)} {currencySymbol}
+                    {/* Frais de livraison */}
+                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
+                      <div>
+                        <span className="font-medium text-foreground">Frais de livraison ({selectedPickupLocName})</span>
+                        <div className="text-[11px] text-muted-foreground">Mise à disposition VIP sur le lieu de départ</div>
+                      </div>
+                      <span className="font-bold font-mono text-foreground">
+                        {deliveryFee > 0 ? `+${fmt(deliveryFee)} ${currencySymbol}` : "Gratuit (0 TND)"}
                       </span>
                     </div>
-                  )}
 
-                  {pickupLocationFee > 0 && (
-                    <div className="flex justify-between text-xs text-blue-600 dark:text-blue-400">
-                      <span>
-                        {locale === "ar"
-                          ? `معلوم الاستلام (${selectedPickupLocName})`
-                          : locale === "en"
-                          ? `Pickup fee (${selectedPickupLocName})`
-                          : `Frais prise en charge (${selectedPickupLocName})`}
+                    {/* Frais de ramassage */}
+                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
+                      <div>
+                        <span className="font-medium text-foreground">Frais de ramassage / restitution ({selectedReturnLocName})</span>
+                        <div className="text-[11px] text-muted-foreground">Prise en charge de retour et rapatriement</div>
+                      </div>
+                      <span className="font-bold font-mono text-foreground">
+                        {ramassageFee > 0 ? `+${fmt(ramassageFee)} ${currencySymbol}` : "Gratuit (0 TND)"}
                       </span>
-                      <span className="font-medium">+{fmt(pickupLocationFee)} {currencySymbol}</span>
                     </div>
-                  )}
 
-                  {differentLocationFee > 0 && (
-                    <div className="flex justify-between text-xs text-indigo-600 dark:text-indigo-400">
-                      <span>
-                        {locale === "ar"
-                          ? "معلوم تسليم في وكالة أخرى (ذهاب فقط)"
-                          : locale === "en"
-                          ? "Inter-agency return fee (One-way)"
-                          : "Restitution agence différente (Aller-simple)"}
-                      </span>
-                      <span className="font-medium">+{fmt(differentLocationFee)} {currencySymbol}</span>
+                    {/* Aller-simple agence différente */}
+                    {isDifferentLocation && differentLocationFee > 0 && (
+                      <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
+                        <div>
+                          <span className="font-medium text-foreground">Frais de retour agence différente (Aller-simple)</span>
+                          <div className="text-[11px] text-muted-foreground">Inter-agences La Soukra / Aéroports</div>
+                        </div>
+                        <span className="font-bold font-mono text-foreground">+{fmt(differentLocationFee)} {currencySymbol}</span>
+                      </div>
+                    )}
+
+                    {/* TVA */}
+                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
+                      <div>
+                        <span className="font-medium text-foreground">TVA (Régime spécial location touristique)</span>
+                        <div className="text-[11px] text-muted-foreground">TVA 0% incluse dans le tarif TTC</div>
+                      </div>
+                      <span className="font-mono text-muted-foreground">Incluse (0 TND)</span>
                     </div>
-                  )}
 
-                  {outOfTownFee > 0 && (
-                    <div className="flex justify-between text-xs text-amber-600 dark:text-amber-400">
-                      <span>
-                        {locale === "ar"
-                          ? `معلوم استرجاع خارج تونس (${selectedReturnLocName})`
-                          : locale === "en"
-                          ? `Out-of-town return fee (${selectedReturnLocName})`
-                          : `Frais restitution hors Tunis / Ramassage (${selectedReturnLocName})`}
-                      </span>
-                      <span className="font-medium">+{fmt(outOfTownFee)} {currencySymbol}</span>
+                    {/* Contribution LF 2026 */}
+                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
+                      <div>
+                        <span className="font-medium text-foreground">Contribution fiscale LF 2026</span>
+                        <div className="text-[11px] text-muted-foreground">Taxe légale de 2 DT / jour × {rentalDays} jour(s)</div>
+                      </div>
+                      <span className="font-bold font-mono text-foreground">+{fmt(contributionLF2026)} {currencySymbol}</span>
                     </div>
-                  )}
 
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{locale === "ar" ? "طابع جبائي (قانوني)" : locale === "en" ? "Fiscal stamp (Legal)" : "Timbre fiscal (Légal)"}</span>
-                    <span>+{fmt(timbreFiscal)} {currencySymbol}</span>
-                  </div>
+                    {/* Timbre fiscal */}
+                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
+                      <div>
+                        <span className="font-medium text-foreground">Timbre fiscal de quittance</span>
+                        <div className="text-[11px] text-muted-foreground">Droit de timbre légal obligatoire (1 DT)</div>
+                      </div>
+                      <span className="font-bold font-mono text-foreground">+{fmt(timbreFiscal)} {currencySymbol}</span>
+                    </div>
 
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{locale === "ar" ? `مساهمة قانون المالية 2026 (${rentalDays} يوم)` : locale === "en" ? `LF 2026 contribution (${rentalDays}d)` : `Contribution LF 2026 (${rentalDays}j)`}</span>
-                    <span>+{fmt(contributionLF2026)} {currencySymbol}</span>
-                  </div>
+                    {/* Réduction code promo */}
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50 text-emerald-600 dark:text-emerald-400">
+                        <div>
+                          <span className="font-medium">Réduction Code Promo ({data.couponCode})</span>
+                          <div className="text-[11px]">Remise commerciale immédiate</div>
+                        </div>
+                        <span className="font-bold font-mono">-{fmt(discountAmount)} {currencySymbol}</span>
+                      </div>
+                    )}
 
-                  <div className="border-t border-border dark:border-neutral-800 pt-3 flex justify-between items-center text-lg font-bold">
-                    <div>
-                      <span>
-                        {locale === "ar" ? "المبلغ الإجمالي" : locale === "en" ? "Total Amount" : "Montant Total TTC"}
-                      </span>
-                      <div className="text-[11px] font-normal text-muted-foreground">
-                        {locale === "ar" ? "شامل جميع الأداءات والضرائب القانونية" : locale === "en" ? "All taxes & fees included" : "Toutes taxes & frais inclus"}
+                    {/* Total TTC final */}
+                    <div className="pt-3 flex justify-between items-center bg-blue-50 dark:bg-blue-950/40 p-4 rounded-xl border border-blue-200 dark:border-blue-900">
+                      <div>
+                        <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                          Montant Total TTC à Régler
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Paiement sur place à la remise des clés (Espèces ou Carte)
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl sm:text-3xl font-black text-blue-700 dark:text-blue-300 font-mono">
+                          {fmt(totalAmount)} {currencySymbol}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          ≈ {Math.round(totalAmount / 335)} EUR
+                        </div>
                       </div>
                     </div>
-                    <span className="text-xl text-blue-700 dark:text-blue-400 font-extrabold">
-                      {fmt(totalAmount)} {currencySymbol}
-                    </span>
-                  </div>
 
-                  {depositAmount > 0 && (
-                    <div className="text-xs text-muted-foreground flex justify-between pt-1">
-                      <span>
-                        {locale === "ar"
-                          ? "التأمين بالبطاقة البنكية (يُرجع عند التسليم)"
-                          : locale === "en"
-                          ? "Credit card deposit (released upon return)"
-                          : "Caution par carte bancaire (restituée au retour)"}
-                      </span>
-                      <span>
-                        {fmt(depositAmount)} {currencySymbol}
-                      </span>
+                    {/* Caution de garantie */}
+                    {depositAmount > 0 && (
+                      <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800/50 flex items-start justify-between text-xs text-amber-900 dark:text-amber-200">
+                        <div className="flex items-center gap-1.5">
+                          <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>Caution de garantie (Empreinte CB restituée au retour) :</span>
+                        </div>
+                        <span className="font-bold font-mono">{fmt(depositAmount)} {currencySymbol}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Driver Details & Special Notes Recap */}
+                <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-border dark:border-neutral-700 space-y-2 text-xs">
+                  <div className="font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <UserCheck className="w-4 h-4 text-blue-600" />
+                    <span>4. Informations Conducteur & Facturation</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-1">
+                    <div>
+                      <span className="text-muted-foreground">Conducteur :</span>
+                      <p className="font-semibold text-foreground">{data.firstName} {data.lastName}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Email :</span>
+                      <p className="font-semibold text-foreground truncate">{data.email}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Téléphone (WhatsApp) :</span>
+                      <p className="font-semibold text-foreground">{data.phone}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Permis de conduire :</span>
+                      <p className="font-semibold text-foreground">{data.licenceNumber || "À présenter à l'arrivée"}</p>
+                    </div>
+                  </div>
+                  {data.notes && (
+                    <div className="pt-2 border-t border-border/50 dark:border-neutral-700/50">
+                      <span className="text-muted-foreground">Remarques / Vol :</span>
+                      <p className="font-medium text-foreground">{data.notes}</p>
                     </div>
                   )}
                 </div>
@@ -1349,81 +1524,110 @@ function BookingContent() {
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-8"
+                className="text-center py-6 max-w-2xl mx-auto space-y-6"
               >
-                <div className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center mx-auto mb-6 text-emerald-600 dark:text-emerald-400">
+                <div className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center mx-auto text-emerald-600 dark:text-emerald-400 ring-8 ring-emerald-50 dark:ring-emerald-950/20">
                   <Check className="w-10 h-10" />
                 </div>
-                <h2 className="text-3xl font-bold mb-2">
-                  {locale === "ar" ? "تم تأكيد حجزك بنجاح!" : locale === "en" ? "Booking Confirmed!" : "Réservation Confirmée avec Succès !"}
-                </h2>
-                <p className="text-muted-foreground mb-6">
-                  {locale === "ar"
-                    ? `تم إرسال بريد التأكيد والتفاصيل إلى ${data.email}`
-                    : locale === "en"
-                    ? `A confirmation email has been sent to ${data.email}`
-                    : `Un email de confirmation détaillé a été envoyé à ${data.email}`}
-                </p>
 
-                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-2xl p-6 mb-6 inline-block">
-                  <div className="text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400 font-semibold mb-1">
-                    Référence de réservation
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold mb-2">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Statut : Confirmée Immédiatement (Sans attente)</span>
                   </div>
-                  <div className="text-3xl font-bold text-blue-700 dark:text-blue-300 tracking-widest">
+                  <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2">
+                    {locale === "ar" ? "تم تأكيد حجزك بنجاح!" : locale === "en" ? "Booking Confirmed Immediately!" : "Réservation Confirmée Immédiatement !"}
+                  </h2>
+                  <p className="text-slate-600 dark:text-slate-400 text-sm max-w-md mx-auto">
+                    {locale === "ar"
+                      ? `تم قفل السيارة بنجاح في أسطولنا وإرسال تأكيد الحجز إلى ${data.email}`
+                      : locale === "en"
+                      ? `Your vehicle has been locked in our fleet and confirmation sent to ${data.email}`
+                      : `Votre véhicule a été validé et verrouillé dans notre flotte en temps réel. Le bon officiel avec QR code a été envoyé à ${data.email}`}
+                  </p>
+                </div>
+
+                {/* Booking reference badge */}
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-900 rounded-2xl p-6 shadow-sm">
+                  <div className="text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400 font-bold mb-1">
+                    Référence Officielle de Réservation
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-black text-blue-700 dark:text-blue-300 tracking-wider font-mono">
                     {bookingRef}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Présentez cette référence ou votre bon PDF lors de la remise des clés.
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm text-left max-w-sm mx-auto mb-8">
-                  <div className="bg-muted/40 dark:bg-neutral-800 rounded-xl p-3">
-                    <div className="text-xs text-muted-foreground mb-0.5">Véhicule</div>
-                    <div className="font-semibold">
-                      {selectedVehicle?.brand} {selectedVehicle?.model}
-                    </div>
+                {/* Quick recap details */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-left text-xs">
+                  <div className="bg-muted/40 dark:bg-neutral-800 p-3 rounded-xl border border-border/50">
+                    <div className="text-muted-foreground mb-0.5">Véhicule</div>
+                    <div className="font-bold text-foreground truncate">{selectedVehicle?.brand} {selectedVehicle?.model}</div>
                   </div>
-                  <div className="bg-muted/40 dark:bg-neutral-800 rounded-xl p-3">
-                    <div className="text-xs text-muted-foreground mb-0.5">Durée</div>
-                    <div className="font-semibold">
-                      {rentalDays} jour{rentalDays > 1 ? "s" : ""}
-                    </div>
+                  <div className="bg-muted/40 dark:bg-neutral-800 p-3 rounded-xl border border-border/50">
+                    <div className="text-muted-foreground mb-0.5">Durée</div>
+                    <div className="font-bold text-foreground">{rentalDays} jour{rentalDays > 1 ? "s" : ""}</div>
                   </div>
-                  <div className="bg-muted/40 dark:bg-neutral-800 rounded-xl p-3">
-                    <div className="text-xs text-muted-foreground mb-0.5">Total TTC</div>
-                    <div className="font-semibold text-blue-700 dark:text-blue-400">
-                      {fmt(totalAmount)} {currencySymbol}
-                    </div>
+                  <div className="bg-muted/40 dark:bg-neutral-800 p-3 rounded-xl border border-border/50">
+                    <div className="text-muted-foreground mb-0.5">Total TTC</div>
+                    <div className="font-bold text-blue-700 dark:text-blue-400 font-mono">{fmt(totalAmount)} {currencySymbol}</div>
                   </div>
-                  <div className="bg-muted/40 dark:bg-neutral-800 rounded-xl p-3">
-                    <div className="text-xs text-muted-foreground mb-0.5">Date prise</div>
-                    <div className="font-semibold">{data.pickupDate}</div>
+                  <div className="bg-muted/40 dark:bg-neutral-800 p-3 rounded-xl border border-border/50">
+                    <div className="text-muted-foreground mb-0.5">Prise en charge</div>
+                    <div className="font-bold text-foreground truncate">{data.pickupDate}</div>
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                {/* Primary Automated Dispatch Buttons: PDF + WhatsApp */}
+                <div className="space-y-3 pt-2">
+                  <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Documents & Envois Automatiques
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    {/* Direct PDF Download button */}
+                    <a
+                      href={`/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Télécharger le Bon PDF de Réservation</span>
+                    </a>
+
+                    {/* Direct WhatsApp notification button */}
+                    <a
+                      href={`https://api.whatsapp.com/send?phone=${encodeURIComponent(
+                        (data.phone || "").replace(/[^0-9]/g, "")
+                      )}&text=${encodeURIComponent(
+                        `Bonjour ${data.firstName} ${data.lastName},\n\n✅ Votre réservation chez Payless Car Rental Tunisie est CONFIRMÉE !\n\n📋 Référence : ${bookingRef}\n🚗 Véhicule : ${selectedVehicle?.brand} ${selectedVehicle?.model} (${selectedVehicle?.year})\n📅 Prise en charge : ${data.pickupDate} à ${data.pickupTime} (${selectedPickupLocName})\n📅 Restitution : ${data.returnDate} à ${data.returnTime} (${selectedReturnLocName})\n⏱️ Durée : ${rentalDays} jour(s)\n💰 Total TTC : ${fmt(totalAmount)} TND\n\n📄 Téléchargez votre bon officiel de réservation (PDF) :\n${typeof window !== "undefined" ? window.location.origin : ""}/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}\n\nAssistance VIP Payless Tunisie : +216 80 80 80 80.`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span>Recevoir sur WhatsApp</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Additional navigation links */}
+                <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3 border-t border-border/50">
                   <Link
                     href={`/booking/status?ref=${bookingRef}&email=${encodeURIComponent(data.email)}`}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#1D4ED8] hover:bg-[#1e40af] text-white rounded-xl font-bold text-sm shadow-md transition-all w-full sm:w-auto"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-slate-800 dark:text-slate-200 rounded-xl font-semibold text-xs transition-colors w-full sm:w-auto"
                   >
-                    <Search className="w-4 h-4" />
-                    <span>
-                      {locale === "ar"
-                        ? "متابعة حالة الحجز وتفاصيله"
-                        : locale === "en"
-                        ? "Track & Manage Reservation"
-                        : "Suivre et gérer ma réservation"}
-                    </span>
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Suivre ma réservation en ligne</span>
                   </Link>
                   <Link
                     href="/"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border dark:border-neutral-700 bg-white dark:bg-neutral-800 text-slate-800 dark:text-slate-200 rounded-xl font-semibold text-sm hover:bg-muted transition-colors w-full sm:w-auto"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-border dark:border-neutral-700 rounded-xl font-semibold text-xs hover:bg-muted transition-colors w-full sm:w-auto"
                   >
-                    {locale === "ar" ? "العودة للرئيسية" : locale === "en" ? "Back to Home" : "Retour à l'accueil"}
-                  </Link>
-                  <Link
-                    href="/vehicles"
-                    className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-border dark:border-neutral-700 rounded-xl font-medium text-sm hover:bg-muted transition-colors w-full sm:w-auto"
-                  >
-                    {locale === "ar" ? "عرض سيارات أخرى" : locale === "en" ? "View Fleet" : "Voir d'autres voitures"}
+                    Retour à l'accueil
                   </Link>
                 </div>
               </motion.div>

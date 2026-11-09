@@ -38,6 +38,7 @@ export interface EmailPayload {
   bookingId?: string;
   customerId?: string;
   replyTo?: string;
+  attachments?: { filename: string; content: Buffer | string; contentType?: string }[];
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<{
@@ -71,6 +72,7 @@ export async function sendEmail(payload: EmailPayload): Promise<{
         html: payload.html,
         text: payload.text,
         replyTo: payload.replyTo,
+        attachments: payload.attachments,
       });
 
       await EmailLog.findByIdAndUpdate(log._id, {
@@ -90,6 +92,10 @@ export async function sendEmail(payload: EmailPayload): Promise<{
         html: payload.html,
         text: payload.text,
         replyTo: payload.replyTo,
+        attachments: payload.attachments?.map((a) => ({
+          filename: a.filename,
+          content: Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content),
+        })),
       });
 
       if (error) {
@@ -159,9 +165,9 @@ export function buildBookingConfirmationEmail(data: {
   };
 
   const messages = {
-    fr: `Votre demande de réservation a été enregistrée avec succès. Notre équipe prépare votre véhicule.`,
-    en: `Your booking request has been successfully registered. Our team is preparing your vehicle.`,
-    ar: `تم تسجيل طلب الحجز الخاص بك بنجاح. فريقنا يستعد لتجهيز سيارتك.`,
+    fr: `Votre réservation a été confirmée instantanément avec succès. Votre véhicule est garanti et bloqué dans notre planning. Vous trouverez ci-joint votre bon de réservation officiel au format PDF.`,
+    en: `Your booking has been instantly confirmed. Your vehicle is guaranteed and locked in our schedule. Please find attached your official reservation voucher in PDF format.`,
+    ar: `تم تأكيد حجزك تلقائياً وبشكل فوري بنجاح. سيارتك مضمونة ومحجوزة في جدولنا. تجدون مرفقاً وصل الحجز الرسمي بصيغة PDF.`,
   };
 
   const labels = {

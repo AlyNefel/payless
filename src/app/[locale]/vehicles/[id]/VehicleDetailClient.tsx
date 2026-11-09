@@ -219,7 +219,7 @@ export function VehicleDetailClient({ vehicleId, locale }: Props) {
                     <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-display text-white tracking-tight">
                       {vehicle.brand} <span className="text-amber-400">{vehicle.model}</span>
                     </h1>
-                    <p className="text-white/50 mt-1">{vehicle.year || 2024} · {vehicle.color || "Blanc Glacier"}</p>
+                    <p className="text-white/50 mt-1">{vehicle.year || 2024}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-white/40 text-sm mb-1">

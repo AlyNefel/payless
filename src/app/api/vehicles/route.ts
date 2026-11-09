@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { Vehicle, VehicleCategory } from "@/models";
-import { getAvailableVehicleIds } from "@/lib/availability";
+import { getFleetStockMap, getUnavailableVehicleIds } from "@/lib/availability";
+import { sanitizeVehicleForClient } from "@/lib/sanitize";
 import { sanitizeQuery } from "@/lib/utils";
+import { auth } from "@/lib/auth";
 import mongoose from "mongoose";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
+
+    // Check if requester is authenticated admin
+    let isAdmin = false;
+    try {
+      const session = await auth();
+      const role = (session?.user as any)?.role?.toLowerCase();
+      isAdmin = Boolean(role && ["admin", "superadmin", "manager", "agent"].includes(role));
+    } catch {}
 
     const vehicleId = searchParams.get("vehicleId") || searchParams.get("id");
     if (vehicleId && mongoose.Types.ObjectId.isValid(vehicleId)) {
@@ -20,11 +32,12 @@ export async function GET(request: NextRequest) {
       if (!singleVehicle) {
         return NextResponse.json({ success: false, error: "Vehicle not found" }, { status: 404 });
       }
+      const finalDoc = isAdmin ? singleVehicle : sanitizeVehicleForClient(singleVehicle);
       return NextResponse.json({
         success: true,
-        vehicle: singleVehicle,
-        vehicles: [singleVehicle],
-        data: [singleVehicle],
+        vehicle: finalDoc,
+        vehicles: [finalDoc],
+        data: [finalDoc],
         total: 1,
       });
     }
@@ -66,7 +79,6 @@ export async function GET(request: NextRequest) {
         if (categoryDoc) {
           query.categoryId = categoryDoc._id;
         } else {
-          // Non-existent category returns empty set
           return NextResponse.json(
             {
               success: true,
@@ -111,7 +123,6 @@ export async function GET(request: NextRequest) {
       if (minPrice) {
         const minVal = parseFloat(minPrice);
         if (!isNaN(minVal) && minVal >= 0) {
-          // If < 10000, consider input as TND major units, convert to minor units
           priceFilter.$gte = minVal < 10000 ? Math.round(minVal * 100) : minVal;
         }
       }
@@ -133,20 +144,24 @@ export async function GET(request: NextRequest) {
       query.$or = [{ brand: regex }, { model: regex }];
     }
 
-    // Filter by Date window availability
-    if (pickupDate && returnDate) {
-      const pDate = new Date(pickupDate);
-      const rDate = new Date(returnDate);
+    // Real-time fleet stock availability mapping
+    let fleetStockMap: Record<string, { totalUnits: number; bookedUnits: number; availableUnits: number; isAvailable: boolean }> = {};
+    const hasDateWindow = Boolean(pickupDate && returnDate);
+
+    if (hasDateWindow) {
+      const pDate = new Date(pickupDate as string);
+      const rDate = new Date(returnDate as string);
 
       if (!isNaN(pDate.getTime()) && !isNaN(rDate.getTime()) && rDate > pDate) {
-        // getAvailableVehicleIds returns IDs of conflicting bookings during this window
-        const conflictingVehicleIds = await getAvailableVehicleIds(pDate, rDate);
-        if (conflictingVehicleIds.length > 0) {
-          const conflictingObjectIds = conflictingVehicleIds
+        fleetStockMap = await getFleetStockMap(pDate, rDate);
+        // Exclude vehicles that have 0 units available during this date window
+        const unavailableIds = Object.keys(fleetStockMap).filter((id) => !fleetStockMap[id].isAvailable);
+        if (unavailableIds.length > 0) {
+          const unavailableObjectIds = unavailableIds
             .filter((id) => mongoose.Types.ObjectId.isValid(id))
             .map((id) => new mongoose.Types.ObjectId(id));
 
-          query._id = { $nin: conflictingObjectIds };
+          query._id = { $nin: unavailableObjectIds };
         }
       }
     }
@@ -183,11 +198,32 @@ export async function GET(request: NextRequest) {
       Vehicle.countDocuments(query),
     ]);
 
+    // Format & Enrich with stock counters, and sanitize for non-admin
+    const processedVehicles = vehicles.map((v: any) => {
+      const vId = v._id.toString();
+      const stock = fleetStockMap[vId] || {
+        totalUnits: Math.max(1, v.totalUnits || 3),
+        bookedUnits: 0,
+        availableUnits: Math.max(1, v.availableUnits || v.totalUnits || 3),
+        isAvailable: v.status === "available",
+      };
+
+      const enriched = {
+        ...v,
+        totalUnits: stock.totalUnits,
+        availableUnits: stock.availableUnits,
+        bookedUnits: stock.bookedUnits,
+        isAvailable: stock.isAvailable,
+      };
+
+      return isAdmin ? enriched : sanitizeVehicleForClient(enriched);
+    });
+
     return NextResponse.json(
       {
         success: true,
-        data: vehicles,
-        vehicles: vehicles,
+        data: processedVehicles,
+        vehicles: processedVehicles,
         total,
         pagination: {
           total,
@@ -196,7 +232,12 @@ export async function GET(request: NextRequest) {
           totalPages: Math.ceil(total / limit),
         },
       },
-      { status: 200 }
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
+      }
     );
   } catch (error) {
     console.error("Error fetching vehicles:", error);

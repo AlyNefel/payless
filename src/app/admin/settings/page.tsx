@@ -17,13 +17,20 @@ import {
   AlertCircle,
   MapPin,
   Share2,
+  FileText,
+  MessageSquare,
+  Truck,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 const SETTINGS_TABS = [
-  { id: "agency", label: "Agence", icon: Building2 },
-  { id: "financial", label: "Financier", icon: CreditCard },
+  { id: "agency", label: "Agence & Contact", icon: Building2 },
+  { id: "financial", label: "Financier & Fiscalité", icon: CreditCard },
+  { id: "zones", label: "Livraison & Ramassage", icon: Truck },
+  { id: "templates", label: "Modèles Email & PDF", icon: FileText },
+  { id: "notifications", label: "WhatsApp & Notifications", icon: MessageSquare },
   { id: "hours", label: "Horaires", icon: Clock },
-  { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Sécurité", icon: Shield },
 ];
 
@@ -69,6 +76,38 @@ export default function SettingsPage() {
     minLuxuryAge: "25",
     cancellationHours: "48",
     cancellationFeeRate: "20",
+  });
+
+  // Zones & Fees (Delivery / Ramassage)
+  const [zones, setZones] = useState<any[]>([]);
+  const [zonesLoading, setZonesLoading] = useState(false);
+  const [zonesSaved, setZonesSaved] = useState(false);
+  const [differentLocFee, setDifferentLocFee] = useState("50");
+
+  // WhatsApp Business configuration
+  const [whatsAppSettings, setWhatsAppSettings] = useState({
+    autoSendEnabled: true,
+    senderPhone: "80808080",
+    messageTemplate:
+      "Bonjour {client},\n\n✅ Votre réservation chez Payless Car Rental Tunisie est CONFIRMÉE !\n\n📋 Référence : {ref}\n🚗 Véhicule : {vehicle}\n📅 Prise : {dates}\n💰 Total TTC : {total} TND\n\n📄 Téléchargez votre Bon de Réservation (PDF) :\n{pdfUrl}\n\nAssistance VIP 24/7 : +216 80 80 80 80.",
+  });
+
+  // Email & PDF templates
+  const [emailTemplate, setEmailTemplate] = useState({
+    subject: "Confirmation officielle de réservation - Payless Car Rental Tunisie ({ref})",
+    introText:
+      "Nous avons le plaisir de vous confirmer que votre réservation est validée et verrouillée sans attente.",
+    footerNotice:
+      "Assistance client VIP 24/7 au +216 80 80 80 80. Agence La Soukra, Tunis. Bon de location officiel en pièce jointe.",
+  });
+
+  const [pdfTemplate, setPdfTemplate] = useState({
+    companyHeader: "PAYLESS CAR RENTAL TUNISIE - HOUIMLI RENT A CAR SARL",
+    legalNotice:
+      "Contrat de location soumis au droit tunisien. Véhicule garanti en parfait état d'entretien.",
+    franchiseClause:
+      "Franchise et caution restituées à la fin de la période de location sous réserve de restitution conforme.",
+    emergencyPhone: "+216 80 80 80 80",
   });
 
   const [openingHours, setOpeningHours] = useState(
@@ -147,6 +186,15 @@ export default function SettingsPage() {
           if (s.notifications && typeof s.notifications === "object") {
             setNotifications((prev) => ({ ...prev, ...(s.notifications as any) }));
           }
+          if (s.whatsAppSettings && typeof s.whatsAppSettings === "object") {
+            setWhatsAppSettings((prev) => ({ ...prev, ...(s.whatsAppSettings as any) }));
+          }
+          if (s.emailTemplate && typeof s.emailTemplate === "object") {
+            setEmailTemplate((prev) => ({ ...prev, ...(s.emailTemplate as any) }));
+          }
+          if (s.pdfTemplate && typeof s.pdfTemplate === "object") {
+            setPdfTemplate((prev) => ({ ...prev, ...(s.pdfTemplate as any) }));
+          }
         }
       } catch (err) {
         console.error("Failed to load settings:", err);
@@ -155,8 +203,54 @@ export default function SettingsPage() {
       }
     }
 
+    async function loadZones() {
+      try {
+        setZonesLoading(true);
+        const res = await fetch("/api/locations/fees?t=" + Date.now());
+        const json = await res.json();
+        if (json.success && Array.isArray(json.zones)) {
+          setZones(json.zones);
+          if (json.differentLocationFee !== undefined) {
+            setDifferentLocFee(String(json.differentLocationFee));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load zones:", e);
+      } finally {
+        setZonesLoading(false);
+      }
+    }
+
     loadSettings();
+    loadZones();
   }, []);
+
+  const saveZones = async () => {
+    setZonesLoading(true);
+    setZonesSaved(false);
+    try {
+      const res = await fetch("/api/locations/fees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: true,
+          zones,
+          differentLocationFee: Number(differentLocFee || 50),
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setZonesSaved(true);
+        setTimeout(() => setZonesSaved(false), 3500);
+      } else {
+        setErrorMsg("Erreur lors de l'enregistrement des frais de zone.");
+      }
+    } catch (err) {
+      setErrorMsg("Erreur de communication avec le serveur.");
+    } finally {
+      setZonesLoading(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -169,6 +263,9 @@ export default function SettingsPage() {
         ...financialSettings,
         openingHours,
         notifications,
+        whatsAppSettings,
+        emailTemplate,
+        pdfTemplate,
       };
 
       const res = await fetch("/api/admin/settings", {
@@ -418,14 +515,353 @@ export default function SettingsPage() {
                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-xs text-amber-900 dark:text-amber-200 space-y-2">
                   <div className="font-bold flex items-center gap-1.5">
                     <MapPin className="w-4 h-4 text-amber-600" />
-                    <span>Règles de Rapatriement & Restitution :</span>
+                    <span>Règles de Fiscalité & Frais en Tunisie (LF 2026) :</span>
                   </div>
                   <p>
-                    • <strong>Restitution hors Grand Tunis :</strong> Lorsqu'un client sélectionne une agence de retour en dehors du Grand Tunis (Monastir, Enfidha, Sfax, Sousse, Bizerte, Nabeul, Tabarka...), un supplément configurable (actuellement <strong>{financialSettings.outOfTownReturnFee || "100"} DT</strong>) est automatiquement ajouté au total facturé.
+                    • <strong>TVA Régime Spécial :</strong> Le taux de TVA est configuré à <strong>0%</strong> car les tarifs grand public Payless Tunisie sont affichés en Toutes Taxes Comprises (TTC).
                   </p>
                   <p>
-                    • <strong>Restitution agence différente (Aller-simple) :</strong> Lorsque le lieu de retour est différent du lieu de départ, un frais d'aller-simple (actuellement <strong>{financialSettings.differentLocationFee || "50"} DT</strong>) peut être facturé. De plus, chaque agence dans <em>Gestion des Agences</em> peut avoir son propre frais spécifique de prise en charge et de restitution.
+                    • <strong>Timbre Fiscal :</strong> Droit de timbre légal de quittance fixé à <strong>{financialSettings.timbreFiscal || "1"} DT</strong> par contrat de location.
                   </p>
+                  <p>
+                    • <strong>Contribution LF 2026 :</strong> Taxe légale de <strong>{financialSettings.contributionLF2026 || "2"} DT / jour / véhicule</strong> conformément aux dispositions de la Loi de Finances tunisienne.
+                  </p>
+                  <p>
+                    • <strong>Aller-Simple (Agence différente) :</strong> Frais de <strong>{financialSettings.differentLocationFee || "50"} DT</strong> appliqués lorsqu'un véhicule est restitué dans une agence différente du point de départ.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Zones & Fees (Delivery / Ramassage) */}
+            {activeTab === "zones" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                      <Truck className="w-5 h-5 text-blue-600" />
+                      <span>Frais de Livraison et de Ramassage hors Tunis</span>
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Configurez les frais de livraison et de ramassage par région. Le système calcule automatiquement les frais lors de la réservation.
+                    </p>
+                  </div>
+                  <button
+                    onClick={saveZones}
+                    disabled={zonesLoading}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
+                  >
+                    {zonesLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : zonesSaved ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                        <span>Frais Enregistrés ✓</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Enregistrer les Frais de Zone</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-xl p-4 text-xs text-blue-900 dark:text-blue-200 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span>Barème officiel appliqué aux réservations :</span>
+                  </div>
+                  <p>
+                    • <strong>Grand Tunis :</strong> Livraison Gratuite (0 TND) — Ramassage Gratuit (0 TND).
+                  </p>
+                  <p>
+                    • <strong>Hammamet / Nabeul :</strong> Livraison 20 TND — Ramassage 20 TND.
+                  </p>
+                  <p>
+                    • <strong>Sousse / Monastir / Enfidha :</strong> Livraison 35 TND — Ramassage 35 TND.
+                  </p>
+                  <p>
+                    • <strong>Bizerte :</strong> Livraison 30 TND — Ramassage 30 TND | <strong>Sfax :</strong> 50 TND | <strong>Tabarka :</strong> 60 TND.
+                  </p>
+                </div>
+
+                {/* Aller-simple general setting */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="font-semibold text-xs text-slate-900 dark:text-white">
+                      Frais d'aller-simple (Restitution dans une agence différente)
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Montant appliqué lorsque l'agence de retour n'est pas identique à celle de départ
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={differentLocFee}
+                      onChange={(e) => setDifferentLocFee(e.target.value)}
+                      className="w-24 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-center outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-xs font-bold text-slate-500">TND</span>
+                  </div>
+                </div>
+
+                {/* Zones table */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Régions et Tarification par Zone ({zones.length})
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setZones((prev) => [
+                          ...prev,
+                          {
+                            id: "zone-" + Date.now(),
+                            name: "Nouvelle Région",
+                            cities: ["ville"],
+                            deliveryFee: 25,
+                            returnFee: 25,
+                            isActive: true,
+                          },
+                        ])
+                      }
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-semibold transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Ajouter une région</span>
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-slate-500">
+                        <tr>
+                          <th className="py-2.5 px-3">Nom de la Région / Zone</th>
+                          <th className="py-2.5 px-3">Villes associées (mots-clés)</th>
+                          <th className="py-2.5 px-3 w-28 text-center">Livraison (TND)</th>
+                          <th className="py-2.5 px-3 w-28 text-center">Ramassage (TND)</th>
+                          <th className="py-2.5 px-3 w-20 text-center">Actif</th>
+                          <th className="py-2.5 px-3 w-16 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                        {zones.map((zone, idx) => (
+                          <tr key={zone.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30">
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="text"
+                                value={zone.name}
+                                onChange={(e) =>
+                                  setZones((prev) =>
+                                    prev.map((z, i) => (i === idx ? { ...z, name: e.target.value } : z))
+                                  )
+                                }
+                                className="w-full px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="text"
+                                value={Array.isArray(zone.cities) ? zone.cities.join(", ") : zone.cities || ""}
+                                onChange={(e) =>
+                                  setZones((prev) =>
+                                    prev.map((z, i) =>
+                                      i === idx
+                                        ? {
+                                            ...z,
+                                            cities: e.target.value
+                                              .split(",")
+                                              .map((s) => s.trim().toLowerCase())
+                                              .filter(Boolean),
+                                          }
+                                        : z
+                                    )
+                                  )
+                                }
+                                placeholder="ex: sousse, kantaoui"
+                                className="w-full px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <input
+                                type="number"
+                                value={zone.deliveryFee}
+                                onChange={(e) =>
+                                  setZones((prev) =>
+                                    prev.map((z, i) =>
+                                      i === idx ? { ...z, deliveryFee: Number(e.target.value) } : z
+                                    )
+                                  )
+                                }
+                                className="w-20 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono font-bold text-center outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <input
+                                type="number"
+                                value={zone.returnFee}
+                                onChange={(e) =>
+                                  setZones((prev) =>
+                                    prev.map((z, i) =>
+                                      i === idx ? { ...z, returnFee: Number(e.target.value) } : z
+                                    )
+                                  )
+                                }
+                                className="w-20 px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono font-bold text-center outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <input
+                                type="checkbox"
+                                checked={zone.isActive !== false}
+                                onChange={(e) =>
+                                  setZones((prev) =>
+                                    prev.map((z, i) =>
+                                      i === idx ? { ...z, isActive: e.target.checked } : z
+                                    )
+                                  )
+                                }
+                                className="rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => setZones((prev) => prev.filter((_, i) => i !== idx))}
+                                className="p-1 text-red-500 hover:text-red-700 rounded transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Email & PDF Templates */}
+            {activeTab === "templates" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <span>Gestion des Modèles Email & PDF</span>
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Personnalisez le contenu de l'email de confirmation automatique et du bon de réservation PDF officiel (Voucher).
+                  </p>
+                </div>
+
+                {/* Email template */}
+                <div className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+                  <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                    <Mail className="w-4 h-4 text-blue-600" />
+                    <span>Modèle d'Email de Confirmation Automatique</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-500">
+                      Objet de l'Email de Confirmation
+                    </label>
+                    <input
+                      type="text"
+                      value={emailTemplate.subject}
+                      onChange={(e) => setEmailTemplate((prev) => ({ ...prev, subject: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-500">
+                      Message d'Introduction
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={emailTemplate.introText}
+                      onChange={(e) => setEmailTemplate((prev) => ({ ...prev, introText: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-500">
+                      Pied de page & Assistance client
+                    </label>
+                    <input
+                      type="text"
+                      value={emailTemplate.footerNotice}
+                      onChange={(e) => setEmailTemplate((prev) => ({ ...prev, footerNotice: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 font-medium flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                    <span>Le bon de réservation officiel (PDF) est automatiquement généré avec QR code sécurisé et joint à chaque email.</span>
+                  </div>
+                </div>
+
+                {/* PDF Voucher template */}
+                <div className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+                  <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                    <FileText className="w-4 h-4 text-indigo-600" />
+                    <span>Modèle de Bon de Réservation PDF (Voucher Officiel)</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">
+                        En-tête de la Société (PDF)
+                      </label>
+                      <input
+                        type="text"
+                        value={pdfTemplate.companyHeader}
+                        onChange={(e) => setPdfTemplate((prev) => ({ ...prev, companyHeader: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">
+                        Téléphone d'Urgence / Assistance 24/7 (PDF)
+                      </label>
+                      <input
+                        type="text"
+                        value={pdfTemplate.emergencyPhone}
+                        onChange={(e) => setPdfTemplate((prev) => ({ ...prev, emergencyPhone: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-500">
+                      Mentions Légales & Cadre Juridique (PDF)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={pdfTemplate.legalNotice}
+                      onChange={(e) => setPdfTemplate((prev) => ({ ...prev, legalNotice: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-500">
+                      Clause de Caution & Franchise Restituables (PDF)
+                    </label>
+                    <input
+                      type="text"
+                      value={pdfTemplate.franchiseClause}
+                      onChange={(e) => setPdfTemplate((prev) => ({ ...prev, franchiseClause: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -489,9 +925,72 @@ export default function SettingsPage() {
 
             {/* Notifications */}
             {activeTab === "notifications" && (
-              <div className="space-y-5">
-                <h2 className="font-bold text-lg text-slate-900 dark:text-white">Alertes & Notifications Agence</h2>
+              <div className="space-y-6">
+                <div>
+                  <h2 className="font-bold text-lg text-slate-900 dark:text-white">Alertes & Notifications Agence</h2>
+                  <p className="text-xs text-slate-500">Gérez les alertes internes et les notifications clients automatiques WhatsApp & Email.</p>
+                </div>
+
+                {/* WhatsApp Business Automated Dispatch */}
+                <div className="p-5 bg-emerald-50/60 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                      <MessageSquare className="w-5 h-5 text-emerald-600" />
+                      <span>Notifications Automatiques WhatsApp Business (Client)</span>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={whatsAppSettings.autoSendEnabled}
+                        onChange={(e) =>
+                          setWhatsAppSettings((prev) => ({ ...prev, autoSendEnabled: e.target.checked }))
+                        }
+                        className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                        {whatsAppSettings.autoSendEnabled ? "Activé" : "Désactivé"}
+                      </span>
+                    </label>
+                  </div>
+
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Lorsqu'un client confirme sa réservation, le système génère instantanément le bon PDF officiel et prépare l'envoi immédiat du lien de téléchargement et des détails contractuels sur son numéro WhatsApp.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">
+                        Numéro WhatsApp Business expéditeur
+                      </label>
+                      <input
+                        type="text"
+                        value={whatsAppSettings.senderPhone}
+                        onChange={(e) =>
+                          setWhatsAppSettings((prev) => ({ ...prev, senderPhone: e.target.value }))
+                        }
+                        placeholder="+216 80 80 80 80"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-500">
+                      Modèle de message WhatsApp (Variables: {"{client}"}, {"{ref}"}, {"{vehicle}"}, {"{dates}"}, {"{total}"}, {"{pdfUrl}"})
+                    </label>
+                    <textarea
+                      rows={5}
+                      value={whatsAppSettings.messageTemplate}
+                      onChange={(e) =>
+                        setWhatsAppSettings((prev) => ({ ...prev, messageTemplate: e.target.value }))
+                      }
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Alertes système internes</h3>
                   {[
                     { key: "newBooking", label: "Nouvelle réservation effectuée en ligne" },
                     { key: "bookingCancelled", label: "Réservation annulée par un client" },

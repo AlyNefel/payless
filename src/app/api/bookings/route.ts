@@ -11,7 +11,7 @@ import {
   User,
   AgencySetting,
 } from "@/models";
-import { checkVehicleAvailability } from "@/lib/availability";
+import { getVehicleStockAvailability } from "@/lib/availability";
 import {
   generateBookingReference,
   calculateRentalDays,
@@ -20,8 +20,13 @@ import {
   formatDate,
 } from "@/lib/utils";
 import { sendEmail, buildBookingConfirmationEmail } from "@/lib/email";
+import { generateBookingPDF } from "@/lib/pdf";
+import { getLocationFeeConfig, matchZone } from "@/lib/locationFees";
+import { sanitizeBookingForClient } from "@/lib/sanitize";
 import { z } from "zod";
 import mongoose from "mongoose";
+
+export const dynamic = "force-dynamic";
 
 const createBookingSchema = z.object({
   vehicleId: z.string().min(1, "Vehicle ID is required"),
@@ -176,7 +181,6 @@ export async function POST(request: NextRequest) {
       vehicle = await Vehicle.findById(vehicleId).populate("categoryId");
     }
     if (!vehicle) {
-      // Fallback: look for vehicle by model name or first active vehicle
       vehicle = await Vehicle.findOne({ isActive: true, status: { $ne: "archived" } }).populate("categoryId");
     }
 
@@ -190,14 +194,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Check vehicle availability for requested date window
-    const isAvailable = await checkVehicleAvailability(vehicle._id.toString(), pickupDate, returnDate);
-    if (!isAvailable) {
+    // 2. Strict Real Stock & Concurrency Anti-Double Booking Check
+    const stockInfo = await getVehicleStockAvailability(vehicle._id.toString(), pickupDate, returnDate);
+    if (!stockInfo.isAvailable || stockInfo.availableUnits <= 0) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Ce véhicule est déjà réservé pour les dates sélectionnées. Veuillez choisir d'autres dates ou un autre véhicule.",
+          error: "Ce véhicule n'est plus disponible pour les dates sélectionnées (stock épuisé). Veuillez choisir un autre véhicule ou modifier vos dates.",
+          stock: stockInfo,
         },
         { status: 409 }
       );
@@ -209,7 +213,6 @@ export async function POST(request: NextRequest) {
         const found = await Location.findById(idOrCode);
         if (found) return found;
       }
-      // Try search by name, code or city
       let found = await Location.findOne({
         $or: [
           { "name.fr": { $regex: idOrCode, $options: "i" } },
@@ -218,12 +221,10 @@ export async function POST(request: NextRequest) {
         ],
       });
       if (found) return found;
-      // Default fallback to first active location (e.g. Tunis-Carthage Airport)
       found = await Location.findOne({ isActive: true });
       if (found) return found;
       found = await Location.findOne({});
       if (found) return found;
-      // Ultimate safety: create default location if DB has none
       return await Location.create({
         name: {
           fr: "Aéroport de Tunis-Carthage (TUN)",
@@ -355,68 +356,55 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 7. Compute Final Totals and Deposit (Tunisian fiscal requirements & Location Fees)
-    // Query agency settings for fiscal rules and location fees
-    let differentLocationSetting = 50; // default 50 DT
-    let outOfTownSetting = 100; // default 100 DT
+    // 7. Configurable Delivery & Collection / Ramassage Fees & Taxes
+    const feeConfig = await getLocationFeeConfig();
+    const pickupZone = matchZone(pickupLoc, feeConfig.zones);
+    const returnZone = matchZone(returnLoc, feeConfig.zones);
+
+    // Delivery fee (Livraison / Prise en charge)
+    let pickupLocationFee = 0;
+    if (pickupLoc.pickupFee && pickupLoc.pickupFee > 0) {
+      pickupLocationFee = pickupLoc.pickupFee;
+    } else if (pickupZone && feeConfig.enabled) {
+      pickupLocationFee = Math.round(pickupZone.deliveryFee * 100);
+    }
+
+    // Collection / Ramassage fee (Restitution)
+    let returnLocationFee = 0;
+    if (returnLoc.returnFee && returnLoc.returnFee > 0) {
+      returnLocationFee = returnLoc.returnFee;
+    } else if (returnLoc.customReturnFee && returnLoc.customReturnFee > 0) {
+      returnLocationFee = returnLoc.customReturnFee;
+    } else if (returnZone && feeConfig.enabled) {
+      returnLocationFee = Math.round(returnZone.returnFee * 100);
+    }
+
+    // Inter-agency return fee (Aller-simple)
+    let differentLocationFee = 0;
+    const isDifferentLocation = pickupLoc._id.toString() !== returnLoc._id.toString();
+    if (isDifferentLocation && feeConfig.differentLocationFee > 0) {
+      differentLocationFee = Math.round(feeConfig.differentLocationFee * 100);
+    }
+
+    const outOfTownFee = returnLocationFee;
+
+    // Fiscal requirements
     let timbreFiscalSetting = 1; // 1 DT
     let contributionSetting = 2; // 2 DT/day
-
     try {
-      const settingsDocs = await AgencySetting.find({
-        key: {
-          $in: [
-            "differentLocationFee",
-            "outOfTownReturnFee",
-            "timbreFiscal",
-            "contributionLF2026",
-          ],
-        },
+      const fiscalSettings = await AgencySetting.find({
+        key: { $in: ["timbreFiscal", "contributionLF2026"] },
       }).lean();
-
-      settingsDocs.forEach((s) => {
-        if (s.key === "differentLocationFee" && s.value !== undefined) differentLocationSetting = Number(s.value);
-        if (s.key === "outOfTownReturnFee" && s.value !== undefined) outOfTownSetting = Number(s.value);
+      fiscalSettings.forEach((s) => {
         if (s.key === "timbreFiscal" && s.value !== undefined) timbreFiscalSetting = Number(s.value);
         if (s.key === "contributionLF2026" && s.value !== undefined) contributionSetting = Number(s.value);
       });
-    } catch (sErr) {
-      console.warn("Failed to query AgencySetting, using defaults:", sErr);
-    }
+    } catch {}
 
-    const taxRate = 0; // TVA: 0% (TTC)
+    const taxRate = 0;
     const taxAmount = 0;
-    const timbreFiscal = Math.round(timbreFiscalSetting * 100); // in centimes
-    const contributionLF2026 = Math.round(contributionSetting * 100) * rentalDays; // in centimes
-
-    // 7a. Individual pickup location fee
-    const pickupLocationFee = Number(pickupLoc.pickupFee || 0);
-
-    // 7b. Individual return location fee (ramassage)
-    const returnLocationFee = Number(returnLoc.returnFee || returnLoc.customReturnFee || 0);
-
-    // 7c. Out-of-town return fee: if return point is outside Tunis
-    let outOfTownFee = 0;
-    const isReturnOutsideTunis =
-      Boolean(returnLoc.isOutsideTunis) ||
-      (returnLoc.city &&
-        !returnLoc.city.toLowerCase().includes("tunis") &&
-        !returnLoc.city.toLowerCase().includes("ariana") &&
-        !returnLoc.city.toLowerCase().includes("soukra") &&
-        !returnLoc.city.toLowerCase().includes("carthage"));
-
-    if (isReturnOutsideTunis) {
-      outOfTownFee = returnLocationFee > 0 ? returnLocationFee : Math.round(outOfTownSetting * 100);
-    } else if (returnLocationFee > 0) {
-      outOfTownFee = returnLocationFee;
-    }
-
-    // 7d. Different location return fee (ramassage dans une autre place que la place initiale / aller-simple)
-    let differentLocationFee = 0;
-    const isDifferentLocation = pickupLoc._id.toString() !== returnLoc._id.toString();
-    if (isDifferentLocation && differentLocationSetting > 0) {
-      differentLocationFee = Math.round(differentLocationSetting * 100);
-    }
+    const timbreFiscal = Math.round(timbreFiscalSetting * 100);
+    const contributionLF2026 = Math.round(contributionSetting * 100) * rentalDays;
 
     const depositAmount = vehicle.pricing.deposit || 0;
     const totalAmount = Math.max(
@@ -427,8 +415,8 @@ export async function POST(request: NextRequest) {
         taxAmount +
         timbreFiscal +
         contributionLF2026 +
-        outOfTownFee +
         pickupLocationFee +
+        returnLocationFee +
         differentLocationFee
     );
     const currency = vehicle.pricing.currency || "TND";
@@ -452,7 +440,7 @@ export async function POST(request: NextRequest) {
       currency,
     };
 
-    // 7b. Handle Client Account Option (create account or link existing)
+    // 8. Handle Client Account Option
     let linkedUserId: mongoose.Types.ObjectId | undefined = undefined;
 
     if (accountOption === "create" && accountPassword && accountPassword.trim().length >= 6) {
@@ -483,7 +471,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 8. Find or create Customer record
+    // 9. Find or create Customer record
     let customer = await Customer.findOne({ email: custInput.email });
     if (!customer) {
       customer = await Customer.create({
@@ -513,7 +501,6 @@ export async function POST(request: NextRequest) {
         tags: ["Web Booking"],
       });
     } else {
-      // Update existing customer stats
       if (linkedUserId && !customer.userId) {
         customer.userId = linkedUserId;
       }
@@ -527,7 +514,7 @@ export async function POST(request: NextRequest) {
       await customer.save();
     }
 
-    // 9. Generate Reference and Create Booking
+    // 10. Generate Reference & CREATE BOOKING WITH INSTANT AUTO-CONFIRMATION
     const bookingReference = generateBookingReference();
 
     const booking = await Booking.create({
@@ -543,24 +530,24 @@ export async function POST(request: NextRequest) {
       pricingBreakdown,
       extras: bookingExtras,
       couponCode: appliedCouponCode,
-      bookingStatus: "pending",
+      bookingStatus: "confirmed", // <-- AUTO-CONFIRMED DIRECTEMENT (Suppression validation agence)
       paymentStatus: "unpaid",
       customerLanguage,
-      internalNotes: "Nouvelle réservation effectuée en ligne.",
+      internalNotes: "Réservation confirmée automatiquement par le système. Véhicule garanti.",
       customerNotes: customerNotes || "",
       isManualBooking: false,
       auditHistory: [
         {
-          action: "created",
+          action: "auto_confirmed",
           performedBy: customer._id,
-          performedByRole: "customer",
+          performedByRole: "system",
           timestamp: new Date(),
-          notes: "Réservation créée en ligne avec succès.",
+          notes: "Réservation confirmée immédiatement en ligne sans délai de validation agence. Stock verrouillé.",
         },
       ],
     });
 
-    // If coupon was applied, record usage
+    // Record coupon usage
     if (appliedCouponCode) {
       await Coupon.findOneAndUpdate(
         { code: appliedCouponCode },
@@ -577,7 +564,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 10. Create Notification for Administrators
+    // 11. Create Notifications for Administrators
     try {
       const admins = await User.find({
         role: { $in: ["superadmin", "admin"] },
@@ -593,14 +580,14 @@ export async function POST(request: NextRequest) {
           recipientType: "user",
           type: "new_booking",
           title: {
-            fr: `Nouvelle réservation - ${bookingReference}`,
-            en: `New Booking - ${bookingReference}`,
-            ar: `حجز جديد - ${bookingReference}`,
+            fr: `Réservation confirmée - ${bookingReference}`,
+            en: `Confirmed Booking - ${bookingReference}`,
+            ar: `حجز مؤكد تلقائياً - ${bookingReference}`,
           },
           message: {
-            fr: `${customerFullName} a réservé ${vehicleTitle} du ${formatDate(pickupDate, "fr-FR")} au ${formatDate(returnDate, "fr-FR")}.`,
-            en: `${customerFullName} booked ${vehicleTitle} from ${formatDate(pickupDate, "en-US")} to ${formatDate(returnDate, "en-US")}.`,
-            ar: `قام ${customerFullName} بحجز ${vehicleTitle} من ${formatDate(pickupDate, "ar-TN")} إلى ${formatDate(returnDate, "ar-TN")}.`,
+            fr: `${customerFullName} a réservé ${vehicleTitle} du ${formatDate(pickupDate, "fr-FR")} au ${formatDate(returnDate, "fr-FR")}. Confirmée automatiquement.`,
+            en: `${customerFullName} booked ${vehicleTitle} from ${formatDate(pickupDate, "en-US")} to ${formatDate(returnDate, "en-US")}. Auto-confirmed.`,
+            ar: `قام ${customerFullName} بحجز ${vehicleTitle} من ${formatDate(pickupDate, "ar-TN")} إلى ${formatDate(returnDate, "ar-TN")}. تم التأكيد الفوري.`,
           },
           link: `/admin/bookings/${booking._id}`,
           isRead: false,
@@ -618,12 +605,48 @@ export async function POST(request: NextRequest) {
       console.error("Failed to generate admin notifications:", notifErr);
     }
 
-    // 11. Send Confirmation Emails asynchronously (Non-blocking to eliminate infinite frontend spinner)
+    // 12. GENERATE OFFICIAL PDF VOUCHER
     const pickupLocName =
       pickupLoc.name[customerLanguage] || pickupLoc.name.fr || pickupLoc.address;
     const returnLocName =
       returnLoc.name[customerLanguage] || returnLoc.name.fr || returnLoc.address;
 
+    let pdfBuffer: Buffer | null = null;
+    try {
+      pdfBuffer = generateBookingPDF({
+        bookingReference,
+        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerEmail: customer.email,
+        customerPhone: customer.phone,
+        customerCountry: customer.country,
+        vehicleBrand: vehicle.brand,
+        vehicleModel: vehicle.model,
+        vehicleYear: vehicle.year,
+        pickupLocation: pickupLocName,
+        returnLocation: returnLocName,
+        pickupDate: formatDate(pickupDate, "fr-FR"),
+        returnDate: formatDate(returnDate, "fr-FR"),
+        rentalDuration: rentalDays,
+        dailyRate,
+        subtotal,
+        extrasTotal,
+        discountAmount,
+        pickupLocationFee,
+        returnLocationFee,
+        differentLocationFee,
+        outOfTownFee,
+        timbreFiscal,
+        contributionLF2026,
+        taxAmount,
+        totalAmount,
+        depositAmount,
+        currency: "TND",
+      });
+    } catch (pdfErr) {
+      console.error("PDF generation in booking flow error:", pdfErr);
+    }
+
+    // 13. SEND CONFIRMATION EMAILS WITH PDF ATTACHMENT
     const emailData = buildBookingConfirmationEmail({
       customerName: `${customer.firstName} ${customer.lastName}`,
       bookingReference,
@@ -639,7 +662,7 @@ export async function POST(request: NextRequest) {
       contributionLF2026: (contributionLF2026 / 100).toLocaleString("fr-FR"),
       pickupLocationFee: pickupLocationFee > 0 ? (pickupLocationFee / 100).toLocaleString("fr-FR") : undefined,
       differentLocationFee: differentLocationFee > 0 ? (differentLocationFee / 100).toLocaleString("fr-FR") : undefined,
-      outOfTownFee: outOfTownFee > 0 ? (outOfTownFee / 100).toLocaleString("fr-FR") : undefined,
+      outOfTownFee: returnLocationFee > 0 ? (returnLocationFee / 100).toLocaleString("fr-FR") : undefined,
     });
 
     const emailPromises: Promise<any>[] = [
@@ -652,6 +675,15 @@ export async function POST(request: NextRequest) {
         language: customerLanguage,
         bookingId: booking._id.toString(),
         customerId: customer._id.toString(),
+        attachments: pdfBuffer
+          ? [
+              {
+                filename: `Reservation-${bookingReference}.pdf`,
+                content: pdfBuffer,
+                contentType: "application/pdf",
+              },
+            ]
+          : undefined,
       }).catch((err) => console.error("Customer email dispatch error:", err)),
     ];
 
@@ -661,32 +693,49 @@ export async function POST(request: NextRequest) {
         sendEmail({
           to: agencyEmail,
           toName: "Payless Administration",
-          subject: `🔔 Nouvelle Réservation Reçue - ${bookingReference}`,
+          subject: `🔔 Réservation Confirmée Automatiquement - ${bookingReference}`,
           html: emailData.html,
           templateType: "admin_new_booking_alert",
           language: "fr",
           bookingId: booking._id.toString(),
           customerId: customer._id.toString(),
+          attachments: pdfBuffer
+            ? [
+                {
+                  filename: `Reservation-${bookingReference}.pdf`,
+                  content: pdfBuffer,
+                  contentType: "application/pdf",
+                },
+              ]
+            : undefined,
         }).catch((err) => console.error("Agency email dispatch error:", err))
       );
     }
 
-    // Trigger non-blocking email resolution with a maximum 2.5s window
     Promise.race([
       Promise.allSettled(emailPromises),
       new Promise((resolve) => setTimeout(resolve, 2500)),
     ]).catch((e) => console.error("Async email error:", e));
 
-    // Decrement available units for this vehicle in database
-    try {
-      await Vehicle.findByIdAndUpdate(vehicle._id, {
-        $inc: { availableUnits: -1 },
-      });
-    } catch (unitErr) {
-      console.error("Failed to decrement vehicle availableUnits:", unitErr);
-    }
+    // 14. FORMAT WHATSAPP BUSINESS NOTIFICATION / LINK
+    const siteUrl = process.env.NEXTAUTH_URL || "https://payless.tn";
+    const pdfUrl = `${siteUrl}/api/bookings/pdf?ref=${bookingReference}&email=${encodeURIComponent(customer.email)}`;
+    const waText = encodeURIComponent(
+      `🚗 *Payless Car Rental Tunisie — Confirmation de Réservation*\n\n` +
+      `Bonjour *${customer.firstName} ${customer.lastName}*,\n` +
+      `Votre réservation *${bookingReference}* est ✅ *Confirmée Instantanément* !\n\n` +
+      `• *Véhicule* : ${vehicle.brand} ${vehicle.model}\n` +
+      `• *Prise en charge* : ${formatDate(pickupDate, "fr-FR")} (${pickupLocName})\n` +
+      `• *Restitution* : ${formatDate(returnDate, "fr-FR")} (${returnLocName})\n` +
+      `• *Durée* : ${rentalDays} jour(s)\n` +
+      `• *Montant Total TTC* : ${(totalAmount / 100).toFixed(2)} TND\n\n` +
+      `📄 *Télécharger votre bon de réservation officiel PDF* :\n${pdfUrl}\n\n` +
+      `Notre équipe reste à votre entière disposition 24/7 au 80808080.`
+    );
+    const cleanCustPhone = customer.phone.replace(/[^0-9]/g, "");
+    const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${waText}`;
 
-    // Return the created booking with populated references
+    // Return the created booking with sanitized fields
     const populatedBooking = await Booking.findById(booking._id)
       .populate("vehicleId")
       .populate("pickupLocationId")
@@ -694,12 +743,16 @@ export async function POST(request: NextRequest) {
       .populate("customerId")
       .lean();
 
+    const clientSafeBooking = sanitizeBookingForClient(populatedBooking as any);
+
     return NextResponse.json(
       {
         success: true,
-        message: "Réservation effectuée avec succès.",
+        message: "Réservation confirmée automatiquement avec succès.",
         bookingReference,
-        booking: populatedBooking,
+        booking: clientSafeBooking,
+        whatsappUrl,
+        pdfUrl: `/api/bookings/pdf?ref=${bookingReference}&email=${encodeURIComponent(customer.email)}`,
       },
       { status: 201 }
     );
@@ -772,10 +825,12 @@ export async function GET(request: NextRequest) {
       Booking.countDocuments(query),
     ]);
 
+    const sanitizedBookings = bookings.map((b) => sanitizeBookingForClient(b as any));
+
     return NextResponse.json(
       {
         success: true,
-        data: bookings,
+        data: sanitizedBookings,
         pagination: {
           total,
           page,
