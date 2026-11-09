@@ -21,12 +21,13 @@ export function WhatsAppWidget() {
     ar: "متواجدون 24/7",
   }[locale as "fr" | "en" | "ar"] ?? "En ligne 24/7";
 
+  const brandName = settings.agencyName || "Payless Car Rental Tunisie";
   const waText = encodeURIComponent(
     {
-      fr: "Bonjour Payless Car Rental Tunisie ! Je souhaite faire une réservation.",
-      en: "Hello Payless Car Rental Tunisia! I would like to make a reservation.",
-      ar: "مرحباً باي ليس لتأجير السيارات بتونس! أود الاستفسار عن حجز سيارة.",
-    }[locale as "fr" | "en" | "ar"] ?? "Bonjour Payless Car Rental Tunisie ! Je souhaite faire une réservation."
+      fr: `Bonjour ${brandName} ! Je souhaite faire une réservation.`,
+      en: `Hello ${brandName}! I would like to make a reservation.`,
+      ar: `مرحباً ${brandName}! أود الاستفسار عن حجز سيارة.`,
+    }[locale as "fr" | "en" | "ar"] ?? `Bonjour ${brandName} ! Je souhaite faire une réservation.`
   );
 
   return (

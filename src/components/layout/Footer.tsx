@@ -19,6 +19,7 @@ import {
   AlertCircle,
   ArrowRight,
   ArrowLeft,
+  MessageCircle,
 } from "lucide-react";
 
 // Crisp SVG social icons for editorial footer
@@ -98,10 +99,12 @@ function TwitterIcon({ className = "h-4 w-4" }: { className?: string }) {
 const translations = {
   fr: {
     brandTagline:
-      "Vivez l'excellence de la liberté automobile. Payless Car Rental vous propose des véhicules neufs et économiques à travers toute la Tunisie, sans frais cachés et avec une assistance 24/7.",
+      "Vivez l'excellence de la liberté automobile. {agency} vous propose des véhicules neufs et économiques à travers toute la Tunisie, sans frais cachés et avec une assistance 24/7.",
     hotlineLabel: "Service Client & Réservations 24/7",
     fleetTitle: "Nos Voitures",
-    branchesTitle: "Nos 11 Agences en Tunisie",
+    branchesTitle: "Nos Agences en Tunisie",
+    headquarters: "Siège & Agence Principale",
+    whatsappLabel: "WhatsApp Assistance",
     newsletterTitle: "Restez Informé",
     newsletterDesc:
       "Recevez nos offres exclusives, privilèges VIP et nouveautés en avant-première.",
@@ -150,17 +153,19 @@ const translations = {
   },
   en: {
     brandTagline:
-      "Experience the pinnacle of automotive freedom. Payless Car Rental delivers premium vehicle hire across Tunisia with zero hidden fees and unparalleled 24/7 concierge support.",
+      "Experience the pinnacle of automotive freedom. {agency} delivers premium vehicle hire across Tunisia with zero hidden fees and unparalleled 24/7 concierge support.",
     hotlineLabel: "24/7 Customer Care & Reservations",
     fleetTitle: "Our Fleet",
-    branchesTitle: "Airport Branches",
+    branchesTitle: "Branches in Tunisia",
+    headquarters: "Headquarters & Main Branch",
+    whatsappLabel: "WhatsApp Assistance",
     newsletterTitle: "Stay Informed",
     newsletterDesc:
       "Receive exclusive privileges, seasonal discounts, and first looks at new fleet arrivals.",
     emailPlaceholder: "Enter your email address...",
     subscribeBtn: "Subscribe",
     subscribingBtn: "Subscribing...",
-    subscribeSuccess: "Thank you! You are now subscribed to Payless Privileges.",
+    subscribeSuccess: "Thank you! You are now subscribed to privileges.",
     subscribeError: "Please enter a valid email address.",
     rights: "All rights reserved.",
     terms: "Terms & Conditions",
@@ -202,10 +207,12 @@ const translations = {
   },
   ar: {
     brandTagline:
-      "عش تجربة لا تضاهى من الحرية والراحة. توفر بايليس لتأجير السيارات أسطولاً فاخراً ومتنوعاً في جميع مدن ومطارات تونس، بأسعار شفافة وخدمة راقية على مدار 24 ساعة.",
+      "عش تجربة لا تضاهى من الحرية والراحة. توفر {agency} أسطولاً فاخراً ومتنوعاً في جميع مدن ومطارات تونس، بأسعار شفافة وخدمة راقية على مدار 24 ساعة.",
     hotlineLabel: "خدمة العملاء والحجوزات 24/7",
     fleetTitle: "أسطول السيارات",
     branchesTitle: "فروعنا في تونس",
+    headquarters: "المقر الرئيسي والوكالة المركزية",
+    whatsappLabel: "المساعدة عبر واتساب",
     newsletterTitle: "النشرة البريدية",
     newsletterDesc:
       "اشترك لتصلك أحدث العروض الحصرية وخصومات المواسم ومستجدات أسطولنا الفاخر.",
@@ -274,7 +281,6 @@ export function Footer() {
 
     setNewsletterStatus("loading");
     try {
-      // Simulate real asynchronous submission with feedback
       await new Promise((resolve) => setTimeout(resolve, 800));
       setNewsletterStatus("success");
       setEmail("");
@@ -284,6 +290,12 @@ export function Footer() {
   };
 
   const ArrowIcon = isRtl ? ArrowLeft : ArrowRight;
+
+  const agencyDisplayName = settings.agencyName || "Payless Car Rental Tunisie";
+  const formattedTagline = t.brandTagline.replace("{agency}", agencyDisplayName);
+
+  const cleanPhone = (settings.phone || "80808080").replace(/\s+/g, "");
+  const cleanWhatsapp = (settings.whatsapp || settings.phone || "80808080").replace(/[^0-9]/g, "");
 
   return (
     <footer className="w-full bg-[#0A0A0B] text-zinc-300 border-t border-zinc-800/80 pt-16 pb-12 transition-colors">
@@ -358,22 +370,24 @@ export function Footer() {
             <Link href="/" className="inline-block group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl">
               <img
                 src="https://hmlrentcar.tn/wp-content/uploads/2025/08/IMG_9268.png"
-                alt="Payless Car Rental Tunisia"
+                alt={agencyDisplayName}
                 className="h-14 sm:h-16 w-auto object-contain transition-transform group-hover:scale-105"
               />
             </Link>
 
             <p className="text-sm text-zinc-400 leading-relaxed">
-              {t.brandTagline}
+              {formattedTagline}
             </p>
 
-            {/* Hotline highlight */}
-            <div className="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 space-y-2">
+            {/* Hotline & Contact highlight */}
+            <div className="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 space-y-3">
               <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block">
                 {t.hotlineLabel}
               </span>
+
+              {/* Primary Phone */}
               <a
-                href={`tel:${settings.phone.replace(/\s+/g, "")}`}
+                href={`tel:${cleanPhone}`}
                 className="inline-flex items-center gap-3 text-lg font-bold text-white hover:text-blue-400 transition-colors"
                 dir="ltr"
               >
@@ -382,21 +396,64 @@ export function Footer() {
                 </div>
                 <span>{settings.phone}</span>
               </a>
-              <div className="flex items-center gap-2 pt-1 text-xs text-zinc-400">
-                <Mail className="h-3.5 w-3.5 text-zinc-400" />
+
+              {/* WhatsApp Assistance */}
+              {settings.whatsapp && (
+                <div className="flex items-center gap-2 pt-0.5 text-xs text-zinc-400">
+                  <div className="p-1.5 rounded-lg bg-emerald-600/20 text-emerald-400">
+                    <MessageCircle className="h-3.5 w-3.5" />
+                  </div>
+                  <a
+                    href={`https://wa.me/${cleanWhatsapp}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline hover:text-emerald-400 font-semibold"
+                    dir="ltr"
+                  >
+                    WhatsApp: {settings.whatsapp}
+                  </a>
+                </div>
+              )}
+
+              {/* Contact Email */}
+              <div className="flex items-center gap-2 text-xs text-zinc-400">
+                <Mail className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
                 <a
                   href={`mailto:${settings.email}`}
-                  className="hover:underline hover:text-white"
+                  className="hover:underline hover:text-white truncate"
                 >
                   {settings.email}
                 </a>
               </div>
+
+              {/* Support Email if different */}
+              {settings.supportEmail && settings.supportEmail !== settings.email && (
+                <div className="flex items-center gap-2 text-xs text-zinc-400">
+                  <Mail className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <a
+                    href={`mailto:${settings.supportEmail}`}
+                    className="hover:underline hover:text-white truncate"
+                  >
+                    Support: {settings.supportEmail}
+                  </a>
+                </div>
+              )}
+
+              {/* Head office Address */}
+              {settings.address && (
+                <div className="flex items-start gap-2 pt-1 border-t border-zinc-800/80 text-xs text-zinc-400">
+                  <MapPin className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">
+                    {settings.address}, {settings.city}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Social Icons */}
             <div className="flex items-center gap-3 pt-2">
               <a
-                href="https://instagram.com"
+                href={settings.instagram || "https://instagram.com"}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Instagram"
@@ -405,7 +462,7 @@ export function Footer() {
                 <InstagramIcon className="h-4 w-4" />
               </a>
               <a
-                href="https://facebook.com"
+                href={settings.facebook || "https://facebook.com"}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Facebook"
@@ -414,7 +471,7 @@ export function Footer() {
                 <FacebookIcon className="h-4 w-4" />
               </a>
               <a
-                href="https://linkedin.com"
+                href={settings.linkedin || "https://linkedin.com"}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="LinkedIn"
@@ -423,7 +480,7 @@ export function Footer() {
                 <LinkedinIcon className="h-4 w-4" />
               </a>
               <a
-                href="https://twitter.com"
+                href={settings.twitter || "https://twitter.com"}
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Twitter / X"
@@ -498,6 +555,12 @@ export function Footer() {
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-2 text-zinc-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 shrink-0" />
+                <span className="font-medium text-zinc-300">
+                  {settings.address ? `${settings.address} (${settings.city})` : t.locations.soukra}
+                </span>
+              </li>
+              <li className="flex items-start gap-2 text-zinc-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 shrink-0" />
                 <span>{t.locations.tunis}</span>
               </li>
               <li className="flex items-start gap-2 text-zinc-400">
@@ -507,10 +570,6 @@ export function Footer() {
               <li className="flex items-start gap-2 text-zinc-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 shrink-0" />
                 <span>{t.locations.enfidha}</span>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 shrink-0" />
-                <span>{t.locations.soukra}</span>
               </li>
               <li className="flex items-start gap-2 text-zinc-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 shrink-0" />
@@ -576,7 +635,7 @@ export function Footer() {
         {/* SECTION 3: Bottom Legal & Copyright Bar */}
         <div className="border-t border-zinc-800/80 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-zinc-400">
           <div>
-            © {new Date().getFullYear()} {settings.agencyName || "PAYLESS CAR RENTAL"}. {t.rights} ({settings.legalName || "Houimli Rent a Car SARL"})
+            © {new Date().getFullYear()} {agencyDisplayName}. {t.rights} ({settings.legalName || "Houimli Rent a Car SARL"}{settings.registration ? ` — ${settings.registration}` : ""})
           </div>
 
           <div className="flex flex-wrap items-center gap-6">

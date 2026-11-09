@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   AlertCircle,
   MapPin,
+  Share2,
 } from "lucide-react";
 
 const SETTINGS_TABS = [
@@ -36,19 +37,23 @@ export default function SettingsPage() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const [agencySettings, setAgencySettings] = useState({
-    agencyName: "PAYLESS CAR RENTAL TUNISIE",
+    agencyName: "Payless Car Rental Tunisie",
     legalName: "Houimli Rent a Car SARL",
     registration: "RC Ariana B0123452020 - MF 1234567/A/M/000",
-    address: "Agence La Soukra, Siège Social Ariana",
-    city: "Tunis",
+    address: "60, Avenue de l'UMA, Chotrana 1, La Soukra",
+    city: "Ariana 2036, Tunisie",
     postalCode: "2036",
     country: "Tunisie",
-    phone: "+216 25 120 130",
-    whatsapp: "+216 25 120 130",
+    phone: "80808080",
+    whatsapp: "80808080",
     email: "contact@paylesscarrental.tn",
-    supportEmail: "support@paylesscarrental.tn",
-    website: "https://paylesscarrental.tn",
+    supportEmail: "test@paylesscarrental.tn",
+    website: "https://hmlrentcar.tn",
     defaultLanguage: "fr",
+    facebook: "https://facebook.com",
+    instagram: "https://instagram.com",
+    linkedin: "https://linkedin.com",
+    twitter: "https://twitter.com",
   });
 
   const [financialSettings, setFinancialSettings] = useState({
@@ -57,8 +62,8 @@ export default function SettingsPage() {
     taxRate: "0",
     timbreFiscal: "1",
     contributionLF2026: "2",
-    differentLocationFee: "50", // Frais restitution agence différente (Aller-simple)
-    outOfTownReturnFee: "100", // 100 DT default for drop-offs outside Tunis
+    differentLocationFee: "50",
+    outOfTownReturnFee: "100",
     depositMultiplier: "1",
     minRentalAge: "21",
     minLuxuryAge: "25",
@@ -92,26 +97,33 @@ export default function SettingsPage() {
     async function loadSettings() {
       try {
         setLoading(true);
-        const res = await fetch("/api/admin/settings");
+        const res = await fetch("/api/admin/settings?t=" + Date.now(), {
+          cache: "no-store",
+          headers: { Pragma: "no-cache", "Cache-Control": "no-cache" },
+        });
         const json = await res.json();
         if (json.success && json.settings) {
           const s = json.settings;
 
           setAgencySettings((prev) => ({
             ...prev,
-            agencyName: (s.agencyName as string) || prev.agencyName,
-            legalName: (s.legalName as string) || prev.legalName,
-            registration: (s.registration as string) || prev.registration,
-            address: (s.address as string) || prev.address,
-            city: (s.city as string) || prev.city,
-            postalCode: (s.postalCode as string) || prev.postalCode,
-            country: (s.country as string) || prev.country,
-            phone: (s.phone as string) || prev.phone,
-            whatsapp: (s.whatsapp as string) || prev.whatsapp,
-            email: (s.email as string) || prev.email,
-            supportEmail: (s.supportEmail as string) || prev.supportEmail,
-            website: (s.website as string) || prev.website,
-            defaultLanguage: (s.defaultLanguage as string) || prev.defaultLanguage,
+            agencyName: (s.agencyName as string) || (s.agency_name as string) || prev.agencyName,
+            legalName: (s.legalName as string) || (s.legal_name as string) || prev.legalName,
+            registration: (s.registration as string) || (s.immatriculation as string) || prev.registration,
+            address: (s.address as string) || (s.siege_social as string) || prev.address,
+            city: (s.city as string) || (s.ville as string) || prev.city,
+            postalCode: (s.postalCode as string) || (s.postal_code as string) || prev.postalCode,
+            country: (s.country as string) || (s.pays as string) || prev.country,
+            phone: (s.phone as string) || (s.phone_primary as string) || prev.phone,
+            whatsapp: (s.whatsapp as string) || (s.phone_secondary as string) || prev.whatsapp,
+            email: (s.email as string) || (s.contact_email as string) || prev.email,
+            supportEmail: (s.supportEmail as string) || (s.support_email as string) || prev.supportEmail,
+            website: (s.website as string) || (s.site_web as string) || prev.website,
+            defaultLanguage: (s.defaultLanguage as string) || (s.default_language as string) || prev.defaultLanguage,
+            facebook: (s.facebook as string) || prev.facebook,
+            instagram: (s.instagram as string) || prev.instagram,
+            linkedin: (s.linkedin as string) || prev.linkedin,
+            twitter: (s.twitter as string) || prev.twitter,
           }));
 
           setFinancialSettings((prev) => ({
@@ -169,10 +181,11 @@ export default function SettingsPage() {
       if (res.ok && json.success) {
         setSaved(true);
         if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("company-settings-updated"));
           try {
+            localStorage.setItem("company_settings_cache", JSON.stringify(payload));
             localStorage.setItem("company-settings-updated", Date.now().toString());
           } catch {}
+          window.dispatchEvent(new CustomEvent("company-settings-updated", { detail: payload }));
         }
         setTimeout(() => setSaved(false), 3500);
       } else {
@@ -191,7 +204,7 @@ export default function SettingsPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white">Paramètres de l'agence</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Configuration globale persistée en base de données</p>
+          <p className="text-slate-500 text-sm mt-0.5">Configuration globale persistée en base de données et synchronisée sur tout le site</p>
         </div>
         <button
           onClick={save}
@@ -210,7 +223,7 @@ export default function SettingsPage() {
           ) : saved ? (
             <>
               <CheckCircle2 className="w-4 h-4" />
-              <span>Enregistré en Base ✓</span>
+              <span>Enregistré en Base & Synchronisé ✓</span>
             </>
           ) : (
             <>
@@ -224,7 +237,7 @@ export default function SettingsPage() {
       {saved && (
         <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>Toutes les configurations de l'agence ont été persistées avec succès en base de données.</span>
+          <span>Toutes les configurations (Nom, Emails, Téléphones, Footer, Tarifs) ont été persistées en base de données et synchronisées en temps réel sur le site.</span>
         </div>
       )}
 
@@ -238,7 +251,7 @@ export default function SettingsPage() {
       {loading ? (
         <div className="flex items-center justify-center p-12 text-slate-400 gap-2">
           <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-          <span>Chargement des paramètres...</span>
+          <span>Chargement des paramètres depuis la base de données...</span>
         </div>
       ) : (
         <div className="flex flex-col lg:flex-row gap-6">
@@ -268,22 +281,26 @@ export default function SettingsPage() {
           <div className="flex-1 bg-white dark:bg-[#0f141f] rounded-2xl border border-slate-200 dark:border-slate-800 p-6">
             {/* Agency Info */}
             {activeTab === "agency" && (
-              <div className="space-y-5">
-                <h2 className="font-bold text-lg text-slate-900 dark:text-white">Informations de l'agence</h2>
+              <div className="space-y-6">
+                <div>
+                  <h2 className="font-bold text-lg text-slate-900 dark:text-white">Informations de l'agence & Contact</h2>
+                  <p className="text-xs text-slate-500">Ces informations sont synchronisées dynamiquement dans le Footer, le Header, les formulaires et les e-mails.</p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
-                    { label: "Nom commercial", key: "agencyName", icon: Building2 },
-                    { label: "Raison sociale", key: "legalName", icon: Building2 },
-                    { label: "Immatriculation (RC / MF)", key: "registration", icon: Shield },
-                    { label: "Adresse du siège", key: "address", icon: Globe },
-                    { label: "Ville", key: "city", icon: Globe },
-                    { label: "Code Postal", key: "postalCode", icon: Globe },
-                    { label: "Pays", key: "country", icon: Globe },
-                    { label: "Téléphone principal", key: "phone", icon: Phone },
-                    { label: "WhatsApp Assistance", key: "whatsapp", icon: Phone },
-                    { label: "Email contact", key: "email", icon: Mail },
-                    { label: "Email support / alertes", key: "supportEmail", icon: Mail },
-                    { label: "Site web officiel", key: "website", icon: Globe },
+                    { label: "Nom commercial", key: "agencyName", icon: Building2, placeholder: "Payless Car Rental Tunisie" },
+                    { label: "Raison sociale", key: "legalName", icon: Building2, placeholder: "Houimli Rent a Car SARL" },
+                    { label: "Immatriculation (RC / MF)", key: "registration", icon: Shield, placeholder: "RC Ariana B0123452020 - MF 1234567/A/M/000" },
+                    { label: "Adresse du siège", key: "address", icon: Globe, placeholder: "60, Avenue de l'UMA, Chotrana 1, La Soukra" },
+                    { label: "Ville", key: "city", icon: Globe, placeholder: "Ariana 2036, Tunisie" },
+                    { label: "Code Postal", key: "postalCode", icon: Globe, placeholder: "2036" },
+                    { label: "Pays", key: "country", icon: Globe, placeholder: "Tunisie" },
+                    { label: "Téléphone principal", key: "phone", icon: Phone, placeholder: "80808080" },
+                    { label: "WhatsApp Assistance", key: "whatsapp", icon: Phone, placeholder: "80808080" },
+                    { label: "Email contact", key: "email", icon: Mail, placeholder: "contact@paylesscarrental.tn" },
+                    { label: "Email support / alertes", key: "supportEmail", icon: Mail, placeholder: "test@paylesscarrental.tn" },
+                    { label: "Site web officiel", key: "website", icon: Globe, placeholder: "https://hmlrentcar.tn" },
                   ].map((f) => {
                     const Icon = f.icon;
                     return (
@@ -292,16 +309,18 @@ export default function SettingsPage() {
                         <div className="relative">
                           <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input
-                            value={(agencySettings as Record<string, string>)[f.key]}
+                            value={(agencySettings as Record<string, string>)[f.key] || ""}
                             onChange={(e) =>
                               setAgencySettings((s) => ({ ...s, [f.key]: e.target.value }))
                             }
+                            placeholder={f.placeholder}
                             className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 outline-none text-xs font-semibold text-slate-900 dark:text-white"
                           />
                         </div>
                       </div>
                     );
                   })}
+
                   <div>
                     <label className="block text-xs font-semibold mb-1.5 text-slate-500">
                       Langue principale par défaut
@@ -317,6 +336,34 @@ export default function SettingsPage() {
                       <option value="en">🇬🇧 English</option>
                       <option value="ar">🇹🇳 العربية</option>
                     </select>
+                  </div>
+                </div>
+
+                {/* Social media links */}
+                <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Share2 className="w-4 h-4 text-blue-500" />
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Réseaux Sociaux (Footer)</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      { label: "Facebook", key: "facebook", placeholder: "https://facebook.com/payless" },
+                      { label: "Instagram", key: "instagram", placeholder: "https://instagram.com/payless" },
+                      { label: "LinkedIn", key: "linkedin", placeholder: "https://linkedin.com/company/payless" },
+                      { label: "X / Twitter", key: "twitter", placeholder: "https://twitter.com/payless" },
+                    ].map((f) => (
+                      <div key={f.key}>
+                        <label className="block text-xs font-semibold mb-1.5 text-slate-500">{f.label}</label>
+                        <input
+                          value={(agencySettings as Record<string, string>)[f.key] || ""}
+                          onChange={(e) =>
+                            setAgencySettings((s) => ({ ...s, [f.key]: e.target.value }))
+                          }
+                          placeholder={f.placeholder}
+                          className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:ring-2 focus:ring-blue-500 outline-none text-xs font-semibold text-slate-900 dark:text-white"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

@@ -220,7 +220,7 @@ export function Header() {
           >
             <img
               src="https://hmlrentcar.tn/wp-content/uploads/2025/08/IMG_9268.png"
-              alt="Payless Car Rental Tunisia"
+              alt={settings.agencyName || "Payless Car Rental Tunisie"}
               className="h-10 sm:h-14 lg:h-16 w-auto object-contain transition-transform group-hover:scale-105"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
@@ -230,11 +230,11 @@ export function Header() {
             />
             <div id="brand-text-fallback" className="hidden flex-col justify-center items-start">
               <div className="flex items-center tracking-wider font-black text-xl sm:text-2xl text-foreground font-sans">
-                <span>PAYLESS</span>
+                <span>{settings.agencyName || "Payless Car Rental Tunisie"}</span>
                 <span className="inline-block w-2 h-2 rounded-full bg-[#1D4ED8] ml-1 mb-0.5" />
               </div>
               <span className="text-[8px] font-bold tracking-[0.25em] text-muted-foreground uppercase -mt-0.5">
-                Car Rental Tunisia
+                Location de Voitures Tunisie
               </span>
             </div>
           </Link>
@@ -412,7 +412,7 @@ export function Header() {
               >
                 <img
                   src="https://hmlrentcar.tn/wp-content/uploads/2025/08/IMG_9268.png"
-                  alt="Payless Car Rental"
+                  alt={settings.agencyName || "Payless Car Rental Tunisie"}
                   className="h-10 sm:h-12 w-auto object-contain"
                 />
               </Link>

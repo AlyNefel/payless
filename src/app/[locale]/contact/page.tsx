@@ -219,9 +219,16 @@ export default function ContactPage({
           {/* Quick contact items */}
           <div className="grid grid-cols-1 gap-4">
             {[
-              { icon: Mail, title: "Email", value: settings.email, href: `mailto:${settings.email}` },
+              { icon: Mail, title: "Email Contact", value: settings.email, href: `mailto:${settings.email}` },
+              ...(settings.supportEmail && settings.supportEmail !== settings.email
+                ? [{ icon: Mail, title: locale === "fr" ? "Email Support / Réservations" : locale === "ar" ? "البريد الإلكتروني للدعم" : "Support Email", value: settings.supportEmail, href: `mailto:${settings.supportEmail}` }]
+                : []),
               { icon: Phone, title: locale === "fr" ? "Téléphone principal" : locale === "ar" ? "الهاتف الرئيسي" : "Main Phone", value: settings.phone, href: `tel:${settings.phone.replace(/\s/g, "")}` },
-              { icon: Clock, title: locale === "fr" ? "Horaires" : locale === "ar" ? "أوقات العمل" : "Business Hours", value: locale === "fr" ? "Lun-Dim: 06h00 - 00h00" : locale === "ar" ? "الاثنين-الأحد: 06:00 - 00:00" : "Mon-Sun: 06:00 - 00:00", href: undefined },
+              { icon: MessageCircle, title: "WhatsApp", value: settings.whatsapp, href: `https://wa.me/${settings.whatsapp.replace(/[^0-9]/g, "")}` },
+              ...(settings.address
+                ? [{ icon: MapPin, title: locale === "fr" ? "Siège social" : locale === "ar" ? "المقر الرئيسي" : "Headquarters", value: `${settings.address}, ${settings.city}`, href: undefined }]
+                : []),
+              { icon: Clock, title: locale === "fr" ? "Horaires" : locale === "ar" ? "أوقات العمل" : "Business Hours", value: locale === "fr" ? "Lun-Dim: 24h/24" : locale === "ar" ? "الاثنين-الأحد: 24/24" : "Mon-Sun: 24/7", href: undefined },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-xl p-4 hover:border-[#1D4ED8]/30 transition-colors">
                 <div className="w-10 h-10 bg-[#1D4ED8]/10 rounded-lg flex items-center justify-center flex-shrink-0">

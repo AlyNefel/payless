@@ -58,7 +58,7 @@ export async function sendEmail(payload: EmailPayload): Promise<{
     status: "pending",
   });
 
-  const fromAddress = `${process.env.EMAIL_FROM_NAME || "Payless Car Rental"} <${process.env.EMAIL_FROM || process.env.SMTP_USER || "noreply@paylesscarrental.com"}>`;
+  const fromAddress = `${process.env.EMAIL_FROM_NAME || "Payless Car Rental Tunisie"} <${process.env.EMAIL_FROM || process.env.SMTP_USER || "noreply@paylesscarrental.com"}>`;
   const toRecipient = payload.toName ? `"${payload.toName}" <${payload.to}>` : payload.to;
 
   try {

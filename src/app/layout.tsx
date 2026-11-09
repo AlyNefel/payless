@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata = {
-  title: "PAYLESS Car Rental Tunisia — Your Journey. Your Freedom.",
+  title: "Payless Car Rental Tunisie — Your Journey. Your Freedom.",
   description: "Location de voitures en Tunisie. Véhicules neufs et économiques à Tunis-Carthage, Monastir, Enfidha, Hammamet, Sousse, Sfax.",
   other: {
     "darkreader-lock": "",

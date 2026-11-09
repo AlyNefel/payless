@@ -74,7 +74,7 @@ export async function generateMetadata({
   return {
     title: {
       default: current.title,
-      template: "%s | PAYLESS CAR RENTAL TUNISIA",
+      template: "%s | Payless Car Rental Tunisie",
     },
     description: current.description,
     keywords: current.keywords,
@@ -91,7 +91,7 @@ export async function generateMetadata({
       title: current.title,
       description: current.description,
       url: `https://payless.tn/${locale}`,
-      siteName: "PAYLESS Car Rental Tunisia",
+      siteName: "Payless Car Rental Tunisie",
       images: [
         {
           url: "https://images.unsplash.com/photo-1617788138017-80ad40651399?q=80&w=1200&auto=format&fit=crop",

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sendEmail } from "@/lib/email";
+import connectDB from "@/lib/db";
+import AgencySetting from "@/models/AgencySetting";
+
+export const dynamic = "force-dynamic";
 
 const schema = z.object({
   name: z.string().min(2, "Name too short").max(100),
@@ -25,6 +29,23 @@ export async function POST(request: NextRequest) {
 
     const { name, email, phone, subject, message, locale } = parsed.data;
 
+    let targetEmail = process.env.AGENCY_EMAIL || "contact@paylesscarrental.tn";
+    try {
+      await connectDB();
+      const settings = await AgencySetting.find({
+        key: { $in: ["supportEmail", "support_email", "email", "contact_email"] },
+      }).lean();
+      const support = settings.find((s) => s.key === "supportEmail" || s.key === "support_email")?.value;
+      const contact = settings.find((s) => s.key === "email" || s.key === "contact_email")?.value;
+      if (typeof support === "string" && support.includes("@")) {
+        targetEmail = support;
+      } else if (typeof contact === "string" && contact.includes("@")) {
+        targetEmail = contact;
+      }
+    } catch (e) {
+      console.warn("Could not query AgencySetting for contact recipient:", e);
+    }
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #0A0A0B; padding: 24px; border-radius: 8px;">
@@ -45,7 +66,7 @@ export async function POST(request: NextRequest) {
     `;
 
     await sendEmail({
-      to: process.env.AGENCY_EMAIL || "contact@paylesscarrental.ma",
+      to: targetEmail,
       subject: `[Contact] ${subject} — ${name}`,
       html,
       replyTo: email,
@@ -60,4 +81,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

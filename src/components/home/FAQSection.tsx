@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations, useLocale } from "next-intl";
+import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 import {
   HelpCircle,
   ChevronDown,
@@ -123,7 +124,11 @@ const FAQS: FAQItem[] = [
 export function FAQSection() {
   const t = useTranslations("home");
   const locale = useLocale();
+  const { settings } = useCompanySettings();
   const [openId, setOpenId] = useState<string | null>("faq-docs");
+
+  const agencyName = settings.agencyName || "Payless Car Rental Tunisie";
+  const whatsappNum = settings.whatsapp || settings.phone || "80808080";
 
   const toggleItem = (id: string) => {
     setOpenId(openId === id ? null : id);
@@ -165,7 +170,11 @@ export function FAQSection() {
             const isOpen = openId === faq.id;
             const Icon = faq.icon;
             const questionText = faq.question[locale] || faq.question.fr;
-            const answerText = faq.answer[locale] || faq.answer.fr;
+            let answerText = faq.answer[locale] || faq.answer.fr;
+            answerText = answerText
+              .replace(/Payless Tunisie/g, agencyName)
+              .replace(/Payless Tunisia/g, agencyName)
+              .replace(/\+216 25 120 130/g, whatsappNum);
             const points = faq.keyPoints?.[locale] || faq.keyPoints?.fr;
 
             return (
