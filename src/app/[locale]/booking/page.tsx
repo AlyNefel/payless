@@ -138,6 +138,9 @@ function BookingContent() {
   const [showEmailEdit, setShowEmailEdit] = useState(false);
   const [customPhone, setCustomPhone] = useState("");
   const [showPhoneEdit, setShowPhoneEdit] = useState(false);
+  const [sendingWa, setSendingWa] = useState(false);
+  const [waSuccess, setWaSuccess] = useState("");
+  const [waError, setWaError] = useState("");
   const [copiedWaLink, setCopiedWaLink] = useState(false);
 
   const [data, setData] = useState<BookingData>({
@@ -533,33 +536,75 @@ function BookingContent() {
     }
   }
 
+  async function handleSendWhatsApp() {
+    const targetPhone = (customPhone || data.phone).trim();
+    if (!targetPhone) {
+      setWaError("Veuillez renseigner un numéro de téléphone valide.");
+      return;
+    }
+    setSendingWa(true);
+    setWaSuccess("");
+    setWaError("");
+    try {
+      const res = await fetch("/api/bookings/send-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingReference: bookingRef,
+          phone: targetPhone,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setWaSuccess(
+          locale === "ar"
+            ? `تم إرسال تأكيد الحجز إلى رقمك ${targetPhone} بنجاح عبر واتساب!`
+            : locale === "en"
+            ? `Booking confirmation sent successfully to ${targetPhone} via WhatsApp!`
+            : `Confirmation de réservation envoyée avec succès sur votre numéro WhatsApp ${targetPhone} !`
+        );
+      } else {
+        // Fallback: Ouvrir le lien WhatsApp directement pour l'utilisateur
+        if (json.url) {
+          window.open(json.url, "_blank");
+          setWaSuccess("Ouverture de votre confirmation sur WhatsApp...");
+        } else {
+          setWaError(json.error || "Impossible d'envoyer le message WhatsApp pour le moment.");
+        }
+      }
+    } catch {
+      setWaError("Erreur réseau lors de l'envoi WhatsApp.");
+    } finally {
+      setSendingWa(false);
+    }
+  }
+
   function getWhatsAppUrl() {
-    // Le message est envoyé au numéro WhatsApp de l'agence (settings.whatsapp ou +216 25 120 130)
-    // C'est le client qui envoie sa demande officielle de confirmation à l'agence !
-    const agencyRawPhone = settings?.whatsapp || "25120130";
-    let targetPhone = agencyRawPhone.replace(/[^0-9]/g, "");
-    if (targetPhone.length === 8) {
-      targetPhone = "216" + targetPhone;
+    // Le numéro DESTINATAIRE qui reçoit le message = Le numéro du client !
+    // L'expéditeur = Le numéro WhatsApp de l'agence (configuré dans l'admin)
+    const rawClientPhone = (customPhone || data.phone || "").replace(/[^0-9]/g, "");
+    let cleanClientPhone = rawClientPhone;
+    if (cleanClientPhone.length === 8) {
+      cleanClientPhone = "216" + cleanClientPhone;
     }
 
     const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://paylesscarrental.tn";
     const pdfUrl = `${siteUrl}/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}`;
 
     const msg = encodeURIComponent(
-      `Bonjour Payless Car Rental Tunisie,\n\n` +
-      `Je viens de finaliser ma réservation sur votre site web et je souhaite recevoir ma confirmation officielle et mon contrat :\n\n` +
-      `📋 *Référence* : ${bookingRef}\n` +
-      `👤 *Client* : ${data.firstName} ${data.lastName}\n` +
-      `📞 *Mon Tél* : ${customPhone || data.phone}\n` +
-      `🚗 *Véhicule* : ${selectedVehicle?.brand} ${selectedVehicle?.model}\n` +
-      `📅 *Période* : du ${data.pickupDate} à ${data.pickupTime} au ${data.returnDate} à ${data.returnTime} (${rentalDays} j)\n` +
-      `📍 *Prise en charge* : ${selectedPickupLocName}\n` +
-      `💰 *Total TTC* : ${fmt(totalAmount)} TND\n\n` +
-      `📄 *Consulter / Télécharger mon Bon de Réservation PDF* :\n${pdfUrl}\n\n` +
-      `Merci de me confirmer la prise en charge.`
+      `🚗 *Payless Car Rental Tunisie — Confirmation de Réservation*\n\n` +
+      `Bonjour *${data.firstName} ${data.lastName}*,\n\n` +
+      `Votre réservation *${bookingRef}* chez Payless Car Rental est bien ✅ *Confirmée* !\n\n` +
+      `• *Véhicule* : ${selectedVehicle?.brand} ${selectedVehicle?.model}\n` +
+      `• *Prise en charge* : ${data.pickupDate} à ${data.pickupTime} (${selectedPickupLocName})\n` +
+      `• *Restitution* : ${data.returnDate} à ${data.returnTime} (${selectedReturnLocName})\n` +
+      `• *Durée* : ${rentalDays} jour(s)\n` +
+      `• *Total TTC à régler* : ${fmt(totalAmount)} TND\n\n` +
+      `📄 *Télécharger votre Bon de Réservation & Facture (PDF)* :\n${pdfUrl}\n\n` +
+      `Assistance VIP Payless 24/7 au : +216 80 80 80 80.\nMerci pour votre confiance !`
     );
 
-    return `https://wa.me/${targetPhone}?text=${msg}`;
+    return `https://wa.me/${cleanClientPhone}?text=${msg}`;
   }
 
   function handleCopyPdfLink() {
@@ -1784,6 +1829,20 @@ function BookingContent() {
                     </div>
                   )}
 
+                  {waSuccess && (
+                    <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 animate-in fade-in">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                      <span>{waSuccess}</span>
+                    </div>
+                  )}
+
+                  {waError && (
+                    <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 text-xs font-semibold flex items-center justify-center gap-2 animate-in fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                      <span>{waError}</span>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-left">
                     {/* Choix 1: Télécharger PDF */}
                     <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border-2 border-slate-200 dark:border-neutral-700 shadow-xs flex flex-col justify-between space-y-3 hover:border-slate-400 transition-all">
@@ -1877,7 +1936,7 @@ function BookingContent() {
                       </div>
                     </div>
 
-                    {/* Choix 3: Recevoir / Confirmer sur WhatsApp */}
+                    {/* Choix 3: Recevoir sur WhatsApp (Destinataire = Le numéro du client) */}
                     <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border-2 border-emerald-500/60 shadow-sm flex flex-col justify-between space-y-3 hover:border-emerald-600 transition-all">
                       <div>
                         <div className="flex items-center justify-between mb-2">
@@ -1890,43 +1949,67 @@ function BookingContent() {
                         </div>
                         <h4 className="font-bold text-sm text-slate-900 dark:text-white">
                           {locale === "ar"
-                            ? "3. تأكيد فوري عبر واتساب"
+                            ? "3. استلام التأكيد على واتساب"
                             : locale === "en"
                             ? "3. Receive on WhatsApp"
                             : "3. Recevoir sur WhatsApp"}
                         </h4>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                          {locale === "ar"
-                            ? `إرسال تفاصيل الحجز فوراً لواتساب الوكالة (+216 ${settings?.whatsapp || "25 120 130"})`
-                            : locale === "en"
-                            ? `Get instant voucher on WhatsApp (+216 ${settings?.whatsapp || "25 120 130"})`
-                            : `Recevez votre confirmation directement sur WhatsApp (+216 ${settings?.whatsapp || "25 120 130"})`}
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 truncate" title={customPhone || data.phone}>
+                          Destinataire : <strong className="text-slate-700 dark:text-slate-200">{customPhone || data.phone}</strong>
                         </p>
                       </div>
 
+                      {showPhoneEdit && (
+                        <input
+                          type="tel"
+                          value={customPhone}
+                          onChange={(e) => setCustomPhone(e.target.value)}
+                          placeholder="+216 00 000 000"
+                          className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-900"
+                        />
+                      )}
+
                       <div className="flex items-center gap-1.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSendWhatsApp()}
+                          disabled={sendingWa}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 active:scale-95 disabled:opacity-50"
+                        >
+                          {sendingWa ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Envoi...</span>
+                            </>
+                          ) : (
+                            <>
+                              <MessageSquare className="w-4 h-4" />
+                              <span>
+                                {locale === "ar"
+                                  ? "إرسال إلى رقمي"
+                                  : locale === "en"
+                                  ? "Send to My WhatsApp"
+                                  : "Recevoir sur WhatsApp"}
+                              </span>
+                            </>
+                          )}
+                        </button>
                         <a
                           href={getWhatsAppUrl()}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 active:scale-95"
+                          title="Ouvrir directement sur WhatsApp"
+                          className="p-2.5 rounded-xl border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs flex items-center justify-center"
                         >
-                          <MessageSquare className="w-4 h-4" />
-                          <span>
-                            {locale === "ar"
-                              ? "طلب التأكيد على واتساب"
-                              : locale === "en"
-                              ? "Open WhatsApp"
-                              : "Recevoir sur WhatsApp"}
-                          </span>
+                          <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                         <button
                           type="button"
-                          onClick={handleCopyPdfLink}
-                          title="Copier le lien direct vers le PDF"
-                          className="p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 text-xs flex items-center justify-center"
+                          onClick={() => setShowPhoneEdit(!showPhoneEdit)}
+                          title="Modifier le numéro destinataire"
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 text-xs"
                         >
-                          {copiedWaLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                          ✎
                         </button>
                       </div>
                     </div>
