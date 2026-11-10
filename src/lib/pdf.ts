@@ -230,17 +230,26 @@ export function generateBookingPDF(data: PDFBookingData): Buffer {
   // ==========================================
   // 3. FULL-WIDTH TABLE: ITINERARY & SCHEDULE (PRISE EN CHARGE & RESTITUTION)
   // ==========================================
-  const itinHeight = 20;
-  const halfWidth = (contentWidth - 4) / 2;
 
   // Clean location labels (stripping leading "1. ", "2. ", etc.)
   const cleanPickupLoc = (data.pickupLocation || "Aéroport Tunis-Carthage").replace(/^\d+[\.\s\-]+\s*/, "").trim();
   const cleanReturnLoc = (data.returnLocation || "Aéroport Tunis-Carthage").replace(/^\d+[\.\s\-]+\s*/, "").trim();
 
+  // Layout constants
+  const halfWidth = (contentWidth - 4) / 2;
+  const ITIN_HEADER_H = 6;
+  const ITIN_ROW_H = 8;    // per data row — tall enough for wrapped location text
+  const ITIN_ROWS = 2;     // "Date & Heure" + "Lieu / Agence"
+  const itinBodyH = ITIN_ROWS * ITIN_ROW_H;
+  const itinTotalH = ITIN_HEADER_H + itinBodyH;
+
+  const LABEL_W = 26;                          // mm for the bold label
+  const VALUE_MAX_W = halfWidth - LABEL_W - 6; // remaining for value text
+
   // Headers (Solid Black with White Text)
   doc.setFillColor(0, 0, 0);
-  doc.rect(marginLeft, y, halfWidth, 6, "F");
-  doc.rect(marginLeft + halfWidth + 4, y, halfWidth, 6, "F");
+  doc.rect(marginLeft, y, halfWidth, ITIN_HEADER_H, "F");
+  doc.rect(marginLeft + halfWidth + 4, y, halfWidth, ITIN_HEADER_H, "F");
 
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
@@ -251,37 +260,51 @@ export function generateBookingPDF(data: PDFBookingData): Buffer {
   // Bordered Content Boxes
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
-  doc.rect(marginLeft, y + 6, halfWidth, itinHeight - 6, "D");
-  doc.rect(marginLeft + halfWidth + 4, y + 6, halfWidth, itinHeight - 6, "D");
+  doc.rect(marginLeft, y + ITIN_HEADER_H, halfWidth, itinBodyH, "D");
+  doc.rect(marginLeft + halfWidth + 4, y + ITIN_HEADER_H, halfWidth, itinBodyH, "D");
+
+  // Inner horizontal divider between row A and row B
+  const innerDivY = y + ITIN_HEADER_H + ITIN_ROW_H;
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.2);
+  doc.line(marginLeft + 1, innerDivY, marginLeft + halfWidth - 1, innerDivY);
+  doc.line(marginLeft + halfWidth + 5, innerDivY, marginLeft + halfWidth + 4 + halfWidth - 1, innerDivY);
 
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(8);
 
-  // Left Content: Prise en charge
-  const itinY = y + 10.5;
-  doc.setFont("helvetica", "bold");
-  doc.text("Date & Heure :", marginLeft + 3, itinY);
-  doc.setFont("helvetica", "normal");
-  doc.text(data.pickupDate, marginLeft + 24, itinY, { maxWidth: halfWidth - 26 });
+  // ---- Left column: Prise en charge ----
+  const leftBodyStartY = y + ITIN_HEADER_H;
 
+  // Row A: Date & Heure
   doc.setFont("helvetica", "bold");
-  doc.text("Lieu / Agence :", marginLeft + 3, itinY + 5);
+  doc.text("Date & Heure :", marginLeft + 3, leftBodyStartY + 5.2);
   doc.setFont("helvetica", "normal");
-  doc.text(cleanPickupLoc, marginLeft + 24, itinY + 5, { maxWidth: halfWidth - 26 });
+  doc.text(data.pickupDate, marginLeft + 3 + LABEL_W, leftBodyStartY + 5.2, { maxWidth: VALUE_MAX_W });
 
-  // Right Content: Restitution
+  // Row B: Lieu / Agence — starts after first row
+  doc.setFont("helvetica", "bold");
+  doc.text("Lieu / Agence :", marginLeft + 3, leftBodyStartY + ITIN_ROW_H + 5.2);
+  doc.setFont("helvetica", "normal");
+  doc.text(cleanPickupLoc, marginLeft + 3 + LABEL_W, leftBodyStartY + ITIN_ROW_H + 5.2, { maxWidth: VALUE_MAX_W });
+
+  // ---- Right column: Restitution ----
   const rightItinX = marginLeft + halfWidth + 4;
-  doc.setFont("helvetica", "bold");
-  doc.text("Date & Heure :", rightItinX + 3, itinY);
-  doc.setFont("helvetica", "normal");
-  doc.text(data.returnDate, rightItinX + 24, itinY, { maxWidth: halfWidth - 26 });
+  const rightBodyStartY = y + ITIN_HEADER_H;
 
+  // Row A: Date & Heure
   doc.setFont("helvetica", "bold");
-  doc.text("Lieu / Agence :", rightItinX + 3, itinY + 5);
+  doc.text("Date & Heure :", rightItinX + 3, rightBodyStartY + 5.2);
   doc.setFont("helvetica", "normal");
-  doc.text(cleanReturnLoc, rightItinX + 24, itinY + 5, { maxWidth: halfWidth - 26 });
+  doc.text(data.returnDate, rightItinX + 3 + LABEL_W, rightBodyStartY + 5.2, { maxWidth: VALUE_MAX_W });
 
-  y += itinHeight + 3.5;
+  // Row B: Lieu / Agence
+  doc.setFont("helvetica", "bold");
+  doc.text("Lieu / Agence :", rightItinX + 3, rightBodyStartY + ITIN_ROW_H + 5.2);
+  doc.setFont("helvetica", "normal");
+  doc.text(cleanReturnLoc, rightItinX + 3 + LABEL_W, rightBodyStartY + ITIN_ROW_H + 5.2, { maxWidth: VALUE_MAX_W });
+
+  y += itinTotalH + 3.5;
 
   // ==========================================
   // 3. DETAILED INVOICE TABLE (BLACK & WHITE)
