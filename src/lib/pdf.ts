@@ -133,10 +133,10 @@ export function generateBookingPDF(data: PDFBookingData): Buffer {
   y += 5;
 
   // ==========================================
-  // 2. TWO-COLUMN TABLE: CLIENT & VEHICLE/ITINERARY
+  // 2. TWO-COLUMN TABLE: CLIENT & VEHICLE
   // ==========================================
   const colWidth = (contentWidth - 4) / 2;
-  const colHeight = 36;
+  const colHeight = 32;
 
   // --- Left Table: Client / Driver ---
   doc.setFillColor(0, 0, 0);
@@ -153,79 +153,135 @@ export function generateBookingPDF(data: PDFBookingData): Buffer {
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(8);
 
-  const leftY = y + 11;
+  const leftY = y + 10.5;
   doc.setFont("helvetica", "bold");
   doc.text("Nom & Prénom :", marginLeft + 3, leftY);
   doc.setFont("helvetica", "normal");
-  doc.text(data.customerName || "Client", marginLeft + 32, leftY);
+  doc.text(data.customerName || "Client", marginLeft + 28, leftY, { maxWidth: colWidth - 30 });
 
   doc.setFont("helvetica", "bold");
-  doc.text("Tél / WhatsApp :", marginLeft + 3, leftY + 6);
+  doc.text("Tél / WhatsApp :", marginLeft + 3, leftY + 5);
   doc.setFont("helvetica", "normal");
-  doc.text(data.customerPhone || "-", marginLeft + 32, leftY + 6);
+  doc.text(data.customerPhone || "-", marginLeft + 28, leftY + 5, { maxWidth: colWidth - 30 });
 
   doc.setFont("helvetica", "bold");
-  doc.text("Adresse Email :", marginLeft + 3, leftY + 12);
+  doc.text("Adresse Email :", marginLeft + 3, leftY + 10);
   doc.setFont("helvetica", "normal");
-  doc.text(data.customerEmail || "-", marginLeft + 32, leftY + 12);
+  doc.text(data.customerEmail || "-", marginLeft + 28, leftY + 10, { maxWidth: colWidth - 30 });
 
   doc.setFont("helvetica", "bold");
-  doc.text("Permis de conduire :", marginLeft + 3, leftY + 18);
+  doc.text("Permis de conduire :", marginLeft + 3, leftY + 15);
   doc.setFont("helvetica", "normal");
   doc.text(
     `Validé${data.drivingLicenceYear ? ` (Année : ${data.drivingLicenceYear})` : ""}`,
     marginLeft + 32,
-    leftY + 18
+    leftY + 15
   );
 
   doc.setFont("helvetica", "bold");
-  doc.text("Pays de résidence :", marginLeft + 3, leftY + 24);
+  doc.text("Pays de résidence :", marginLeft + 3, leftY + 20);
   doc.setFont("helvetica", "normal");
-  doc.text(data.customerCountry || "Tunisie", marginLeft + 32, leftY + 24);
+  doc.text(data.customerCountry || "Tunisie", marginLeft + 32, leftY + 20);
 
-  // --- Right Table: Vehicle & Itinerary ---
+  // --- Right Table: Vehicle Info ---
   const rightX = marginLeft + colWidth + 4;
   doc.setFillColor(0, 0, 0);
   doc.rect(rightX, y, colWidth, 6, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text("2. VÉHICULE & ITINÉRAIRE", rightX + 3, y + 4.2);
+  doc.text("2. VÉHICULE RÉSERVÉ", rightX + 3, y + 4.2);
 
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
   doc.rect(rightX, y + 6, colWidth, colHeight - 6, "D");
 
   doc.setTextColor(0, 0, 0);
-  const rightY = y + 11;
+  const rightY = y + 10.5;
 
   doc.setFont("helvetica", "bold");
   doc.text("Modèle réservé :", rightX + 3, rightY);
   doc.setFont("helvetica", "bold");
   // Vehicle year is strictly hidden from client invoice
-  doc.text(`${data.vehicleBrand} ${data.vehicleModel}`, rightX + 32, rightY);
+  doc.text(`${data.vehicleBrand} ${data.vehicleModel}`, rightX + 28, rightY, { maxWidth: colWidth - 30 });
 
   doc.setFont("helvetica", "bold");
-  doc.text("Prise en charge :", rightX + 3, rightY + 6);
+  doc.text("Catégorie :", rightX + 3, rightY + 5);
   doc.setFont("helvetica", "normal");
-  doc.text(`${data.pickupDate} — ${data.pickupLocation}`, rightX + 32, rightY + 6);
+  doc.text("Économique / Standard Garantie", rightX + 28, rightY + 5);
 
   doc.setFont("helvetica", "bold");
-  doc.text("Restitution :", rightX + 3, rightY + 12);
+  doc.text("Durée facturée :", rightX + 3, rightY + 10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${data.rentalDuration} Jour(s)`, rightX + 28, rightY + 10);
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Kilométrage :", rightX + 3, rightY + 15);
   doc.setFont("helvetica", "normal");
-  doc.text(`${data.returnDate} — ${data.returnLocation}`, rightX + 32, rightY + 12);
+  doc.text("Illimité sur toute la Tunisie", rightX + 28, rightY + 15);
 
   doc.setFont("helvetica", "bold");
-  doc.text("Durée facturée :", rightX + 3, rightY + 18);
-  doc.setFont("helvetica", "bold");
-  doc.text(`${data.rentalDuration} Jour(s)`, rightX + 32, rightY + 18);
-
-  doc.setFont("helvetica", "bold");
-  doc.text("Garanties incluses :", rightX + 3, rightY + 24);
+  doc.text("Garanties :", rightX + 3, rightY + 20);
   doc.setFont("helvetica", "normal");
-  doc.text("Assurance Tous Risques & Assistance 24/7", rightX + 32, rightY + 24);
+  doc.text("Tous Risques avec Franchise Incluse", rightX + 28, rightY + 20);
 
-  y += colHeight + 6;
+  y += colHeight + 3.5;
+
+  // ==========================================
+  // 3. FULL-WIDTH TABLE: ITINERARY & SCHEDULE (PRISE EN CHARGE & RESTITUTION)
+  // ==========================================
+  const itinHeight = 20;
+  const halfWidth = (contentWidth - 4) / 2;
+
+  // Clean location labels (stripping leading "1. ", "2. ", etc.)
+  const cleanPickupLoc = (data.pickupLocation || "Aéroport Tunis-Carthage").replace(/^\d+[\.\s\-]+\s*/, "").trim();
+  const cleanReturnLoc = (data.returnLocation || "Aéroport Tunis-Carthage").replace(/^\d+[\.\s\-]+\s*/, "").trim();
+
+  // Headers (Solid Black with White Text)
+  doc.setFillColor(0, 0, 0);
+  doc.rect(marginLeft, y, halfWidth, 6, "F");
+  doc.rect(marginLeft + halfWidth + 4, y, halfWidth, 6, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.text("3. PRISE EN CHARGE DU VÉHICULE", marginLeft + 3, y + 4.2);
+  doc.text("4. RESTITUTION DU VÉHICULE", marginLeft + halfWidth + 7, y + 4.2);
+
+  // Bordered Content Boxes
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.rect(marginLeft, y + 6, halfWidth, itinHeight - 6, "D");
+  doc.rect(marginLeft + halfWidth + 4, y + 6, halfWidth, itinHeight - 6, "D");
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(8);
+
+  // Left Content: Prise en charge
+  const itinY = y + 10.5;
+  doc.setFont("helvetica", "bold");
+  doc.text("Date & Heure :", marginLeft + 3, itinY);
+  doc.setFont("helvetica", "normal");
+  doc.text(data.pickupDate, marginLeft + 24, itinY, { maxWidth: halfWidth - 26 });
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Lieu / Agence :", marginLeft + 3, itinY + 5);
+  doc.setFont("helvetica", "normal");
+  doc.text(cleanPickupLoc, marginLeft + 24, itinY + 5, { maxWidth: halfWidth - 26 });
+
+  // Right Content: Restitution
+  const rightItinX = marginLeft + halfWidth + 4;
+  doc.setFont("helvetica", "bold");
+  doc.text("Date & Heure :", rightItinX + 3, itinY);
+  doc.setFont("helvetica", "normal");
+  doc.text(data.returnDate, rightItinX + 24, itinY, { maxWidth: halfWidth - 26 });
+
+  doc.setFont("helvetica", "bold");
+  doc.text("Lieu / Agence :", rightItinX + 3, itinY + 5);
+  doc.setFont("helvetica", "normal");
+  doc.text(cleanReturnLoc, rightItinX + 24, itinY + 5, { maxWidth: halfWidth - 26 });
+
+  y += itinHeight + 3.5;
 
   // ==========================================
   // 3. DETAILED INVOICE TABLE (BLACK & WHITE)
