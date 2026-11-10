@@ -396,17 +396,16 @@ export function generateBookingPDF(data: PDFBookingData): Buffer {
     });
   }
 
-  invoiceRows.push({
-    desc: "TVA (Taux 0% — Régime fiscal franchise)",
-    qty: "0%",
-    unitPrice: "0.00",
-    total: "0.00",
+  // Filter out any line items that are 0 DT or empty
+  const filteredInvoiceRows = invoiceRows.filter((r) => {
+    const val = parseFloat(r.total.replace("-", ""));
+    return !isNaN(val) && val > 0;
   });
 
   const rowHeight = 6.2;
   doc.setFontSize(8);
 
-  invoiceRows.forEach((row, index) => {
+  filteredInvoiceRows.forEach((row, index) => {
     // Alternating rows in white and very light grey
     if (index % 2 === 1) {
       doc.setFillColor(247, 247, 247);

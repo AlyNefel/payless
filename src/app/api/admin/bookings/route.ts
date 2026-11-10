@@ -139,3 +139,47 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  const session = await checkAdmin();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    await connectDB();
+    const { searchParams } = new URL(request.url);
+    let id = searchParams.get("id");
+
+    if (!id) {
+      const body = await request.json().catch(() => ({}));
+      id = body.id;
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "Booking ID is required" }, { status: 400 });
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    // If vehicle was assigned and booking was active/confirmed, restore vehicle availability
+    if (booking.vehicleId && ["confirmed", "active", "pending"].includes(booking.bookingStatus)) {
+      await Vehicle.findByIdAndUpdate(booking.vehicleId, {
+        $inc: { availableUnits: 1 },
+      }).catch(() => {});
+    }
+
+    await Booking.findByIdAndDelete(id);
+
+    return NextResponse.json({
+      success: true,
+      message: `Réservation ${booking.bookingReference || id} supprimée définitivement avec succès.`,
+    });
+  } catch (error) {
+    console.error("DELETE /api/admin/bookings error:", error);
+    return NextResponse.json({ error: "Failed to delete booking" }, { status: 500 });
+  }
+}

@@ -21,6 +21,7 @@ import {
 } from "@/lib/utils";
 import { sendEmail, buildBookingConfirmationEmail } from "@/lib/email";
 import { generateBookingPDF } from "@/lib/pdf";
+import { sendBookingWhatsAppNotification } from "@/lib/whatsapp";
 import { matchZone } from "@/lib/locationFees";
 import { getLocationFeeConfig } from "@/lib/locationFeesServer";
 import { sanitizeBookingForClient } from "@/lib/sanitize";
@@ -738,6 +739,20 @@ export async function POST(request: NextRequest) {
     );
     const cleanCustPhone = customer.phone.replace(/[^0-9]/g, "");
     const whatsappUrl = `https://wa.me/${cleanCustPhone}?text=${waText}`;
+
+    // Auto-dispatch WhatsApp confirmation if gateway is connected
+    sendBookingWhatsAppNotification({
+      ...booking.toObject ? booking.toObject() : booking,
+      customerName: `${customer.firstName} ${customer.lastName}`,
+      customerPhone: customer.phone,
+      vehicleName: `${vehicle.brand} ${vehicle.model}`,
+      pickupDate,
+      returnDate,
+      pickupLocation: pickupLocName,
+      totalAmount,
+    }).catch((waErr) => {
+      console.warn("Background WhatsApp dispatch non-blocking notice:", waErr);
+    });
 
     // Return the created booking with sanitized fields
     const populatedBooking = await Booking.findById(booking._id)

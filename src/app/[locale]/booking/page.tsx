@@ -1266,157 +1266,191 @@ function BookingContent() {
                   </div>
                 </div>
 
-                {/* 3. Itemized Cost Breakdown (14 Points) */}
-                <div className="p-5 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-border dark:border-neutral-700 space-y-3">
+                {/* 3. Itemized Cost Breakdown (Table View - Strict > 0 DT only) */}
+                <div className="p-5 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-border dark:border-neutral-700 space-y-4">
                   <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <Tag className="w-4 h-4 text-blue-600" />
-                      <span>3. Détail Complet des Coûts & Taxes (TTC)</span>
+                      <span>3. Détail Complet des Coûts & Taxes Facturés (TTC)</span>
                     </span>
-                    <span className="text-[11px] font-normal text-emerald-600 dark:text-emerald-400 font-semibold">100% Transparent sans frais cachés</span>
+                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      Vue simple & lisible • Aucun frais caché
+                    </span>
                   </div>
 
-                  <div className="space-y-2.5 text-xs sm:text-sm pt-2">
-                    {/* Prix journalier & sous-total */}
-                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
-                      <div>
-                        <span className="font-medium text-foreground">Prix total location ({rentalDays} jours × {fmt(selectedVehicle?.pricing?.daily)} {currencySymbol})</span>
-                        <div className="text-[11px] text-muted-foreground">Tarif de base journalier garanti</div>
-                      </div>
-                      <span className="font-bold font-mono text-foreground">{fmt(subtotal)} {currencySymbol}</span>
-                    </div>
-
-                    {/* Assurance */}
-                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
-                      <div>
-                        <span className="font-medium text-foreground">Assurance Tous Risques & CDW de base</span>
-                        <div className="text-[11px] text-muted-foreground">Responsabilité civile, vol, bris de glace et assistance 24/7</div>
-                      </div>
-                      <span className="font-bold font-mono text-emerald-600 dark:text-emerald-400">Offerte (0 TND)</span>
-                    </div>
-
-                    {/* Options supplémentaires */}
-                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
-                      <div>
-                        <span className="font-medium text-foreground">Options & équipements additionnels</span>
-                        {data.extras.length === 0 ? (
-                          <div className="text-[11px] text-muted-foreground">Aucune option payante sélectionnée</div>
-                        ) : (
-                          <div className="text-[11px] text-muted-foreground">
-                            {data.extras.map((ex) => {
-                              const item = availableExtras.find((e) => e._id === ex.id);
-                              return `${getLocalizedName(item?.name, locale)} (x${ex.quantity})`;
-                            }).join(", ")}
-                          </div>
+                  {/* Clean Structured Financial Table */}
+                  <div className="overflow-x-auto rounded-xl border border-border dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xs">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="bg-neutral-100 dark:bg-neutral-800 text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border dark:border-neutral-700">
+                          <th className="py-2.5 px-3.5 sm:px-4">Désignation</th>
+                          <th className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center">Détail</th>
+                          <th className="py-2.5 px-3.5 sm:px-4 text-right">Montant ({currencySymbol})</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60 dark:divide-neutral-800 text-foreground">
+                        {/* Base Rental Subtotal */}
+                        {subtotal > 0 && (
+                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
+                            <td className="py-2.5 px-3.5 sm:px-4">
+                              <span className="font-semibold">Location {selectedVehicle?.brand} {selectedVehicle?.model}</span>
+                              <div className="text-[11px] text-muted-foreground">Tarif de base journalier garanti</div>
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
+                              {rentalDays} j × {fmt(selectedVehicle?.pricing?.daily)} {currencySymbol}
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
+                              {fmt(subtotal)} {currencySymbol}
+                            </td>
+                          </tr>
                         )}
-                      </div>
-                      <span className="font-bold font-mono text-foreground">
-                        {extrasTotal > 0 ? `+${fmt(extrasTotal)} ${currencySymbol}` : `0 ${currencySymbol}`}
-                      </span>
-                    </div>
 
-                    {/* Frais de livraison */}
-                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
-                      <div>
-                        <span className="font-medium text-foreground">Frais de livraison ({selectedPickupLocName})</span>
-                        <div className="text-[11px] text-muted-foreground">Mise à disposition VIP sur le lieu de départ</div>
-                      </div>
-                      <span className="font-bold font-mono text-foreground">
-                        {deliveryFee > 0 ? `+${fmt(deliveryFee)} ${currencySymbol}` : "Gratuit (0 TND)"}
-                      </span>
-                    </div>
+                        {/* Paid Extras only */}
+                        {extrasTotal > 0 && (
+                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
+                            <td className="py-2.5 px-3.5 sm:px-4">
+                              <span className="font-semibold">Options & équipements additionnels</span>
+                              <div className="text-[11px] text-muted-foreground truncate max-w-[240px]">
+                                {data.extras.map((ex) => {
+                                  const item = availableExtras.find((e) => e._id === ex.id);
+                                  return `${getLocalizedName(item?.name, locale)} (x${ex.quantity})`;
+                                }).join(", ")}
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
+                              {data.extras.length} option(s)
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
+                              +{fmt(extrasTotal)} {currencySymbol}
+                            </td>
+                          </tr>
+                        )}
 
-                    {/* Frais de ramassage */}
-                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
-                      <div>
-                        <span className="font-medium text-foreground">Frais de ramassage / restitution ({selectedReturnLocName})</span>
-                        <div className="text-[11px] text-muted-foreground">Prise en charge de retour et rapatriement</div>
-                      </div>
-                      <span className="font-bold font-mono text-foreground">
-                        {ramassageFee > 0 ? `+${fmt(ramassageFee)} ${currencySymbol}` : "Gratuit (0 TND)"}
-                      </span>
-                    </div>
+                        {/* Delivery fee only if > 0 */}
+                        {deliveryFee > 0 && (
+                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
+                            <td className="py-2.5 px-3.5 sm:px-4">
+                              <span className="font-semibold">Frais de livraison ({selectedPickupLocName})</span>
+                              <div className="text-[11px] text-muted-foreground">Mise à disposition VIP</div>
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
+                              1 service
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
+                              +{fmt(deliveryFee)} {currencySymbol}
+                            </td>
+                          </tr>
+                        )}
 
-                    {/* Aller-simple agence différente */}
-                    {isDifferentLocation && differentLocationFee > 0 && (
-                      <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
-                        <div>
-                          <span className="font-medium text-foreground">Frais de retour agence différente (Aller-simple)</span>
-                          <div className="text-[11px] text-muted-foreground">Inter-agences La Soukra / Aéroports</div>
-                        </div>
-                        <span className="font-bold font-mono text-foreground">+{fmt(differentLocationFee)} {currencySymbol}</span>
-                      </div>
-                    )}
+                        {/* Ramassage fee only if > 0 */}
+                        {ramassageFee > 0 && (
+                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
+                            <td className="py-2.5 px-3.5 sm:px-4">
+                              <span className="font-semibold">Frais de restitution ({selectedReturnLocName})</span>
+                              <div className="text-[11px] text-muted-foreground">Rapatriement véhicule</div>
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
+                              1 service
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
+                              +{fmt(ramassageFee)} {currencySymbol}
+                            </td>
+                          </tr>
+                        )}
 
-                    {/* TVA */}
-                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
-                      <div>
-                        <span className="font-medium text-foreground">TVA (Régime spécial location touristique)</span>
-                        <div className="text-[11px] text-muted-foreground">TVA 0% incluse dans le tarif TTC</div>
-                      </div>
-                      <span className="font-mono text-muted-foreground">Incluse (0 TND)</span>
-                    </div>
+                        {/* Inter-agency fee only if > 0 */}
+                        {isDifferentLocation && differentLocationFee > 0 && (
+                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
+                            <td className="py-2.5 px-3.5 sm:px-4">
+                              <span className="font-semibold">Frais retour agence différente (Aller-simple)</span>
+                              <div className="text-[11px] text-muted-foreground">Inter-agences</div>
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
+                              1 trajet
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
+                              +{fmt(differentLocationFee)} {currencySymbol}
+                            </td>
+                          </tr>
+                        )}
 
-                    {/* Contribution LF 2026 */}
-                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
-                      <div>
-                        <span className="font-medium text-foreground">Contribution fiscale LF 2026</span>
-                        <div className="text-[11px] text-muted-foreground">Taxe légale de 2 DT / jour × {rentalDays} jour(s)</div>
-                      </div>
-                      <span className="font-bold font-mono text-foreground">+{fmt(contributionLF2026)} {currencySymbol}</span>
-                    </div>
+                        {/* Contribution LF 2026 only if > 0 */}
+                        {contributionLF2026 > 0 && (
+                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
+                            <td className="py-2.5 px-3.5 sm:px-4">
+                              <span className="font-semibold">Contribution fiscale LF 2026</span>
+                              <div className="text-[11px] text-muted-foreground">Taxe légale de 2 DT / jour × {rentalDays} j</div>
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
+                              {rentalDays} j × 2 TND
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
+                              +{fmt(contributionLF2026)} {currencySymbol}
+                            </td>
+                          </tr>
+                        )}
 
-                    {/* Timbre fiscal */}
-                    <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50">
-                      <div>
-                        <span className="font-medium text-foreground">Timbre fiscal de quittance</span>
-                        <div className="text-[11px] text-muted-foreground">Droit de timbre légal obligatoire (1 DT)</div>
-                      </div>
-                      <span className="font-bold font-mono text-foreground">+{fmt(timbreFiscal)} {currencySymbol}</span>
-                    </div>
+                        {/* Timbre fiscal only if > 0 */}
+                        {timbreFiscal > 0 && (
+                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
+                            <td className="py-2.5 px-3.5 sm:px-4">
+                              <span className="font-semibold">Timbre fiscal de quittance</span>
+                              <div className="text-[11px] text-muted-foreground">Droit de timbre légal obligatoire</div>
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
+                              1 contrat
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
+                              +{fmt(timbreFiscal)} {currencySymbol}
+                            </td>
+                          </tr>
+                        )}
 
-                    {/* Réduction code promo */}
-                    {discountAmount > 0 && (
-                      <div className="flex justify-between py-1 border-b border-border/50 dark:border-neutral-700/50 text-emerald-600 dark:text-emerald-400">
-                        <div>
-                          <span className="font-medium">Réduction Code Promo ({data.couponCode})</span>
-                          <div className="text-[11px]">Remise commerciale immédiate</div>
-                        </div>
-                        <span className="font-bold font-mono">-{fmt(discountAmount)} {currencySymbol}</span>
-                      </div>
-                    )}
-
-                    {/* Total TTC final */}
-                    <div className="pt-3 flex justify-between items-center bg-blue-50 dark:bg-blue-950/40 p-4 rounded-xl border border-blue-200 dark:border-blue-900">
-                      <div>
-                        <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                          Montant Total TTC à Régler
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Paiement sur place à la remise des clés (Espèces ou Carte)
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl sm:text-3xl font-black text-blue-700 dark:text-blue-300 font-mono">
-                          {fmt(totalAmount)} {currencySymbol}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          ≈ {Math.round(totalAmount / 335)} EUR
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Caution de garantie */}
-                    {depositAmount > 0 && (
-                      <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800/50 flex items-start justify-between text-xs text-amber-900 dark:text-amber-200">
-                        <div className="flex items-center gap-1.5">
-                          <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-                          <span>Caution de garantie (Empreinte CB restituée au retour) :</span>
-                        </div>
-                        <span className="font-bold font-mono">{fmt(depositAmount)} {currencySymbol}</span>
-                      </div>
-                    )}
+                        {/* Promo discount only if > 0 */}
+                        {discountAmount > 0 && (
+                          <tr className="bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300">
+                            <td className="py-2.5 px-3.5 sm:px-4">
+                              <span className="font-semibold">Remise Code Promo ({data.couponCode})</span>
+                              <div className="text-[11px]">Déduction commerciale appliquée</div>
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono">
+                              Remise
+                            </td>
+                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
+                              -{fmt(discountAmount)} {currencySymbol}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-slate-900 dark:border-neutral-600 bg-neutral-100/80 dark:bg-neutral-800/90 text-foreground font-bold">
+                          <td className="py-3 px-3.5 sm:px-4 text-sm sm:text-base">
+                            TOTAL RÈGLEMENT T.T.C
+                            <div className="text-[11px] font-normal text-muted-foreground hidden sm:block">
+                              Paiement à la remise des clés • Assurance Tous Risques & Assistance 24/7 incluses
+                            </div>
+                          </td>
+                          <td className="py-3 px-3.5 sm:px-4 hidden sm:table-cell text-center text-xs font-mono text-muted-foreground">
+                            ≈ {Math.round(totalAmount / 335)} EUR
+                          </td>
+                          <td className="py-3 px-3.5 sm:px-4 text-right text-base sm:text-xl font-black font-mono text-blue-700 dark:text-blue-400">
+                            {fmt(totalAmount)} {currencySymbol}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
+
+                  {/* Caution de garantie (only if > 0) */}
+                  {depositAmount > 0 && (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800/50 flex items-center justify-between text-xs text-amber-900 dark:text-amber-200">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>Caution de garantie (Empreinte CB bloquée & restituée au retour sans débit) :</span>
+                      </div>
+                      <span className="font-bold font-mono text-sm">{fmt(depositAmount)} {currencySymbol}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* 4. Driver Details & Special Notes Recap */}

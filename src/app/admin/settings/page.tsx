@@ -22,6 +22,12 @@ import {
   Truck,
   Plus,
   Trash2,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Send,
+  Smartphone,
+  Key,
 } from "lucide-react";
 
 const SETTINGS_TABS = [
@@ -29,8 +35,9 @@ const SETTINGS_TABS = [
   { id: "financial", label: "Financier & Fiscalité", icon: CreditCard },
   { id: "zones", label: "Livraison & Ramassage", icon: Truck },
   { id: "smtp", label: "Serveur SMTP & Envoi Email", icon: Mail },
+  { id: "whatsapp", label: "Connexion WhatsApp", icon: MessageSquare },
   { id: "templates", label: "Modèles Email & PDF", icon: FileText },
-  { id: "notifications", label: "WhatsApp & Notifications", icon: MessageSquare },
+  { id: "notifications", label: "Alertes Système", icon: Bell },
   { id: "hours", label: "Horaires", icon: Clock },
   { id: "security", label: "Sécurité", icon: Shield },
 ];
@@ -85,13 +92,21 @@ export default function SettingsPage() {
   const [zonesSaved, setZonesSaved] = useState(false);
   const [differentLocFee, setDifferentLocFee] = useState("50");
 
-  // WhatsApp Business configuration
+  // WhatsApp Gateway & Business configuration
   const [whatsAppSettings, setWhatsAppSettings] = useState({
+    provider: "ultramsg" as "ultramsg" | "greenapi" | "meta" | "custom_webhook" | "direct_link",
     autoSendEnabled: true,
-    senderPhone: "80808080",
+    apiUrl: "https://api.ultramsg.com/instance99999/messages/chat",
+    instanceId: "instance99999",
+    token: "",
+    senderPhone: "+216 25 120 130",
     messageTemplate:
-      "Bonjour {client},\n\n✅ Votre réservation chez Payless Car Rental Tunisie est CONFIRMÉE !\n\n📋 Référence : {ref}\n🚗 Véhicule : {vehicle}\n📅 Prise : {dates}\n💰 Total TTC : {total} TND\n\n📄 Téléchargez votre Bon de Réservation (PDF) :\n{pdfUrl}\n\nAssistance VIP 24/7 : +216 80 80 80 80.",
+      "Bonjour {client},\n\n✅ Votre réservation chez Payless Car Rental Tunisie est CONFIRMÉE !\n\n📋 Référence : {ref}\n🚗 Véhicule : {vehicle}\n📅 Période : {dates}\n📍 Prise en charge : {pickup}\n💰 Total TTC à régler : {total} TND\n\n📄 Téléchargez votre Bon de Réservation & Facture (PDF) :\n{pdfUrl}\n\nAssistance VIP 24/7 : +216 25 120 130.\nMerci pour votre confiance !",
   });
+  const [testingWhatsApp, setTestingWhatsApp] = useState(false);
+  const [whatsAppTestResult, setWhatsAppTestResult] = useState<{ success: boolean; message: string; url?: string } | null>(null);
+  const [whatsAppTestRecipient, setWhatsAppTestRecipient] = useState("+216 25 120 130");
+  const [showWhatsAppToken, setShowWhatsAppToken] = useState(false);
 
   // Email & PDF templates
   const [emailTemplate, setEmailTemplate] = useState({
@@ -203,6 +218,8 @@ export default function SettingsPage() {
           }
           if (s.whatsAppSettings && typeof s.whatsAppSettings === "object") {
             setWhatsAppSettings((prev) => ({ ...prev, ...(s.whatsAppSettings as any) }));
+          } else if (s.whatsapp_config && typeof s.whatsapp_config === "object") {
+            setWhatsAppSettings((prev) => ({ ...prev, ...(s.whatsapp_config as any) }));
           }
           if (s.emailTemplate && typeof s.emailTemplate === "object") {
             setEmailTemplate((prev) => ({ ...prev, ...(s.emailTemplate as any) }));
@@ -282,6 +299,7 @@ export default function SettingsPage() {
         openingHours,
         notifications,
         whatsAppSettings,
+        whatsapp_config: whatsAppSettings,
         emailTemplate,
         pdfTemplate,
         smtp_config: smtpSettings,
@@ -345,6 +363,42 @@ export default function SettingsPage() {
       });
     } finally {
       setTestingSmtp(false);
+    }
+  };
+
+  const handleTestWhatsApp = async () => {
+    setTestingWhatsApp(true);
+    setWhatsAppTestResult(null);
+    try {
+      const res = await fetch("/api/admin/settings/test-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientPhone: whatsAppTestRecipient,
+          config: whatsAppSettings,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setWhatsAppTestResult({
+          success: true,
+          message: json.message || "Message WhatsApp envoyé avec succès !",
+          url: json.url,
+        });
+      } else {
+        setWhatsAppTestResult({
+          success: false,
+          message: json.error || "Échec de l'envoi du message WhatsApp via la passerelle.",
+          url: json.url,
+        });
+      }
+    } catch {
+      setWhatsAppTestResult({
+        success: false,
+        message: "Erreur de connexion réseau lors du test WhatsApp.",
+      });
+    } finally {
+      setTestingWhatsApp(false);
     }
   };
 
@@ -977,6 +1031,278 @@ export default function SettingsPage() {
               </div>
             )}
 
+            {/* WhatsApp Connection & Gateway */}
+            {activeTab === "whatsapp" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-emerald-600" />
+                    <span>Connexion WhatsApp & Passerelle d'Envoi</span>
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Connectez votre compte ou passerelle WhatsApp (UltraMsg, GreenAPI, Meta Cloud API ou lien direct) pour envoyer automatiquement les confirmations et les bons PDF officiels sur le numéro WhatsApp du client.
+                  </p>
+                </div>
+
+                {/* Connection Status Indicator */}
+                <div className="p-4 rounded-2xl border bg-slate-50 dark:bg-[#0f141f] border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3.5 h-3.5 rounded-full ${whatsAppSettings.token && whatsAppSettings.apiUrl ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+                    <div>
+                      <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>Statut Passerelle :</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${whatsAppSettings.token && whatsAppSettings.apiUrl ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"}`}>
+                          {whatsAppSettings.token && whatsAppSettings.apiUrl ? "🟢 Passerelle API Connectée" : "🟡 Mode Web Direct (wa.me)"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {whatsAppSettings.token && whatsAppSettings.apiUrl
+                          ? `Envois automatisés en tâche de fond actifs via ${whatsAppSettings.provider.toUpperCase()}`
+                          : "Les messages sont préparés sous forme de lien direct cliquable wa.me avec pré-remplissage complet."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <label className="flex items-center gap-2 cursor-pointer bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={whatsAppSettings.autoSendEnabled}
+                      onChange={(e) =>
+                        setWhatsAppSettings((prev) => ({ ...prev, autoSendEnabled: e.target.checked }))
+                      }
+                      className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      Envoi automatique client : {whatsAppSettings.autoSendEnabled ? "Activé" : "Désactivé"}
+                    </span>
+                  </label>
+                </div>
+
+                {/* Gateway Credentials Form */}
+                <div className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+                  <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                    <Smartphone className="w-4 h-4 text-emerald-600" />
+                    <span>Paramètres de la Passerelle WhatsApp</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Provider Selection */}
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">
+                        Type de Passerelle / Fournisseur
+                      </label>
+                      <select
+                        value={whatsAppSettings.provider}
+                        onChange={(e) => {
+                          const prov = e.target.value as any;
+                          let defaultUrl = whatsAppSettings.apiUrl;
+                          if (prov === "ultramsg" && (!defaultUrl || defaultUrl.includes("greenapi") || defaultUrl.includes("facebook"))) {
+                            defaultUrl = "https://api.ultramsg.com/instance99999/messages/chat";
+                          } else if (prov === "greenapi") {
+                            defaultUrl = "https://api.green-api.com/waInstance99999/sendMessage/TOKEN";
+                          } else if (prov === "meta") {
+                            defaultUrl = "https://graph.facebook.com/v18.0/PHONE_NUMBER_ID/messages";
+                          }
+                          setWhatsAppSettings((prev) => ({
+                            ...prev,
+                            provider: prov,
+                            apiUrl: defaultUrl,
+                          }));
+                        }}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <option value="ultramsg">UltraMsg Gateway (Recommandé • Simple avec QR Code)</option>
+                        <option value="greenapi">GreenAPI WhatsApp Business</option>
+                        <option value="meta">Meta WhatsApp Cloud API (Graph API)</option>
+                        <option value="custom_webhook">Passerelle Webhook HTTP Personnalisée</option>
+                        <option value="direct_link">Mode Manuel (Lien direct WhatsApp Web wa.me)</option>
+                      </select>
+                    </div>
+
+                    {/* Sender Phone */}
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">
+                        Numéro WhatsApp Agence Expéditeur
+                      </label>
+                      <input
+                        type="text"
+                        value={whatsAppSettings.senderPhone}
+                        onChange={(e) =>
+                          setWhatsAppSettings((prev) => ({ ...prev, senderPhone: e.target.value }))
+                        }
+                        placeholder="+216 25 120 130"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    {/* Gateway API Endpoint URL */}
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">
+                        URL de l'API Passerelle (Endpoint)
+                      </label>
+                      <input
+                        type="url"
+                        value={whatsAppSettings.apiUrl || ""}
+                        onChange={(e) =>
+                          setWhatsAppSettings((prev) => ({ ...prev, apiUrl: e.target.value }))
+                        }
+                        placeholder="https://api.ultramsg.com/instanceXXXXX/messages/chat"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    {/* Instance ID */}
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">
+                        ID d'Instance / Nom de Session
+                      </label>
+                      <input
+                        type="text"
+                        value={whatsAppSettings.instanceId || ""}
+                        onChange={(e) =>
+                          setWhatsAppSettings((prev) => ({ ...prev, instanceId: e.target.value }))
+                        }
+                        placeholder="Ex: instance12345"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+
+                    {/* Token / Secret */}
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">
+                        Clé d'API Secrète / Token d'Accès
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showWhatsAppToken ? "text" : "password"}
+                          value={whatsAppSettings.token || ""}
+                          onChange={(e) =>
+                            setWhatsAppSettings((prev) => ({ ...prev, token: e.target.value }))
+                          }
+                          placeholder="Entrez votre token d'API..."
+                          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500 pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowWhatsAppToken(!showWhatsAppToken)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showWhatsAppToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message Template Editor */}
+                <div className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-900 dark:text-white">
+                      Modèle de Message WhatsApp Client
+                    </label>
+                    <span className="text-[11px] text-slate-500">Variables dynamiques prises en charge</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 py-1">
+                    {[
+                      { tag: "{client}", label: "Nom Client" },
+                      { tag: "{ref}", label: "Référence" },
+                      { tag: "{vehicle}", label: "Véhicule" },
+                      { tag: "{dates}", label: "Dates" },
+                      { tag: "{pickup}", label: "Prise en charge" },
+                      { tag: "{total}", label: "Total TTC" },
+                      { tag: "{pdfUrl}", label: "Lien Facture PDF" },
+                    ].map((pill) => (
+                      <button
+                        key={pill.tag}
+                        type="button"
+                        onClick={() => {
+                          setWhatsAppSettings((prev) => ({
+                            ...prev,
+                            messageTemplate: (prev.messageTemplate || "") + " " + pill.tag,
+                          }));
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-mono font-bold"
+                      >
+                        + {pill.tag}
+                      </button>
+                    ))}
+                  </div>
+
+                  <textarea
+                    rows={6}
+                    value={whatsAppSettings.messageTemplate}
+                    onChange={(e) =>
+                      setWhatsAppSettings((prev) => ({ ...prev, messageTemplate: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Live Diagnostic & Test Section */}
+                <div className="p-5 bg-slate-50 dark:bg-[#0f141f]/70 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                      Tester la Connexion WhatsApp & Envoyer un Message d'Essai
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Vérifiez que vos identifiants permettent bien d'envoyer un message sur WhatsApp. Un message de confirmation officiel sera expédié immédiatement vers le numéro renseigné ci-dessous.
+                  </p>
+
+                  {whatsAppTestResult && (
+                    <div
+                      className={`p-4 rounded-xl border text-xs font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                        whatsAppTestResult.success
+                          ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200"
+                          : "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-red-900 dark:text-red-200"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {whatsAppTestResult.success ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                        )}
+                        <span>{whatsAppTestResult.message}</span>
+                      </div>
+                      {whatsAppTestResult.url && (
+                        <a
+                          href={whatsAppTestResult.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white rounded-lg text-[11px] font-bold shrink-0 hover:bg-emerald-700"
+                        >
+                          <span>Ouvrir sur WhatsApp Web</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <input
+                      type="text"
+                      value={whatsAppTestRecipient}
+                      onChange={(e) => setWhatsAppTestRecipient(e.target.value)}
+                      placeholder="Numéro destinataire (ex: +216 25 120 130)"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleTestWhatsApp}
+                      disabled={testingWhatsApp}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {testingWhatsApp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      <span>{testingWhatsApp ? "Envoi en cours..." : "Tester la connexion WhatsApp"}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Email & PDF Templates */}
             {activeTab === "templates" && (
               <div className="space-y-6">
@@ -1159,66 +1485,13 @@ export default function SettingsPage() {
             {activeTab === "notifications" && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="font-bold text-lg text-slate-900 dark:text-white">Alertes & Notifications Agence</h2>
-                  <p className="text-xs text-slate-500">Gérez les alertes internes et les notifications clients automatiques WhatsApp & Email.</p>
-                </div>
-
-                {/* WhatsApp Business Automated Dispatch */}
-                <div className="p-5 bg-emerald-50/60 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
-                      <MessageSquare className="w-5 h-5 text-emerald-600" />
-                      <span>Notifications Automatiques WhatsApp Business (Client)</span>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={whatsAppSettings.autoSendEnabled}
-                        onChange={(e) =>
-                          setWhatsAppSettings((prev) => ({ ...prev, autoSendEnabled: e.target.checked }))
-                        }
-                        className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
-                      />
-                      <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                        {whatsAppSettings.autoSendEnabled ? "Activé" : "Désactivé"}
-                      </span>
-                    </label>
-                  </div>
-
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Lorsqu'un client confirme sa réservation, le système génère instantanément le bon PDF officiel et prépare l'envoi immédiat du lien de téléchargement et des détails contractuels sur son numéro WhatsApp.
+                  <h2 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-blue-600" />
+                    <span>Alertes Système & Notifications Internes</span>
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Configurez les déclencheurs automatiques des alertes envoyées par email et dans le centre de notifications aux administrateurs.
                   </p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold mb-1 text-slate-500">
-                        Numéro WhatsApp Business expéditeur
-                      </label>
-                      <input
-                        type="text"
-                        value={whatsAppSettings.senderPhone}
-                        onChange={(e) =>
-                          setWhatsAppSettings((prev) => ({ ...prev, senderPhone: e.target.value }))
-                        }
-                        placeholder="+216 80 80 80 80"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold mb-1 text-slate-500">
-                      Modèle de message WhatsApp (Variables: {"{client}"}, {"{ref}"}, {"{vehicle}"}, {"{dates}"}, {"{total}"}, {"{pdfUrl}"})
-                    </label>
-                    <textarea
-                      rows={5}
-                      value={whatsAppSettings.messageTemplate}
-                      onChange={(e) =>
-                        setWhatsAppSettings((prev) => ({ ...prev, messageTemplate: e.target.value }))
-                      }
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
                 </div>
 
                 <div className="space-y-3">

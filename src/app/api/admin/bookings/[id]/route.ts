@@ -288,17 +288,27 @@ export async function DELETE(
   const session = await checkAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const sessionUser = session.user as { role?: string };
-  if (sessionUser?.role !== "superadmin") {
-    return NextResponse.json({ error: "Superadmin required" }, { status: 403 });
-  }
-
   const { id } = await params;
   try {
     await connectDB();
-    await Booking.findByIdAndUpdate(id, { bookingStatus: "cancelled" });
-    return NextResponse.json({ message: "Booking cancelled" });
-  } catch {
-    return NextResponse.json({ error: "Failed to cancel booking" }, { status: 500 });
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    if (booking.vehicleId && ["confirmed", "active", "pending"].includes(booking.bookingStatus)) {
+      await Vehicle.findByIdAndUpdate(booking.vehicleId, {
+        $inc: { availableUnits: 1 },
+      }).catch(() => {});
+    }
+
+    await Booking.findByIdAndDelete(id);
+    return NextResponse.json({
+      success: true,
+      message: `Réservation ${booking.bookingReference || id} supprimée définitivement avec succès.`,
+    });
+  } catch (error) {
+    console.error("DELETE /api/admin/bookings/[id] error:", error);
+    return NextResponse.json({ error: "Failed to delete booking" }, { status: 500 });
   }
 }

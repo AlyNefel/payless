@@ -26,6 +26,7 @@ import {
   Loader2,
   ChevronRight,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 
 interface PopulatedBooking {
@@ -228,6 +229,37 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!booking) return;
+    const ref = booking.bookingReference || id;
+    if (
+      !confirm(
+        `Êtes-vous sûr de vouloir supprimer définitivement la réservation ${ref} ?\n\nCette action supprimera toutes les données de la base de données et libérera immédiatement le véhicule assigné.`
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/bookings/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`Réservation ${ref} supprimée avec succès.`);
+        router.push("/admin/bookings");
+      } else {
+        alert(data.error || "Erreur lors de la suppression.");
+      }
+    } catch {
+      alert("Erreur de connexion avec le serveur.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const fmt = (n?: number) => {
     if (n === undefined || isNaN(n)) return "0";
     const val = n >= 1000 ? Math.round(n / 100) : Math.round(n);
@@ -335,6 +367,17 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             <span>{saving ? "Sauvegarde..." : "Enregistrer"}</span>
+          </button>
+
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            type="button"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 text-xs font-bold transition-all disabled:opacity-50"
+            title="Supprimer définitivement cette réservation"
+          >
+            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            <span className="hidden sm:inline">Supprimer</span>
           </button>
         </div>
       </div>
