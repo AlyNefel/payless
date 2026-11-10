@@ -165,15 +165,17 @@ function BookingContent() {
 
   const [accountOption, setAccountOption] = useState<"guest" | "existing" | "create">("guest");
   const [accountPassword, setAccountPassword] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const { settings } = useCompanySettings();
 
   // Currency string
   const currencySymbol = locale === "ar" ? "د.ت" : "TND";
 
-  // Helper to format minor or major units consistently in TND
+  // Helper to format amounts: all values are stored in minor units (×100 = millimes)
   const fmt = (n: number | undefined) => {
     if (n === undefined || isNaN(n)) return "0";
-    const val = n >= 1000 ? Math.round(n / 100) : Math.round(n);
+    const val = Math.round(n / 100);
     return val.toLocaleString(locale === "ar" ? "ar-TN" : "fr-FR");
   };
 
@@ -416,6 +418,10 @@ function BookingContent() {
       setStep(4);
       return;
     }
+    if (!termsAccepted) {
+      setError("Veuillez lire et accepter les Conditions Générales de Location avant de confirmer votre réservation.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -451,6 +457,8 @@ function BookingContent() {
         customerLanguage: locale || "fr",
         accountOption,
         accountPassword: accountOption !== "guest" ? accountPassword.trim() : undefined,
+        paymentMethod: paymentMethod || "cash",
+        termsAccepted: true,
       };
 
       const res = await fetch("/api/bookings", {
@@ -1338,14 +1346,9 @@ function BookingContent() {
 
                 {/* 3. Itemized Cost Breakdown (Table View - Strict > 0 DT only) */}
                 <div className="p-5 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-border dark:border-neutral-700 space-y-4">
-                  <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Tag className="w-4 h-4 text-blue-600" />
-                      <span>3. Détail Complet des Coûts & Taxes Facturés (TTC)</span>
-                    </span>
-                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                      Vue simple & lisible • Aucun frais caché
-                    </span>
+                  <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Tag className="w-4 h-4 text-blue-600" />
+                    <span>3. Détail Complet des Coûts &amp; Taxes Facturés (TTC)</span>
                   </div>
 
                   {/* Clean Structured Financial Table */}
@@ -1364,7 +1367,6 @@ function BookingContent() {
                           <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
                             <td className="py-2.5 px-3.5 sm:px-4">
                               <span className="font-semibold">Location {selectedVehicle?.brand} {selectedVehicle?.model}</span>
-                              <div className="text-[11px] text-muted-foreground">Tarif de base journalier garanti</div>
                             </td>
                             <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
                               {rentalDays} j × {fmt(selectedVehicle?.pricing?.daily)} {currencySymbol}
@@ -1449,7 +1451,6 @@ function BookingContent() {
                           <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
                             <td className="py-2.5 px-3.5 sm:px-4">
                               <span className="font-semibold">Contribution fiscale LF 2026</span>
-                              <div className="text-[11px] text-muted-foreground">Taxe légale de 2 DT / jour × {rentalDays} j</div>
                             </td>
                             <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
                               {rentalDays} j × 2 TND
@@ -1465,7 +1466,6 @@ function BookingContent() {
                           <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
                             <td className="py-2.5 px-3.5 sm:px-4">
                               <span className="font-semibold">Timbre fiscal de quittance</span>
-                              <div className="text-[11px] text-muted-foreground">Droit de timbre légal obligatoire</div>
                             </td>
                             <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
                               1 contrat
@@ -1496,9 +1496,6 @@ function BookingContent() {
                         <tr className="border-t-2 border-slate-900 dark:border-neutral-600 bg-neutral-100/80 dark:bg-neutral-800/90 text-foreground font-bold">
                           <td className="py-3 px-3.5 sm:px-4 text-sm sm:text-base">
                             TOTAL RÈGLEMENT T.T.C
-                            <div className="text-[11px] font-normal text-muted-foreground hidden sm:block">
-                              Paiement à la remise des clés • Assurance Tous Risques & Assistance 24/7 incluses
-                            </div>
                           </td>
                           <td className="py-3 px-3.5 sm:px-4 hidden sm:table-cell text-center text-xs font-mono text-muted-foreground">
                             ≈ {Math.round(totalAmount / 335)} EUR
@@ -1513,15 +1510,140 @@ function BookingContent() {
 
                   {/* Caution de garantie (only if > 0) */}
                   {depositAmount > 0 && (
-                    <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800/50 flex items-center justify-between text-xs text-amber-900 dark:text-amber-200">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span>Caution de garantie (Empreinte CB bloquée & restituée au retour sans débit) :</span>
+                    <div className="p-4 bg-amber-50 dark:bg-amber-950/30 rounded-xl border-2 border-amber-300 dark:border-amber-700/60 flex items-start justify-between gap-3 text-sm text-amber-900 dark:text-amber-200">
+                      <div className="flex items-start gap-3">
+                        <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-bold text-amber-800 dark:text-amber-300">Caution de garantie</div>
+                          <div className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                            Empreinte CB bloquée &amp; restituée intégralement au retour du véhicule — ou par Cash
+                          </div>
+                        </div>
                       </div>
-                      <span className="font-bold font-mono text-sm">{fmt(depositAmount)} {currencySymbol}</span>
+                      <span className="font-black font-mono text-base text-amber-800 dark:text-amber-300 shrink-0">{fmt(depositAmount)} {currencySymbol}</span>
                     </div>
                   )}
                 </div>
+
+                {/* 4. Payment Method Selection */}
+                {(() => {
+                  const pm = settings.paymentMethods || {};
+                  type BankDetails = { enabled?: boolean; label?: string; bankName?: string; rib?: string; iban?: string; bic?: string; accountHolder?: string; instructions?: string };
+                  const methods = [
+                    pm.cash?.enabled !== false ? {
+                      id: "cash",
+                      label: pm.cash?.label || "Cash à la livraison",
+                      description: (pm.cash as { description?: string })?.description || "Réglez en espèces ou en devises lors de la prise en charge du véhicule.",
+                      icon: "💵",
+                      colorClass: "border-green-500 bg-green-50/60 dark:bg-green-950/20",
+                      activeText: "text-green-700 dark:text-green-300",
+                    } : null,
+                    pm.bank_transfer?.enabled !== false ? {
+                      id: "bank_transfer",
+                      label: pm.bank_transfer?.label || "Virement bancaire",
+                      description: "Virement avant prise en charge — coordonnées bancaires affichées à la sélection.",
+                      icon: "🏦",
+                      colorClass: "border-blue-500 bg-blue-50/60 dark:bg-blue-950/20",
+                      activeText: "text-blue-700 dark:text-blue-300",
+                      details: pm.bank_transfer as BankDetails | undefined,
+                    } : null,
+                    pm.credit_card?.enabled !== false ? {
+                      id: "credit_card",
+                      label: pm.credit_card?.label || "Carte bancaire (TPE / En ligne)",
+                      description: (pm.credit_card as { description?: string })?.description || "Paiement sécurisé par Visa, Mastercard ou CIB — TPE à la livraison.",
+                      icon: "💳",
+                      colorClass: "border-violet-500 bg-violet-50/60 dark:bg-violet-950/20",
+                      activeText: "text-violet-700 dark:text-violet-300",
+                    } : null,
+                  ].filter(Boolean) as { id: string; label: string; description: string; icon: string; colorClass: string; activeText: string; details?: BankDetails }[];
+
+                  if (methods.length === 0) return null;
+
+                  return (
+                    <div className="p-5 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-border dark:border-neutral-700 space-y-4">
+                      <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                        <span className="text-base">💳</span>
+                        <span>4. Mode de Paiement</span>
+                        <span className="ml-auto text-[10px] font-normal text-muted-foreground">Choisissez votre mode de règlement</span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3">
+                        {methods.map((m) => {
+                          const isSelected = paymentMethod === m.id;
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => setPaymentMethod(m.id)}
+                              className={`w-full text-left rounded-xl border-2 p-4 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                isSelected
+                                  ? m.colorClass + " shadow-sm"
+                                  : "border-border dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800/60"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl leading-none">{m.icon}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className={`font-semibold text-sm ${isSelected ? m.activeText : ""}`}>{m.label}</div>
+                                  <div className="text-xs text-muted-foreground mt-0.5">{m.description}</div>
+                                </div>
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                                  isSelected ? "border-blue-600 bg-blue-600" : "border-muted-foreground/40"
+                                }`}>
+                                  {isSelected && <Check className="w-3 h-3 text-white" />}
+                                </div>
+                              </div>
+                              {/* Bank transfer details when selected */}
+                              {isSelected && m.id === "bank_transfer" && m.details && (
+                                <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800/50 space-y-1.5 text-xs">
+                                  <div className="font-semibold text-blue-700 dark:text-blue-300 mb-2 flex items-center gap-1">
+                                    <span>📋</span> Coordonnées bancaires
+                                  </div>
+                                  <div className="bg-blue-50/80 dark:bg-blue-950/30 rounded-lg p-3 space-y-2">
+                                    {m.details.bankName && (
+                                      <div className="flex justify-between gap-2">
+                                        <span className="text-muted-foreground shrink-0">Banque :</span>
+                                        <span className="font-semibold text-right">{m.details.bankName}</span>
+                                      </div>
+                                    )}
+                                    {m.details.accountHolder && (
+                                      <div className="flex justify-between gap-2">
+                                        <span className="text-muted-foreground shrink-0">Titulaire :</span>
+                                        <span className="font-semibold text-right">{m.details.accountHolder}</span>
+                                      </div>
+                                    )}
+                                    {m.details.rib && (
+                                      <div className="flex justify-between gap-2">
+                                        <span className="text-muted-foreground shrink-0">RIB :</span>
+                                        <span className="font-mono font-bold tracking-wider text-right">{m.details.rib}</span>
+                                      </div>
+                                    )}
+                                    {m.details.iban && (
+                                      <div className="flex justify-between gap-2">
+                                        <span className="text-muted-foreground shrink-0">IBAN :</span>
+                                        <span className="font-mono font-bold tracking-wider text-right">{m.details.iban}</span>
+                                      </div>
+                                    )}
+                                    {m.details.bic && (
+                                      <div className="flex justify-between gap-2">
+                                        <span className="text-muted-foreground shrink-0">BIC/SWIFT :</span>
+                                        <span className="font-mono font-bold text-right">{m.details.bic}</span>
+                                      </div>
+                                    )}
+                                    {m.details.instructions && (
+                                      <div className="mt-1 p-2.5 bg-blue-100/80 dark:bg-blue-900/40 rounded-lg text-blue-800 dark:text-blue-300 leading-relaxed italic">
+                                        ℹ️ {m.details.instructions}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* 4. Driver Details & Special Notes Recap */}
                 <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-border dark:border-neutral-700 space-y-2 text-xs">
@@ -1736,6 +1858,36 @@ function BookingContent() {
                     </div>
                   )}
                 </div>
+
+                {/* Terms & Conditions */}
+                <label
+                  className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    termsAccepted
+                      ? "border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20"
+                      : "border-border dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:border-muted-foreground/40"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="mt-0.5 w-5 h-5 accent-emerald-600 cursor-pointer shrink-0"
+                  />
+                  <span className="text-sm leading-relaxed text-foreground">
+                    <span className="font-bold text-emerald-700 dark:text-emerald-400">Lu et approuvé —</span>{" "}
+                    J&apos;accepte les{" "}
+                    <a
+                      href={`/${locale}/conditions`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline text-blue-600 dark:text-blue-400 hover:text-blue-800 font-medium"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Conditions Générales de Location
+                    </a>{" "}
+                    de Payless Car Rental Tunisie et confirme que les informations renseignées sont exactes et complètes.
+                  </span>
+                </label>
 
                 {error && (
                   <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-xl text-sm flex items-center gap-2">

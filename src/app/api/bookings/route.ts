@@ -76,6 +76,8 @@ const createBookingSchema = z.object({
   customerLanguage: z.string().optional().default("fr"),
   accountOption: z.string().optional().default("guest"),
   accountPassword: z.string().optional(),
+  paymentMethod: z.string().optional().default("cash"),
+  termsAccepted: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -536,6 +538,7 @@ export async function POST(request: NextRequest) {
       couponCode: appliedCouponCode,
       bookingStatus: "confirmed", // <-- AUTO-CONFIRMED DIRECTEMENT (Suppression validation agence)
       paymentStatus: "unpaid",
+      paymentMethod: body.paymentMethod || "cash",
       customerLanguage,
       internalNotes: "Réservation confirmée automatiquement par le système. Véhicule garanti.",
       customerNotes: customerNotes || "",

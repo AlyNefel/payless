@@ -24,6 +24,20 @@ export interface CompanySettings {
   differentLocationFee: number;
   timbreFiscal: number;
   contributionLF2026: number;
+  paymentMethods?: {
+    cash?: { enabled: boolean; label: string; description: string };
+    bank_transfer?: {
+      enabled: boolean;
+      label: string;
+      bankName: string;
+      rib: string;
+      iban: string;
+      bic: string;
+      accountHolder: string;
+      instructions: string;
+    };
+    credit_card?: { enabled: boolean; label: string; description: string };
+  };
 }
 
 export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
@@ -48,6 +62,28 @@ export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   differentLocationFee: 50,
   timbreFiscal: 1,
   contributionLF2026: 2,
+  paymentMethods: {
+    cash: {
+      enabled: true,
+      label: "Paiement en espèces (Cash à la livraison)",
+      description: "Réglez directement en dinars tunisiens ou devises convertibles lors de la prise en charge du véhicule.",
+    },
+    bank_transfer: {
+      enabled: true,
+      label: "Virement bancaire professionnel",
+      bankName: "BIAT Tunisie (Banque Internationale Arabe de Tunisie)",
+      rib: "08 001 0001234567890 12",
+      iban: "TN59 0800 1000 1234 5678 9012",
+      bic: "BIATTNTT",
+      accountHolder: "HOUIMLI RENT A CAR SARL (Payless Car Rental)",
+      instructions: "Veuillez mentionner votre référence de réservation en objet du virement.",
+    },
+    credit_card: {
+      enabled: true,
+      label: "Carte Bancaire (TPE à la livraison / En ligne)",
+      description: "Paiement sécurisé par carte bancaire nationale ou internationale (Visa, Mastercard, CIB).",
+    },
+  },
 };
 
 function parseSettings(s: Record<string, unknown>): CompanySettings {
@@ -88,6 +124,7 @@ function parseSettings(s: Record<string, unknown>): CompanySettings {
     differentLocationFee: getNum(s.differentLocationFee, s.different_location_fee, DEFAULT_COMPANY_SETTINGS.differentLocationFee),
     timbreFiscal: getNum(s.timbreFiscal, s.timbre_fiscal, DEFAULT_COMPANY_SETTINGS.timbreFiscal),
     contributionLF2026: getNum(s.contributionLF2026, s.contribution_lf2026, DEFAULT_COMPANY_SETTINGS.contributionLF2026),
+    paymentMethods: (s.paymentMethods as CompanySettings["paymentMethods"]) || DEFAULT_COMPANY_SETTINGS.paymentMethods,
   };
 }
 

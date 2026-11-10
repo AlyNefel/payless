@@ -80,6 +80,7 @@ export interface IBooking extends Document {
   promotionId?: mongoose.Types.ObjectId;
   bookingStatus: BookingStatus;
   paymentStatus: PaymentStatus;
+  paymentMethod?: "cash" | "bank_transfer" | "credit_card" | string;
   customerLanguage: "fr" | "en" | "ar";
   internalNotes: string;
   customerNotes?: string;
@@ -167,6 +168,10 @@ const BookingSchema = new Schema<IBooking>(
       type: String,
       enum: ["unpaid", "partial", "paid", "refunded", "failed"],
       default: "unpaid",
+    },
+    paymentMethod: {
+      type: String,
+      default: "cash",
     },
     customerLanguage: {
       type: String,
