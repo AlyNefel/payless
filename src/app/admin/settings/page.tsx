@@ -28,6 +28,10 @@ import {
   Send,
   Smartphone,
   Key,
+  QrCode,
+  RefreshCw,
+  Power,
+  Check,
 } from "lucide-react";
 
 const SETTINGS_TABS = [
@@ -107,6 +111,13 @@ export default function SettingsPage() {
   const [whatsAppTestResult, setWhatsAppTestResult] = useState<{ success: boolean; message: string; url?: string } | null>(null);
   const [whatsAppTestRecipient, setWhatsAppTestRecipient] = useState("+216 25 120 130");
   const [showWhatsAppToken, setShowWhatsAppToken] = useState(false);
+
+  // WhatsApp QR connection state
+  const [waQrCode, setWaQrCode] = useState<string | null>(null);
+  const [waConnectionStatus, setWaConnectionStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");
+  const [waConnectedPhone, setWaConnectedPhone] = useState<string | null>(null);
+  const [loadingQr, setLoadingQr] = useState(false);
+  const [pollingWa, setPollingWa] = useState(false);
 
   // Email & PDF templates
   const [emailTemplate, setEmailTemplate] = useState({
@@ -402,6 +413,83 @@ export default function SettingsPage() {
     }
   };
 
+  // WhatsApp QR Code and connection check
+  const handleFetchQrCode = async () => {
+    if (!whatsAppSettings.instanceId || !whatsAppSettings.token) {
+      alert("Veuillez renseigner votre ID d'Instance et votre Clé API/Token avant de générer le QR Code.");
+      return;
+    }
+    setLoadingQr(true);
+    setWaQrCode(null);
+    try {
+      const params = new URLSearchParams({
+        action: "qr",
+        instanceId: whatsAppSettings.instanceId.trim(),
+        token: whatsAppSettings.token.trim(),
+        provider: whatsAppSettings.provider,
+      });
+      const res = await fetch(`/api/admin/settings/whatsapp-qr?${params}`);
+      const data = await res.json();
+      if (res.ok && data.qrCode) {
+        setWaQrCode(data.qrCode);
+        setWaConnectionStatus("connecting");
+        setPollingWa(true);
+      } else {
+        alert(data.error || "Impossible de récupérer le QR code. Vérifiez vos identifiants UltraMsg/GreenAPI.");
+      }
+    } catch {
+      alert("Erreur réseau lors de la récupération du QR Code.");
+    } finally {
+      setLoadingQr(false);
+    }
+  };
+
+  const handleCheckWaStatus = async () => {
+    if (!whatsAppSettings.instanceId || !whatsAppSettings.token) return;
+    try {
+      const params = new URLSearchParams({
+        action: "status",
+        instanceId: whatsAppSettings.instanceId.trim(),
+        token: whatsAppSettings.token.trim(),
+        provider: whatsAppSettings.provider,
+      });
+      const res = await fetch(`/api/admin/settings/whatsapp-qr?${params}`);
+      const data = await res.json();
+      if (res.ok && data.connected) {
+        setWaConnectionStatus("connected");
+        if (data.phone) setWaConnectedPhone(data.phone);
+        setWaQrCode(null);
+        setPollingWa(false);
+      } else {
+        if (waConnectionStatus !== "connecting") {
+          setWaConnectionStatus("disconnected");
+        }
+      }
+    } catch {
+      // ignore background polling error
+    }
+  };
+
+  // Poll connection status every 4 seconds while waiting for scan
+  useEffect(() => {
+    let interval: any = null;
+    if (pollingWa) {
+      interval = setInterval(() => {
+        handleCheckWaStatus();
+      }, 4000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [pollingWa, whatsAppSettings.instanceId, whatsAppSettings.token, whatsAppSettings.provider]);
+
+  // Initial check when tab is opened
+  useEffect(() => {
+    if (activeTab === "whatsapp" && whatsAppSettings.instanceId && whatsAppSettings.token) {
+      handleCheckWaStatus();
+    }
+  }, [activeTab]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -461,7 +549,7 @@ export default function SettingsPage() {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar */}
           <div className="lg:w-56 flex-shrink-0">
-            <div className="bg-white dark:bg-[#0f141f] rounded-2xl border border-slate-200 dark:border-slate-800 p-2 space-y-1">
+            <div className="sticky top-4 bg-white dark:bg-[#0f141f] rounded-2xl border border-slate-200 dark:border-slate-800 p-2 space-y-1 max-h-[calc(100vh-120px)] overflow-y-auto">
               {SETTINGS_TABS.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -1047,35 +1135,158 @@ export default function SettingsPage() {
                 {/* Connection Status Indicator */}
                 <div className="p-4 rounded-2xl border bg-slate-50 dark:bg-[#0f141f] border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className={`w-3.5 h-3.5 rounded-full ${whatsAppSettings.token && whatsAppSettings.apiUrl ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+                    <div className={`w-3.5 h-3.5 rounded-full ${waConnectionStatus === "connected" ? "bg-emerald-500 animate-pulse" : waConnectionStatus === "connecting" ? "bg-amber-500 animate-ping" : "bg-slate-400"}`} />
                     <div>
                       <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <span>Statut Passerelle :</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${whatsAppSettings.token && whatsAppSettings.apiUrl ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"}`}>
-                          {whatsAppSettings.token && whatsAppSettings.apiUrl ? "🟢 Passerelle API Connectée" : "🟡 Mode Web Direct (wa.me)"}
+                        <span>Statut de la Connexion WhatsApp :</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                          waConnectionStatus === "connected"
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                            : waConnectionStatus === "connecting"
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                            : "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                        }`}>
+                          {waConnectionStatus === "connected"
+                            ? "🟢 Connecté & Actif"
+                            : waConnectionStatus === "connecting"
+                            ? "🟡 En attente de scan QR..."
+                            : "⚪ Non connecté"}
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        {whatsAppSettings.token && whatsAppSettings.apiUrl
-                          ? `Envois automatisés en tâche de fond actifs via ${whatsAppSettings.provider.toUpperCase()}`
-                          : "Les messages sont préparés sous forme de lien direct cliquable wa.me avec pré-remplissage complet."}
+                        {waConnectionStatus === "connected"
+                          ? `Votre WhatsApp personnel/professionnel (${waConnectedPhone || whatsAppSettings.senderPhone}) est connecté et expédiera automatiquement les messages.`
+                          : waConnectionStatus === "connecting"
+                          ? "Scannez le QR Code affiché ci-dessous avec votre application WhatsApp mobile."
+                          : "Générez le QR Code ci-dessous pour connecter votre propre compte WhatsApp expéditeur."}
                       </p>
                     </div>
                   </div>
 
-                  <label className="flex items-center gap-2 cursor-pointer bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800">
-                    <input
-                      type="checkbox"
-                      checked={whatsAppSettings.autoSendEnabled}
-                      onChange={(e) =>
-                        setWhatsAppSettings((prev) => ({ ...prev, autoSendEnabled: e.target.checked }))
-                      }
-                      className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
-                    />
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      Envoi automatique client : {whatsAppSettings.autoSendEnabled ? "Activé" : "Désactivé"}
-                    </span>
-                  </label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleCheckWaStatus}
+                      title="Vérifier le statut en temps réel"
+                      className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 text-slate-600 dark:text-slate-300 transition-colors"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                    <label className="flex items-center gap-2 cursor-pointer bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={whatsAppSettings.autoSendEnabled}
+                        onChange={(e) =>
+                          setWhatsAppSettings((prev) => ({ ...prev, autoSendEnabled: e.target.checked }))
+                        }
+                        className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        Envoi automatique client : {whatsAppSettings.autoSendEnabled ? "Activé" : "Désactivé"}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* QR Code Scanner Card (WhatsApp Web Connect) */}
+                <div className="p-6 bg-gradient-to-br from-emerald-50/50 via-white to-slate-50 dark:from-emerald-950/20 dark:via-[#0f141f] dark:to-slate-900 rounded-2xl border-2 border-emerald-500/30 shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-xs">
+                        <QrCode className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                          <span>Lier un compte WhatsApp Expéditeur (Scan QR Code)</span>
+                          {waConnectionStatus === "connected" && (
+                            <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 px-2 py-0.5 rounded-full font-bold">
+                              <Check className="w-3 h-3" /> Appareil lié
+                            </span>
+                          )}
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Scannez ce QR Code avec WhatsApp sur votre téléphone pour faire de ce compte l'expéditeur officiel des confirmations clients.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleFetchQrCode}
+                      disabled={loadingQr}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      {loadingQr ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Génération du QR...</span>
+                        </>
+                      ) : (
+                        <>
+                          <QrCode className="w-4 h-4" />
+                          <span>{waQrCode ? "Rafraîchir le QR Code" : "Générer le QR Code WhatsApp"}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* QR Code Display Frame */}
+                  {waQrCode ? (
+                    <div className="mt-4 p-5 bg-white dark:bg-slate-950 rounded-2xl border border-emerald-200 dark:border-emerald-800/50 flex flex-col items-center justify-center gap-4 text-center">
+                      <div className="p-3 bg-white rounded-2xl shadow-md border border-slate-200">
+                        {waQrCode.startsWith("data:") || waQrCode.startsWith("http") ? (
+                          <img
+                            src={waQrCode}
+                            alt="WhatsApp Web QR Code"
+                            className="w-56 h-56 object-contain"
+                          />
+                        ) : (
+                          <img
+                            src={`data:image/png;base64,${waQrCode}`}
+                            alt="WhatsApp Web QR Code"
+                            className="w-56 h-56 object-contain"
+                          />
+                        )}
+                      </div>
+
+                      <div className="space-y-1 max-w-md">
+                        <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>En attente de scan... Vérification automatique toutes les 4s</span>
+                        </div>
+                        <ol className="text-[11px] text-slate-600 dark:text-slate-400 list-decimal list-inside text-left space-y-0.5 pt-1">
+                          <li>Ouvrez WhatsApp sur votre smartphone</li>
+                          <li>Allez dans <strong>Réglages / Menu (⋮)</strong> &gt; <strong>Appareils connectés</strong></li>
+                          <li>Appuyez sur <strong>Connecter un appareil</strong> et pointez l'appareil photo vers ce QR</li>
+                        </ol>
+                      </div>
+                    </div>
+                  ) : waConnectionStatus === "connected" ? (
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                        <div>
+                          <div className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                            WhatsApp connecté avec succès !
+                          </div>
+                          <div className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                            Numéro actif : {waConnectedPhone || whatsAppSettings.senderPhone || "Connecté"}. Chaque réservation validée recevra une confirmation instantanée depuis ce numéro.
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleFetchQrCode}
+                        className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800"
+                      >
+                        Changer de numéro (Nouveau QR)
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-slate-100/60 dark:bg-slate-800/40 rounded-xl text-center text-xs text-slate-500">
+                      Cliquez sur <strong>"Générer le QR Code WhatsApp"</strong> pour lier votre compte WhatsApp. Assurez-vous d'avoir renseigné votre <em>ID d'Instance</em> et <em>Token</em> ci-dessous (obtenus gratuitement sur UltraMsg ou GreenAPI).
+                    </div>
+                  )}
                 </div>
 
                 {/* Gateway Credentials Form */}

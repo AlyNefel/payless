@@ -244,3 +244,4 @@ export async function sendBookingWhatsAppNotification(booking: any): Promise<{
 
   return res;
 }
+
