@@ -7,24 +7,79 @@ const resend = process.env.RESEND_API_KEY && !process.env.RESEND_API_KEY.include
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-function getSmtpTransporter() {
-  const user = process.env.SMTP_USER?.trim();
-  const pass = (process.env.SMTP_PASS || "").replace(/^["']|["']$/g, "").trim();
-  if (user && pass) {
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.gmail.com",
-      port: Number(process.env.SMTP_PORT) || 465,
-      secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
-      connectionTimeout: 4000, // 4s timeout prevents blocking Vercel serverless functions
-      greetingTimeout: 4000,
-      socketTimeout: 6000,
-      auth: {
-        user,
-        pass,
-      },
-    });
+async function getSmtpTransporter(): Promise<{
+  transporter: nodemailer.Transporter | null;
+  fromAddress: string;
+}> {
+  await connectDB();
+
+  // 1. Check database AgencySetting for custom SMTP credentials first
+  let dbUser = "";
+  let dbPass = "";
+  let dbHost = "";
+  let dbPort = 465;
+  let dbSecure: boolean | undefined = undefined;
+  let dbFromName = "";
+  let dbFromEmail = "";
+
+  try {
+    const AgencySetting = (await import("@/models/AgencySetting")).default;
+    const smtpSettingDoc = await AgencySetting.findOne({
+      key: { $in: ["smtp_config", "smtpSettings", "smtp"] },
+    }).lean();
+
+    if (smtpSettingDoc && typeof smtpSettingDoc.value === "object" && smtpSettingDoc.value !== null) {
+      const v = smtpSettingDoc.value as any;
+      dbUser = (v.user || v.smtpUser || "").trim();
+      dbPass = (v.pass || v.smtpPass || "").replace(/^["']|["']$/g, "").trim();
+      dbHost = (v.host || v.smtpHost || "").trim();
+      dbPort = Number(v.port || v.smtpPort) || 465;
+      dbSecure = v.secure !== undefined ? Boolean(v.secure) : dbPort === 465;
+      dbFromName = (v.fromName || "").trim();
+      dbFromEmail = (v.fromEmail || "").trim();
+    }
+  } catch (err) {
+    console.warn("Could not query DB for SMTP settings:", err);
   }
-  return null;
+
+  // 2. Fallback to process.env
+  const user = dbUser || process.env.SMTP_USER?.trim() || "";
+  const pass = dbPass || (process.env.SMTP_PASS || "").replace(/^["']|["']$/g, "").trim();
+  const host = dbHost || process.env.SMTP_HOST?.trim() || "smtp.gmail.com";
+  const port = dbPort || Number(process.env.SMTP_PORT) || 465;
+  const secure = dbSecure !== undefined ? dbSecure : (process.env.SMTP_SECURE === "true" || port === 465);
+
+  const fromName = dbFromName || process.env.EMAIL_FROM_NAME || "Payless Car Rental Tunisie";
+  const fromEmail = dbFromEmail || process.env.EMAIL_FROM || user || "contact@paylesscarrental.tn";
+  const fromAddress = `"${fromName}" <${fromEmail}>`;
+
+  if (user && pass) {
+    const isGmail = host.includes("gmail") || user.endsWith("@gmail.com");
+    const transportConfig: any = isGmail
+      ? {
+          service: "gmail",
+          auth: { user, pass },
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 15000,
+        }
+      : {
+          host,
+          port,
+          secure,
+          auth: { user, pass },
+          connectionTimeout: 10000,
+          greetingTimeout: 10000,
+          socketTimeout: 15000,
+        };
+
+    return {
+      transporter: nodemailer.createTransport(transportConfig),
+      fromAddress,
+    };
+  }
+
+  return { transporter: null, fromAddress };
 }
 
 export interface EmailPayload {
@@ -59,29 +114,48 @@ export async function sendEmail(payload: EmailPayload): Promise<{
     status: "pending",
   });
 
-  const fromAddress = `${process.env.EMAIL_FROM_NAME || "Payless Car Rental Tunisie"} <${process.env.EMAIL_FROM || process.env.SMTP_USER || "noreply@paylesscarrental.com"}>`;
+  const { transporter: smtp, fromAddress } = await getSmtpTransporter();
   const toRecipient = payload.toName ? `"${payload.toName}" <${payload.to}>` : payload.to;
 
   try {
-    const smtp = getSmtpTransporter();
     if (smtp) {
-      const info = await smtp.sendMail({
-        from: fromAddress,
-        to: toRecipient,
-        subject: payload.subject,
-        html: payload.html,
-        text: payload.text,
-        replyTo: payload.replyTo,
-        attachments: payload.attachments,
-      });
+      try {
+        const info = await smtp.sendMail({
+          from: fromAddress,
+          to: toRecipient,
+          subject: payload.subject,
+          html: payload.html,
+          text: payload.text,
+          replyTo: payload.replyTo,
+          attachments: payload.attachments,
+        });
 
-      await EmailLog.findByIdAndUpdate(log._id, {
-        status: "sent",
-        messageId: info.messageId,
-        sentAt: new Date(),
-      });
+        await EmailLog.findByIdAndUpdate(log._id, {
+          status: "sent",
+          messageId: info.messageId,
+          sentAt: new Date(),
+        });
 
-      return { success: true, messageId: info.messageId };
+        return { success: true, messageId: info.messageId };
+      } catch (smtpErr: any) {
+        const rawErr = smtpErr?.message || "Erreur de transmission SMTP";
+        console.error("[SMTP_SEND_FAILURE]:", rawErr);
+
+        let friendlyError = rawErr;
+        if (rawErr.includes("535") || rawErr.includes("BadCredentials") || rawErr.includes("Username and Password not accepted")) {
+          friendlyError =
+            "Erreur 535 Bad Credentials : L'authentification Google/SMTP a échoué. Votre mot de passe d'application Gmail est invalide ou expiré. Veuillez le mettre à jour dans Admin > Paramètres > Serveur SMTP.";
+        } else if (rawErr.includes("ETIMEDOUT") || rawErr.includes("Greeting never received")) {
+          friendlyError = "Délai de connexion dépassé avec le serveur SMTP d'envoi. Veuillez vérifier les paramètres réseau.";
+        }
+
+        await EmailLog.findByIdAndUpdate(log._id, {
+          status: "failed",
+          error: friendlyError,
+        });
+
+        return { success: false, error: friendlyError };
+      }
     }
 
     if (resend) {
@@ -115,15 +189,17 @@ export async function sendEmail(payload: EmailPayload): Promise<{
       return { success: true, messageId: data?.id };
     }
 
-    // Dev fallback
-    console.log(`[DEV EMAIL] To: ${toRecipient} | Subject: ${payload.subject}`);
+    // Neither SMTP nor Resend configured
+    const noConfigMsg =
+      "Aucun serveur SMTP d'envoi n'est configuré. Veuillez renseigner votre email et mot de passe d'application dans Admin > Paramètres > Serveur SMTP.";
+    console.warn(`[EMAIL_NO_CONFIG] To: ${toRecipient} | Subject: ${payload.subject}`);
     await EmailLog.findByIdAndUpdate(log._id, {
-      status: "sent",
-      sentAt: new Date(),
+      status: "failed",
+      error: noConfigMsg,
     });
-    return { success: true, messageId: "dev-mock-id" };
+    return { success: false, error: noConfigMsg };
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    const errorMessage = err instanceof Error ? err.message : "Erreur inconnue lors de l'envoi de l'email";
     await EmailLog.findByIdAndUpdate(log._id, {
       status: "failed",
       error: errorMessage,

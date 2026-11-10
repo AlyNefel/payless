@@ -28,6 +28,7 @@ const SETTINGS_TABS = [
   { id: "agency", label: "Agence & Contact", icon: Building2 },
   { id: "financial", label: "Financier & Fiscalité", icon: CreditCard },
   { id: "zones", label: "Livraison & Ramassage", icon: Truck },
+  { id: "smtp", label: "Serveur SMTP & Envoi Email", icon: Mail },
   { id: "templates", label: "Modèles Email & PDF", icon: FileText },
   { id: "notifications", label: "WhatsApp & Notifications", icon: MessageSquare },
   { id: "hours", label: "Horaires", icon: Clock },
@@ -131,6 +132,20 @@ export default function SettingsPage() {
     emailAlerts: true,
   });
 
+  // SMTP Email Server Configuration
+  const [smtpSettings, setSmtpSettings] = useState({
+    host: "smtp.gmail.com",
+    port: "465",
+    secure: true,
+    user: "ali.nefel2020@gmail.com",
+    pass: "",
+    fromName: "Payless Car Rental Tunisia",
+    fromEmail: "ali.nefel2020@gmail.com",
+  });
+  const [testingSmtp, setTestingSmtp] = useState(false);
+  const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [smtpTestRecipient, setSmtpTestRecipient] = useState("ali.nefel2020@gmail.com");
+
   // Load live settings from database on mount
   useEffect(() => {
     async function loadSettings() {
@@ -194,6 +209,9 @@ export default function SettingsPage() {
           }
           if (s.pdfTemplate && typeof s.pdfTemplate === "object") {
             setPdfTemplate((prev) => ({ ...prev, ...(s.pdfTemplate as any) }));
+          }
+          if (s.smtp_config && typeof s.smtp_config === "object") {
+            setSmtpSettings((prev) => ({ ...prev, ...(s.smtp_config as any) }));
           }
         }
       } catch (err) {
@@ -266,6 +284,7 @@ export default function SettingsPage() {
         whatsAppSettings,
         emailTemplate,
         pdfTemplate,
+        smtp_config: smtpSettings,
       };
 
       const res = await fetch("/api/admin/settings", {
@@ -292,6 +311,40 @@ export default function SettingsPage() {
       setErrorMsg("Erreur de connexion au serveur.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestSmtp = async () => {
+    setTestingSmtp(true);
+    setSmtpTestResult(null);
+    try {
+      const res = await fetch("/api/admin/settings/test-smtp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...smtpSettings,
+          testRecipient: smtpTestRecipient,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setSmtpTestResult({
+          success: true,
+          message: json.message || "Connexion SMTP validée avec succès !",
+        });
+      } else {
+        setSmtpTestResult({
+          success: false,
+          message: json.error || "Échec de connexion SMTP.",
+        });
+      }
+    } catch {
+      setSmtpTestResult({
+        success: false,
+        message: "Erreur réseau lors de la tentative de test SMTP.",
+      });
+    } finally {
+      setTestingSmtp(false);
     }
   };
 
@@ -740,6 +793,185 @@ export default function SettingsPage() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SMTP Server Configuration */}
+            {activeTab === "smtp" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                      <Mail className="w-5 h-5 text-blue-600" />
+                      <span>Configuration Serveur SMTP (Envoi Réel des Emails & Factures PDF)</span>
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Configurez et testez vos accès SMTP. Ces paramètres sont sauvegardés directement en base de données et prévalent en production.
+                    </p>
+                  </div>
+                  <button
+                    onClick={save}
+                    disabled={saving}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    <span>Enregistrer la configuration SMTP</span>
+                  </button>
+                </div>
+
+                {/* Google Gmail Special Helper Banner */}
+                <div className="p-4 rounded-2xl bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 space-y-2 text-xs">
+                  <div className="flex items-center gap-2 font-bold text-amber-900 dark:text-amber-200 text-sm">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Important pour les comptes Gmail / Google Workspace :</span>
+                  </div>
+                  <p className="text-amber-800 dark:text-amber-300">
+                    Google bloque les connexions SMTP directes avec votre mot de passe habituel. Vous devez obligatoirement utiliser un <strong>Mot de passe d'application Google (16 lettres)</strong> :
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1 text-amber-900 dark:text-amber-200 pl-1 font-medium">
+                    <li>Activez la « Validation en 2 étapes » sur votre compte Google.</li>
+                    <li>Rendez-vous sur <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-950 dark:text-white">myaccount.google.com/apppasswords</a>.</li>
+                    <li>Créez un mot de passe d'application intitulé « Payless Car Rental » et copiez les 16 lettres générées.</li>
+                    <li>Collez ce mot de passe de 16 lettres dans le champ ci-dessous, puis cliquez sur <strong>Tester la connexion</strong>.</li>
+                  </ol>
+                </div>
+
+                {/* SMTP Credentials Form */}
+                <div className="p-5 bg-white dark:bg-[#0f141f] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white">Identifiants et Hôte SMTP</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">Serveur Hôte SMTP</label>
+                      <input
+                        type="text"
+                        value={smtpSettings.host}
+                        onChange={(e) => setSmtpSettings({ ...smtpSettings, host: e.target.value })}
+                        placeholder="smtp.gmail.com"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">Port SMTP</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={smtpSettings.port}
+                          onChange={(e) => setSmtpSettings({ ...smtpSettings, port: e.target.value })}
+                          placeholder="465 ou 587"
+                          className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSmtpSettings({ ...smtpSettings, port: "465", secure: true })}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${smtpSettings.port === "465" ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"}`}
+                        >
+                          465 (SSL)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSmtpSettings({ ...smtpSettings, port: "587", secure: false })}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${smtpSettings.port === "587" ? "bg-blue-600 text-white border-blue-600" : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"}`}
+                        >
+                          587 (TLS)
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">Utilisateur / Adresse Email SMTP</label>
+                      <input
+                        type="email"
+                        value={smtpSettings.user}
+                        onChange={(e) => setSmtpSettings({ ...smtpSettings, user: e.target.value })}
+                        placeholder="ali.nefel2020@gmail.com"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">
+                        Mot de passe SMTP / Mot de passe d'application (16 lettres)
+                      </label>
+                      <input
+                        type="password"
+                        value={smtpSettings.pass}
+                        onChange={(e) => setSmtpSettings({ ...smtpSettings, pass: e.target.value })}
+                        placeholder="Ex: olah wzqs hujo usex"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-mono font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">Nom affiché de l'expéditeur</label>
+                      <input
+                        type="text"
+                        value={smtpSettings.fromName}
+                        onChange={(e) => setSmtpSettings({ ...smtpSettings, fromName: e.target.value })}
+                        placeholder="Payless Car Rental Tunisie"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-500">Adresse email d'expédition</label>
+                      <input
+                        type="email"
+                        value={smtpSettings.fromEmail}
+                        onChange={(e) => setSmtpSettings({ ...smtpSettings, fromEmail: e.target.value })}
+                        placeholder="contact@paylesscarrental.tn"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Diagnostic & Test Section */}
+                <div className="p-5 bg-slate-50 dark:bg-[#0f141f]/70 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">Tester la Connexion SMTP & Envoyer un Email d'Essai</h3>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Vérifiez instantanément la validité de vos identifiants. Un email d'essai sera envoyé pour valider que le serveur distant accepte les connexions.
+                  </p>
+
+                  {smtpTestResult && (
+                    <div
+                      className={`p-4 rounded-xl border text-xs font-semibold flex items-center gap-2.5 ${
+                        smtpTestResult.success
+                          ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200"
+                          : "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-red-900 dark:text-red-200"
+                      }`}
+                    >
+                      {smtpTestResult.success ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                      )}
+                      <span>{smtpTestResult.message}</span>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <input
+                      type="email"
+                      value={smtpTestRecipient}
+                      onChange={(e) => setSmtpTestRecipient(e.target.value)}
+                      placeholder="Entrez votre email pour recevoir le test"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleTestSmtp}
+                      disabled={testingSmtp}
+                      className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {testingSmtp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                      <span>{testingSmtp ? "Test en cours..." : "Lancer le test SMTP"}</span>
+                    </button>
                   </div>
                 </div>
               </div>

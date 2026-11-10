@@ -157,6 +157,13 @@ export async function POST(request: NextRequest) {
 
     if (!result.success) {
       console.warn("sendEmail returned unsuccessful:", result.error);
+      return NextResponse.json(
+        {
+          success: false,
+          error: result.error || "Impossible d'envoyer l'email de confirmation.",
+        },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json({
@@ -172,3 +179,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
