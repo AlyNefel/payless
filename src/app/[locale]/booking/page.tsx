@@ -580,8 +580,10 @@ function BookingContent() {
   }
 
   function getWhatsAppUrl() {
-    // Le numéro DESTINATAIRE qui reçoit le message = Le numéro du client !
-    // L'expéditeur = Le numéro WhatsApp de l'agence (configuré dans l'admin)
+    // SYSTÈME MESSAGE À SOI-MÊME (Message Yourself WhatsApp) :
+    // Le numéro de destination = Le numéro de téléphone du client lui-même !
+    // Dès qu'il clique, WhatsApp s'ouvre sur la discussion avec lui-même ("Vous")
+    // avec le récapitulatif complet et le lien de son bon PDF prêt à être envoyé / conservé.
     const rawClientPhone = (customPhone || data.phone || "").replace(/[^0-9]/g, "");
     let cleanClientPhone = rawClientPhone;
     if (cleanClientPhone.length === 8) {
@@ -592,19 +594,32 @@ function BookingContent() {
     const pdfUrl = `${siteUrl}/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}`;
 
     const msg = encodeURIComponent(
-      `🚗 *Payless Car Rental Tunisie — Confirmation de Réservation*\n\n` +
-      `Bonjour *${data.firstName} ${data.lastName}*,\n\n` +
-      `Votre réservation *${bookingRef}* chez Payless Car Rental est bien ✅ *Confirmée* !\n\n` +
-      `• *Véhicule* : ${selectedVehicle?.brand} ${selectedVehicle?.model}\n` +
-      `• *Prise en charge* : ${data.pickupDate} à ${data.pickupTime} (${selectedPickupLocName})\n` +
-      `• *Restitution* : ${data.returnDate} à ${data.returnTime} (${selectedReturnLocName})\n` +
-      `• *Durée* : ${rentalDays} jour(s)\n` +
-      `• *Total TTC à régler* : ${fmt(totalAmount)} TND\n\n` +
-      `📄 *Télécharger votre Bon de Réservation & Facture (PDF)* :\n${pdfUrl}\n\n` +
-      `Assistance VIP Payless 24/7 au : +216 80 80 80 80.\nMerci pour votre confiance !`
+      `🚗 *Payless Car Rental Tunisie — Mon Bon de Réservation*\n\n` +
+      `Bonjour ${data.firstName} ${data.lastName},\n` +
+      `Voici les détails de votre réservation chez Payless Car Rental Tunisie :\n\n` +
+      `📋 *Référence* : ${bookingRef}\n` +
+      `🚗 *Véhicule* : ${selectedVehicle?.brand} ${selectedVehicle?.model}\n` +
+      `📅 *Période* : du ${data.pickupDate} à ${data.pickupTime} au ${data.returnDate} à ${data.returnTime} (${rentalDays} j)\n` +
+      `📍 *Prise en charge* : ${selectedPickupLocName}\n` +
+      `📍 *Restitution* : ${selectedReturnLocName}\n` +
+      `💰 *Total TTC* : ${fmt(totalAmount)} TND\n\n` +
+      `📄 *Télécharger / Consulter ma Facture & Bon PDF officiel* :\n${pdfUrl}\n\n` +
+      `Assistance Payless 24/7 au : +216 80 80 80 80.`
     );
 
-    return `https://wa.me/${cleanClientPhone}?text=${msg}`;
+    // Si un numéro valide est renseigné, on ouvre la discussion avec son propre numéro
+    if (cleanClientPhone) {
+      return `https://api.whatsapp.com/send?phone=${cleanClientPhone}&text=${msg}`;
+    }
+    // Fallback universel : ouvre le sélecteur WhatsApp
+    return `https://api.whatsapp.com/send?text=${msg}`;
+  }
+
+  function handleSendWhatsAppToSelf() {
+    const url = getWhatsAppUrl();
+    if (typeof window !== "undefined") {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
   }
 
   function handleCopyPdfLink() {
@@ -1936,7 +1951,7 @@ function BookingContent() {
                       </div>
                     </div>
 
-                    {/* Choix 3: Recevoir sur WhatsApp (Destinataire = Le numéro du client) */}
+                    {/* Choix 3: Recevoir sur WhatsApp (Discussion avec soi-même / Message to Yourself) */}
                     <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border-2 border-emerald-500/60 shadow-sm flex flex-col justify-between space-y-3 hover:border-emerald-600 transition-all">
                       <div>
                         <div className="flex items-center justify-between mb-2">
@@ -1949,13 +1964,13 @@ function BookingContent() {
                         </div>
                         <h4 className="font-bold text-sm text-slate-900 dark:text-white">
                           {locale === "ar"
-                            ? "3. استلام التأكيد على واتساب"
+                            ? "3. استلام عبر واتساب"
                             : locale === "en"
                             ? "3. Receive on WhatsApp"
                             : "3. Recevoir sur WhatsApp"}
                         </h4>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 truncate" title={customPhone || data.phone}>
-                          Destinataire : <strong className="text-slate-700 dark:text-slate-200">{customPhone || data.phone}</strong>
+                          Sur votre numéro : <strong className="text-slate-700 dark:text-slate-200">{customPhone || data.phone}</strong>
                         </p>
                       </div>
 
@@ -1970,43 +1985,33 @@ function BookingContent() {
                       )}
 
                       <div className="flex items-center gap-1.5 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => handleSendWhatsApp()}
-                          disabled={sendingWa}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 active:scale-95 disabled:opacity-50"
-                        >
-                          {sendingWa ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Envoi...</span>
-                            </>
-                          ) : (
-                            <>
-                              <MessageSquare className="w-4 h-4" />
-                              <span>
-                                {locale === "ar"
-                                  ? "إرسال إلى رقمي"
-                                  : locale === "en"
-                                  ? "Send to My WhatsApp"
-                                  : "Recevoir sur WhatsApp"}
-                              </span>
-                            </>
-                          )}
-                        </button>
                         <a
                           href={getWhatsAppUrl()}
                           target="_blank"
                           rel="noopener noreferrer"
-                          title="Ouvrir directement sur WhatsApp"
-                          className="p-2.5 rounded-xl border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs flex items-center justify-center"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 active:scale-95"
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
+                          <MessageSquare className="w-4 h-4" />
+                          <span>
+                            {locale === "ar"
+                              ? "فتح في واتساب"
+                              : locale === "en"
+                              ? "Open in WhatsApp"
+                              : "Recevoir sur WhatsApp"}
+                          </span>
                         </a>
                         <button
                           type="button"
+                          onClick={handleCopyPdfLink}
+                          title="Copier le lien direct vers le PDF"
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 text-xs flex items-center justify-center"
+                        >
+                          {copiedWaLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setShowPhoneEdit(!showPhoneEdit)}
-                          title="Modifier le numéro destinataire"
+                          title="Modifier mon numéro WhatsApp"
                           className="p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 text-xs"
                         >
                           ✎
