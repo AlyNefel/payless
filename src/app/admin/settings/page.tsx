@@ -1188,222 +1188,282 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* QR Code Scanner Card (WhatsApp Web Connect) */}
-                <div className="p-6 bg-gradient-to-br from-emerald-50/50 via-white to-slate-50 dark:from-emerald-950/20 dark:via-[#0f141f] dark:to-slate-900 rounded-2xl border-2 border-emerald-500/30 shadow-sm space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-xs">
-                        <QrCode className="w-5 h-5" />
+                {/* Mode Selector: 1-Clic Direct (Zero Clé) vs Passerelle API */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Mode 1-Clic Recommandé */}
+                  <div
+                    onClick={() => {
+                      setWhatsAppSettings((prev) => ({
+                        ...prev,
+                        provider: "direct_link",
+                      }));
+                    }}
+                    className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                      whatsAppSettings.provider === "direct_link"
+                        ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-sm"
+                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-emerald-600 text-white rounded-xl">
+                          <MessageSquare className="w-4 h-4" />
+                        </div>
+                        <span className="font-bold text-sm text-slate-900 dark:text-white">
+                          Mode 1-Clic Direct (WhatsApp Web / Mobile)
+                        </span>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                          <span>Lier un compte WhatsApp Expéditeur (Scan QR Code)</span>
-                          {waConnectionStatus === "connected" && (
-                            <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 px-2 py-0.5 rounded-full font-bold">
-                              <Check className="w-3 h-3" /> Appareil lié
-                            </span>
-                          )}
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          Scannez ce QR Code avec WhatsApp sur votre téléphone pour faire de ce compte l'expéditeur officiel des confirmations clients.
-                        </p>
-                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">
+                        ⭐ Recommandé • 0 Clé requise
+                      </span>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={handleFetchQrCode}
-                      disabled={loadingQr}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
-                    >
-                      {loadingQr ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Génération du QR...</span>
-                        </>
-                      ) : (
-                        <>
-                          <QrCode className="w-4 h-4" />
-                          <span>{waQrCode ? "Rafraîchir le QR Code" : "Générer le QR Code WhatsApp"}</span>
-                        </>
-                      )}
-                    </button>
+                    <p className="text-xs text-slate-500">
+                      <strong>Aucun token, aucune clé d'API, 100% gratuit.</strong> Dans l'administration et pour les clients, un simple clic ouvre votre WhatsApp avec le numéro pré-rempli et le message complet (facture PDF incluse).
+                    </p>
                   </div>
 
-                  {/* QR Code Display Frame */}
-                  {waQrCode ? (
-                    <div className="mt-4 p-5 bg-white dark:bg-slate-950 rounded-2xl border border-emerald-200 dark:border-emerald-800/50 flex flex-col items-center justify-center gap-4 text-center">
-                      <div className="p-3 bg-white rounded-2xl shadow-md border border-slate-200">
-                        {waQrCode.startsWith("data:") || waQrCode.startsWith("http") ? (
-                          <img
-                            src={waQrCode}
-                            alt="WhatsApp Web QR Code"
-                            className="w-56 h-56 object-contain"
-                          />
-                        ) : (
-                          <img
-                            src={`data:image/png;base64,${waQrCode}`}
-                            alt="WhatsApp Web QR Code"
-                            className="w-56 h-56 object-contain"
-                          />
-                        )}
-                      </div>
-
-                      <div className="space-y-1 max-w-md">
-                        <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>En attente de scan... Vérification automatique toutes les 4s</span>
+                  {/* Mode Passerelle Automatique */}
+                  <div
+                    onClick={() => {
+                      setWhatsAppSettings((prev) => ({
+                        ...prev,
+                        provider: "ultramsg",
+                      }));
+                    }}
+                    className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                      whatsAppSettings.provider !== "direct_link"
+                        ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-sm"
+                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-blue-600 text-white rounded-xl">
+                          <QrCode className="w-4 h-4" />
                         </div>
-                        <ol className="text-[11px] text-slate-600 dark:text-slate-400 list-decimal list-inside text-left space-y-0.5 pt-1">
-                          <li>Ouvrez WhatsApp sur votre smartphone</li>
-                          <li>Allez dans <strong>Réglages / Menu (⋮)</strong> &gt; <strong>Appareils connectés</strong></li>
-                          <li>Appuyez sur <strong>Connecter un appareil</strong> et pointez l'appareil photo vers ce QR</li>
-                        </ol>
+                        <span className="font-bold text-sm text-slate-900 dark:text-white">
+                          Mode Passerelle API (UltraMsg / GreenAPI)
+                        </span>
                       </div>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        Scan QR Code
+                      </span>
                     </div>
-                  ) : waConnectionStatus === "connected" ? (
-                    <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
-                        <div>
-                          <div className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
-                            WhatsApp connecté avec succès !
-                          </div>
-                          <div className="text-[11px] text-emerald-700 dark:text-emerald-400">
-                            Numéro actif : {waConnectedPhone || whatsAppSettings.senderPhone || "Connecté"}. Chaque réservation validée recevra une confirmation instantanée depuis ce numéro.
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleFetchQrCode}
-                        className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800"
-                      >
-                        Changer de numéro (Nouveau QR)
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-slate-100/60 dark:bg-slate-800/40 rounded-xl text-center text-xs text-slate-500">
-                      Cliquez sur <strong>"Générer le QR Code WhatsApp"</strong> pour lier votre compte WhatsApp. Assurez-vous d'avoir renseigné votre <em>ID d'Instance</em> et <em>Token</em> ci-dessous (obtenus gratuitement sur UltraMsg ou GreenAPI).
-                    </div>
-                  )}
+                    <p className="text-xs text-slate-500">
+                      Envois automatisés en tâche de fond dès qu'un client réserve. Nécessite une instance de passerelle pour connecter votre session WhatsApp.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Gateway Credentials Form */}
-                <div className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-                  <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
-                    <Smartphone className="w-4 h-4 text-emerald-600" />
-                    <span>Paramètres de la Passerelle WhatsApp</span>
-                  </div>
+                {whatsAppSettings.provider !== "direct_link" ? (
+                  <>
+                    {/* QR Code Scanner Card (WhatsApp Web Connect) */}
+                    <div className="p-6 bg-gradient-to-br from-emerald-50/50 via-white to-slate-50 dark:from-emerald-950/20 dark:via-[#0f141f] dark:to-slate-900 rounded-2xl border-2 border-emerald-500/30 shadow-sm space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-xs">
+                            <QrCode className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                              <span>Lier un compte WhatsApp Expéditeur (Scan QR Code)</span>
+                              {waConnectionStatus === "connected" && (
+                                <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 px-2 py-0.5 rounded-full font-bold">
+                                  <Check className="w-3 h-3" /> Appareil lié
+                                </span>
+                              )}
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                              Scannez ce QR Code avec WhatsApp sur votre téléphone pour faire de ce compte l'expéditeur officiel des confirmations clients.
+                            </p>
+                          </div>
+                        </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Provider Selection */}
-                    <div>
-                      <label className="block text-xs font-semibold mb-1 text-slate-500">
-                        Type de Passerelle / Fournisseur
-                      </label>
-                      <select
-                        value={whatsAppSettings.provider}
-                        onChange={(e) => {
-                          const prov = e.target.value as any;
-                          let defaultUrl = whatsAppSettings.apiUrl;
-                          if (prov === "ultramsg" && (!defaultUrl || defaultUrl.includes("greenapi") || defaultUrl.includes("facebook"))) {
-                            defaultUrl = "https://api.ultramsg.com/instance99999/messages/chat";
-                          } else if (prov === "greenapi") {
-                            defaultUrl = "https://api.green-api.com/waInstance99999/sendMessage/TOKEN";
-                          } else if (prov === "meta") {
-                            defaultUrl = "https://graph.facebook.com/v18.0/PHONE_NUMBER_ID/messages";
-                          }
-                          setWhatsAppSettings((prev) => ({
-                            ...prev,
-                            provider: prov,
-                            apiUrl: defaultUrl,
-                          }));
-                        }}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
-                      >
-                        <option value="ultramsg">UltraMsg Gateway (Recommandé • Simple avec QR Code)</option>
-                        <option value="greenapi">GreenAPI WhatsApp Business</option>
-                        <option value="meta">Meta WhatsApp Cloud API (Graph API)</option>
-                        <option value="custom_webhook">Passerelle Webhook HTTP Personnalisée</option>
-                        <option value="direct_link">Mode Manuel (Lien direct WhatsApp Web wa.me)</option>
-                      </select>
-                    </div>
-
-                    {/* Sender Phone */}
-                    <div>
-                      <label className="block text-xs font-semibold mb-1 text-slate-500">
-                        Numéro WhatsApp Agence Expéditeur
-                      </label>
-                      <input
-                        type="text"
-                        value={whatsAppSettings.senderPhone}
-                        onChange={(e) =>
-                          setWhatsAppSettings((prev) => ({ ...prev, senderPhone: e.target.value }))
-                        }
-                        placeholder="+216 25 120 130"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-
-                    {/* Gateway API Endpoint URL */}
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-semibold mb-1 text-slate-500">
-                        URL de l'API Passerelle (Endpoint)
-                      </label>
-                      <input
-                        type="url"
-                        value={whatsAppSettings.apiUrl || ""}
-                        onChange={(e) =>
-                          setWhatsAppSettings((prev) => ({ ...prev, apiUrl: e.target.value }))
-                        }
-                        placeholder="https://api.ultramsg.com/instanceXXXXX/messages/chat"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-
-                    {/* Instance ID */}
-                    <div>
-                      <label className="block text-xs font-semibold mb-1 text-slate-500">
-                        ID d'Instance / Nom de Session
-                      </label>
-                      <input
-                        type="text"
-                        value={whatsAppSettings.instanceId || ""}
-                        onChange={(e) =>
-                          setWhatsAppSettings((prev) => ({ ...prev, instanceId: e.target.value }))
-                        }
-                        placeholder="Ex: instance12345"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-
-                    {/* Token / Secret */}
-                    <div>
-                      <label className="block text-xs font-semibold mb-1 text-slate-500">
-                        Clé d'API Secrète / Token d'Accès
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showWhatsAppToken ? "text" : "password"}
-                          value={whatsAppSettings.token || ""}
-                          onChange={(e) =>
-                            setWhatsAppSettings((prev) => ({ ...prev, token: e.target.value }))
-                          }
-                          placeholder="Entrez votre token d'API..."
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500 pr-10"
-                        />
                         <button
                           type="button"
-                          onClick={() => setShowWhatsAppToken(!showWhatsAppToken)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          onClick={handleFetchQrCode}
+                          disabled={loadingQr}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
                         >
-                          {showWhatsAppToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          {loadingQr ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Génération du QR...</span>
+                            </>
+                          ) : (
+                            <>
+                              <QrCode className="w-4 h-4" />
+                              <span>{waQrCode ? "Rafraîchir le QR Code" : "Générer le QR Code WhatsApp"}</span>
+                            </>
+                          )}
                         </button>
                       </div>
+
+                      {/* QR Code Display Frame */}
+                      {waQrCode ? (
+                        <div className="mt-4 p-5 bg-white dark:bg-slate-950 rounded-2xl border border-emerald-200 dark:border-emerald-800/50 flex flex-col items-center justify-center gap-4 text-center">
+                          <div className="p-3 bg-white rounded-2xl shadow-md border border-slate-200">
+                            {waQrCode.startsWith("data:") || waQrCode.startsWith("http") ? (
+                              <img
+                                src={waQrCode}
+                                alt="WhatsApp Web QR Code"
+                                className="w-56 h-56 object-contain"
+                              />
+                            ) : (
+                              <img
+                                src={`data:image/png;base64,${waQrCode}`}
+                                alt="WhatsApp Web QR Code"
+                                className="w-56 h-56 object-contain"
+                              />
+                            )}
+                          </div>
+
+                          <div className="space-y-1 max-w-md">
+                            <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>En attente de scan... Vérification automatique toutes les 4s</span>
+                            </div>
+                            <ol className="text-[11px] text-slate-600 dark:text-slate-400 list-decimal list-inside text-left space-y-0.5 pt-1">
+                              <li>Ouvrez WhatsApp sur votre smartphone</li>
+                              <li>Allez dans <strong>Réglages / Menu (⋮)</strong> &gt; <strong>Appareils connectés</strong></li>
+                              <li>Appuyez sur <strong>Connecter un appareil</strong> et pointez l'appareil photo vers ce QR</li>
+                            </ol>
+                          </div>
+                        </div>
+                      ) : waConnectionStatus === "connected" ? (
+                        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                            <div>
+                              <div className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                                WhatsApp connecté avec succès !
+                              </div>
+                              <div className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                                Numéro actif : {waConnectedPhone || whatsAppSettings.senderPhone || "Connecté"}. Chaque réservation validée recevra une confirmation instantanée depuis ce numéro.
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleFetchQrCode}
+                            className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800"
+                          >
+                            Changer de numéro (Nouveau QR)
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-slate-100/60 dark:bg-slate-800/40 rounded-xl text-center text-xs text-slate-500">
+                          Cliquez sur <strong>"Générer le QR Code WhatsApp"</strong> pour lier votre compte WhatsApp.
+                        </div>
+                      )}
                     </div>
+
+                    {/* Gateway Credentials Form */}
+                    <div className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+                      <div className="flex items-center gap-2 font-bold text-sm text-slate-900 dark:text-white">
+                        <Smartphone className="w-4 h-4 text-emerald-600" />
+                        <span>Identifiants de la Passerelle WhatsApp</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-slate-500">
+                            Type de Passerelle
+                          </label>
+                          <select
+                            value={whatsAppSettings.provider}
+                            onChange={(e) => {
+                              const prov = e.target.value as any;
+                              let defaultUrl = whatsAppSettings.apiUrl;
+                              if (prov === "ultramsg") {
+                                defaultUrl = "https://api.ultramsg.com/instance99999/messages/chat";
+                              } else if (prov === "greenapi") {
+                                defaultUrl = "https://api.green-api.com/waInstance99999/sendMessage/TOKEN";
+                              }
+                              setWhatsAppSettings((prev) => ({
+                                ...prev,
+                                provider: prov,
+                                apiUrl: defaultUrl,
+                              }));
+                            }}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                            <option value="ultramsg">UltraMsg Gateway (Simple avec QR Code)</option>
+                            <option value="greenapi">GreenAPI WhatsApp</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-slate-500">
+                            Numéro WhatsApp Agence Expéditeur
+                          </label>
+                          <input
+                            type="text"
+                            value={whatsAppSettings.senderPhone}
+                            onChange={(e) =>
+                              setWhatsAppSettings((prev) => ({ ...prev, senderPhone: e.target.value }))
+                            }
+                            placeholder="+216 25 120 130"
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-slate-500">
+                            ID d'Instance
+                          </label>
+                          <input
+                            type="text"
+                            value={whatsAppSettings.instanceId || ""}
+                            onChange={(e) =>
+                              setWhatsAppSettings((prev) => ({ ...prev, instanceId: e.target.value }))
+                            }
+                            placeholder="Ex: instance12345"
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold mb-1 text-slate-500">
+                            Clé d'API Secrète / Token
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showWhatsAppToken ? "text" : "password"}
+                              value={whatsAppSettings.token || ""}
+                              onChange={(e) =>
+                                setWhatsAppSettings((prev) => ({ ...prev, token: e.target.value }))
+                              }
+                              placeholder="Entrez votre token..."
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500 pr-10"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowWhatsAppToken(!showWhatsAppToken)}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            >
+                              {showWhatsAppToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* Info Mode 1-Clic Direct sans Token */
+                  <div className="p-5 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-800 space-y-3">
+                    <div className="flex items-center gap-2 font-bold text-sm text-emerald-900 dark:text-emerald-200">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <span>Mode 1-Clic Direct activé : Aucune configuration technique requise !</span>
+                    </div>
+                    <ul className="text-xs text-emerald-800 dark:text-emerald-300 space-y-1.5 list-disc list-inside">
+                      <li><strong>Aucun identifiant, clé d'API ou token</strong> n'est demandé à l'administrateur.</li>
+                      <li>Dans <strong>Réservations</strong> (`/admin/bookings`), un bouton dédié <strong>« Envoyer Confirmation WhatsApp (1-Clic) »</strong> ouvre directement votre WhatsApp Web ou application mobile.</li>
+                      <li>Le message complet (Nom du client, Dates, Lieu, Montant, et lien de téléchargement direct de la facture PDF) est <strong>automatiquement pré-rédigé</strong>.</li>
+                      <li>Le client peut également cliquer sur <strong>« Ouvrir WhatsApp »</strong> à la fin de sa réservation sur le site.</li>
+                    </ul>
                   </div>
-                </div>
+                )}
 
                 {/* Message Template Editor */}
                 <div className="p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">

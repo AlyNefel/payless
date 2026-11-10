@@ -331,10 +331,20 @@ export default function AdminBookingsPage() {
                 const bookingRef = b.reference || b.bookingReference || bookingId;
                 const isMenuOpen = actionMenuOpenId === bookingId;
                 const cleanPhone = getCleanPhone(b.customerPhone);
+                const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://paylesscarrental.tn";
+                const pdfUrl = `${baseUrl}/api/bookings/pdf?ref=${bookingRef}`;
+                const waMessage =
+                  `Bonjour *${b.customerName}*,\n\n` +
+                  `✅ Votre réservation chez *Payless Car Rental Tunisie* est bien CONFIRMÉE !\n\n` +
+                  `📋 *Référence* : ${bookingRef}\n` +
+                  `🚗 *Véhicule* : ${b.vehicleName}\n` +
+                  `📅 *Période* : du ${b.pickupDate} au ${b.returnDate} (${b.rentalDays} jours)\n` +
+                  `📍 *Lieu de prise en charge* : ${b.pickupLocation}\n` +
+                  `💰 *Total TTC* : ${(b.totalPrice || 0).toLocaleString("fr-FR")} TND\n\n` +
+                  `📄 *Téléchargez votre Bon de Réservation & Facture officielle (PDF)* :\n${pdfUrl}\n\n` +
+                  `Assistance 24/7 au +216 80 80 80 80.\nMerci pour votre confiance !`;
                 const waUrl = cleanPhone
-                  ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-                      `Bonjour ${b.customerName}, concernant votre réservation ${bookingRef} chez Payless Car Rental Tunisie...`
-                    )}`
+                  ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMessage)}`
                   : null;
 
                 return (
@@ -522,17 +532,17 @@ export default function AdminBookingsPage() {
                                 </span>
                               </button>
 
-                              {/* 5. Contact via WhatsApp */}
+                              {/* 5. Contact / Confirm via WhatsApp */}
                               {waUrl ? (
                                 <a
                                   href={waUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={() => setActionMenuOpenId(null)}
-                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors cursor-pointer font-medium"
+                                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors cursor-pointer font-bold"
                                 >
                                   <MessageCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                                  <span>Contacter sur WhatsApp</span>
+                                  <span>Envoyer Confirmation WhatsApp (1-Clic)</span>
                                 </a>
                               ) : null}
 
