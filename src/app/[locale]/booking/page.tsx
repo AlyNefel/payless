@@ -534,22 +534,32 @@ function BookingContent() {
   }
 
   function getWhatsAppUrl() {
-    const cleanPhone = (customPhone || data.phone || "").replace(/[^0-9]/g, "");
-    const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://payless.tn";
+    // Le message est envoyé au numéro WhatsApp de l'agence (settings.whatsapp ou +216 25 120 130)
+    // C'est le client qui envoie sa demande officielle de confirmation à l'agence !
+    const agencyRawPhone = settings?.whatsapp || "25120130";
+    let targetPhone = agencyRawPhone.replace(/[^0-9]/g, "");
+    if (targetPhone.length === 8) {
+      targetPhone = "216" + targetPhone;
+    }
+
+    const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://paylesscarrental.tn";
     const pdfUrl = `${siteUrl}/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}`;
+
     const msg = encodeURIComponent(
-      `🚗 *Payless Car Rental Tunisie — Confirmation de Réservation*\n\n` +
-      `Bonjour *${data.firstName} ${data.lastName}*,\n` +
-      `Votre réservation *${bookingRef}* est ✅ *Confirmée Immédiatement* !\n\n` +
-      `• *Véhicule* : ${selectedVehicle?.brand} ${selectedVehicle?.model}\n` +
-      `• *Prise en charge* : ${data.pickupDate} à ${data.pickupTime} (${selectedPickupLocName})\n` +
-      `• *Restitution* : ${data.returnDate} à ${data.returnTime} (${selectedReturnLocName})\n` +
-      `• *Durée* : ${rentalDays} jour(s)\n` +
-      `• *Montant Total TTC* : ${fmt(totalAmount)} TND\n\n` +
-      `📄 *Télécharger votre Facture & Bon de Réservation officiel (PDF)* :\n${pdfUrl}\n\n` +
-      `Assistance Payless Tunisie 24/7 au : +216 80 80 80 80.`
+      `Bonjour Payless Car Rental Tunisie,\n\n` +
+      `Je viens de finaliser ma réservation sur votre site web et je souhaite recevoir ma confirmation officielle et mon contrat :\n\n` +
+      `📋 *Référence* : ${bookingRef}\n` +
+      `👤 *Client* : ${data.firstName} ${data.lastName}\n` +
+      `📞 *Mon Tél* : ${customPhone || data.phone}\n` +
+      `🚗 *Véhicule* : ${selectedVehicle?.brand} ${selectedVehicle?.model}\n` +
+      `📅 *Période* : du ${data.pickupDate} à ${data.pickupTime} au ${data.returnDate} à ${data.returnTime} (${rentalDays} j)\n` +
+      `📍 *Prise en charge* : ${selectedPickupLocName}\n` +
+      `💰 *Total TTC* : ${fmt(totalAmount)} TND\n\n` +
+      `📄 *Consulter / Télécharger mon Bon de Réservation PDF* :\n${pdfUrl}\n\n` +
+      `Merci de me confirmer la prise en charge.`
     );
-    return `https://api.whatsapp.com/send?phone=${encodeURIComponent(cleanPhone)}&text=${msg}`;
+
+    return `https://wa.me/${targetPhone}?text=${msg}`;
   }
 
   function handleCopyPdfLink() {
@@ -1848,39 +1858,43 @@ function BookingContent() {
                       </div>
                     </div>
 
-                    {/* Action 3: Send to WhatsApp */}
-                    <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 shadow-xs flex flex-col justify-between space-y-3">
+                    {/* Action 3: Demander Confirmation sur WhatsApp (Envoyé à l'Agence) */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border-2 border-emerald-500/40 shadow-sm flex flex-col justify-between space-y-3">
                       <div>
                         <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2">
                           <MessageSquare className="w-5 h-5" />
                         </div>
                         <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                          {locale === "ar" ? "إرسال إلى واتساب" : locale === "en" ? "Send to WhatsApp" : "Envoyer sur WhatsApp"}
+                          {locale === "ar"
+                            ? "طلب تأكيد الحجز عبر واتساب"
+                            : locale === "en"
+                            ? "Request WhatsApp Confirmation"
+                            : "Demander ma confirmation WhatsApp"}
                         </h4>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 truncate">
-                          N° : <strong className="text-slate-700 dark:text-slate-200">{customPhone || data.phone}</strong>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                          {locale === "ar"
+                            ? `إرسال تفاصيل الحجز فوراً لواتساب الوكالة (+216 ${settings?.whatsapp || "25 120 130"})`
+                            : locale === "en"
+                            ? `Send your booking voucher directly to our WhatsApp (+216 ${settings?.whatsapp || "25 120 130"})`
+                            : `Transmettre mon bon de commande directement au WhatsApp de l'agence (+216 ${settings?.whatsapp || "25 120 130"})`}
                         </p>
                       </div>
 
-                      {showPhoneEdit && (
-                        <input
-                          type="tel"
-                          value={customPhone}
-                          onChange={(e) => setCustomPhone(e.target.value)}
-                          placeholder="+216 00 000 000"
-                          className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-neutral-700 bg-slate-50 dark:bg-neutral-900"
-                        />
-                      )}
-
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 pt-1">
                         <a
                           href={getWhatsAppUrl()}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs active:scale-95"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 active:scale-95"
                         >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          <span>{locale === "ar" ? "فتح واتساب" : locale === "en" ? "Open WhatsApp" : "Ouvrir WhatsApp"}</span>
+                          <MessageSquare className="w-4 h-4" />
+                          <span>
+                            {locale === "ar"
+                              ? "طلب التأكيد على واتساب"
+                              : locale === "en"
+                              ? "Confirm via WhatsApp"
+                              : "Demander confirmation sur WhatsApp"}
+                          </span>
                         </a>
                         <button
                           type="button"
@@ -1889,14 +1903,6 @@ function BookingContent() {
                           className="p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 text-xs flex items-center justify-center"
                         >
                           {copiedWaLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowPhoneEdit(!showPhoneEdit)}
-                          title="Modifier le numéro WhatsApp"
-                          className="p-2.5 rounded-xl border border-slate-200 dark:border-neutral-700 hover:bg-slate-100 dark:hover:bg-neutral-700 text-slate-600 dark:text-slate-300 text-xs"
-                        >
-                          ✎
                         </button>
                       </div>
                     </div>
