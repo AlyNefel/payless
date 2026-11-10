@@ -1747,17 +1747,26 @@ function BookingContent() {
                   </div>
                 </div>
 
-                {/* 3 Interactive Automated Actions: Download PDF, Send Email, Send WhatsApp */}
+                {/* 3 Clear Choices: 1. Télécharger PDF | 2. Recevoir par Email | 3. Recevoir sur WhatsApp */}
                 <div className="space-y-4 pt-2">
-                  <div className="flex items-center justify-center gap-2">
-                    <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  <div className="text-center space-y-1">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-bold uppercase tracking-wider">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                      <span>
+                        {locale === "ar"
+                          ? "اختر طريقة استلام تأكيد الحجز (3 خيارات)"
+                          : locale === "en"
+                          ? "Choose how to receive your confirmation (3 options)"
+                          : "Comment souhaitez-vous recevoir votre confirmation ? (3 options)"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500">
                       {locale === "ar"
-                        ? "خيارات استلام وثائق الحجز"
+                        ? "يمكنك تحميل وصلك مباشرة، إرساله إلى بريدك الإلكتروني، أو إرساله إلى واتساب الوكالة لتأكيده فوراً."
                         : locale === "en"
-                        ? "Reservation Document Options"
-                        : "Recevoir et Enregistrer vos Documents"}
-                    </span>
+                        ? "Download your voucher directly, send it to your email, or send it to our WhatsApp for instant confirmation."
+                        : "Téléchargez directement votre bon, recevez-le par email, ou demandez votre confirmation instantanée sur WhatsApp."}
+                    </p>
                   </div>
 
                   {/* Feedback alerts */}
@@ -1775,22 +1784,27 @@ function BookingContent() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-left">
-                    {/* Action 1: Download PDF */}
-                    <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 shadow-xs flex flex-col justify-between space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-left">
+                    {/* Choix 1: Télécharger PDF */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border-2 border-slate-200 dark:border-neutral-700 shadow-xs flex flex-col justify-between space-y-3 hover:border-slate-400 transition-all">
                       <div>
-                        <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2">
-                          <Download className="w-5 h-5" />
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                            <Download className="w-5 h-5" />
+                          </div>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-neutral-700 text-slate-600 dark:text-slate-300">
+                            Option 1
+                          </span>
                         </div>
                         <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                          {locale === "ar" ? "تحميل وصل الحجز (PDF)" : locale === "en" ? "Download PDF Voucher" : "Télécharger Bon & Facture"}
+                          {locale === "ar" ? "1. تحميل وصل الحجز (PDF)" : locale === "en" ? "1. Download PDF Voucher" : "1. Télécharger ma Facture (PDF)"}
                         </h4>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                           {locale === "ar"
                             ? "وثيقة رسمية بالأبيض والأسود مع كافة التفاصيل"
                             : locale === "en"
                             ? "Official black & white voucher ready to print"
-                            : "Document officiel A4 avec QR Code et grille comptable"}
+                            : "Bon de réservation officiel avec QR Code et grille comptable"}
                         </p>
                       </div>
                       <a
@@ -1800,21 +1814,26 @@ function BookingContent() {
                         className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold transition-all shadow-xs active:scale-95"
                       >
                         <Download className="w-4 h-4" />
-                        <span>{locale === "ar" ? "تحميل PDF" : locale === "en" ? "Download PDF" : "Télécharger PDF"}</span>
+                        <span>{locale === "ar" ? "تحميل الملف" : locale === "en" ? "Download Now" : "Télécharger mon PDF"}</span>
                       </a>
                     </div>
 
-                    {/* Action 2: Send Email */}
-                    <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 shadow-xs flex flex-col justify-between space-y-3">
+                    {/* Choix 2: Recevoir par Email */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border-2 border-slate-200 dark:border-neutral-700 shadow-xs flex flex-col justify-between space-y-3 hover:border-indigo-400 transition-all">
                       <div>
-                        <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2">
-                          <Mail className="w-5 h-5" />
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                            <Mail className="w-5 h-5" />
+                          </div>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-neutral-700 text-slate-600 dark:text-slate-300">
+                            Option 2
+                          </span>
                         </div>
                         <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                          {locale === "ar" ? "إرسال إلى بريدي الإلكتروني" : locale === "en" ? "Send to My Email" : "Envoyer par Email"}
+                          {locale === "ar" ? "2. إرسال إلى بريدي الإلكتروني" : locale === "en" ? "2. Send to My Email" : "2. Recevoir par Email"}
                         </h4>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 truncate" title={customEmail || data.email}>
-                          À : <strong className="text-slate-700 dark:text-slate-200">{customEmail || data.email}</strong>
+                          Destinataire : <strong className="text-slate-700 dark:text-slate-200">{customEmail || data.email}</strong>
                         </p>
                       </div>
 
@@ -1843,7 +1862,7 @@ function BookingContent() {
                           ) : (
                             <>
                               <Send className="w-3.5 h-3.5" />
-                              <span>{locale === "ar" ? "إرسال" : locale === "en" ? "Send Email" : "Envoyer par Email"}</span>
+                              <span>{locale === "ar" ? "إرسال الآن" : locale === "en" ? "Send to Email" : "Envoyer à mon Email"}</span>
                             </>
                           )}
                         </button>
@@ -1858,25 +1877,30 @@ function BookingContent() {
                       </div>
                     </div>
 
-                    {/* Action 3: Demander Confirmation sur WhatsApp (Envoyé à l'Agence) */}
-                    <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border-2 border-emerald-500/40 shadow-sm flex flex-col justify-between space-y-3">
+                    {/* Choix 3: Recevoir / Confirmer sur WhatsApp */}
+                    <div className="p-4 rounded-2xl bg-white dark:bg-neutral-800 border-2 border-emerald-500/60 shadow-sm flex flex-col justify-between space-y-3 hover:border-emerald-600 transition-all">
                       <div>
-                        <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2">
-                          <MessageSquare className="w-5 h-5" />
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                            <MessageSquare className="w-5 h-5" />
+                          </div>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
+                            Option 3 • Rapide
+                          </span>
                         </div>
                         <h4 className="font-bold text-sm text-slate-900 dark:text-white">
                           {locale === "ar"
-                            ? "طلب تأكيد الحجز عبر واتساب"
+                            ? "3. تأكيد فوري عبر واتساب"
                             : locale === "en"
-                            ? "Request WhatsApp Confirmation"
-                            : "Demander ma confirmation WhatsApp"}
+                            ? "3. Receive on WhatsApp"
+                            : "3. Recevoir sur WhatsApp"}
                         </h4>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                           {locale === "ar"
                             ? `إرسال تفاصيل الحجز فوراً لواتساب الوكالة (+216 ${settings?.whatsapp || "25 120 130"})`
                             : locale === "en"
-                            ? `Send your booking voucher directly to our WhatsApp (+216 ${settings?.whatsapp || "25 120 130"})`
-                            : `Transmettre mon bon de commande directement au WhatsApp de l'agence (+216 ${settings?.whatsapp || "25 120 130"})`}
+                            ? `Get instant voucher on WhatsApp (+216 ${settings?.whatsapp || "25 120 130"})`
+                            : `Recevez votre confirmation directement sur WhatsApp (+216 ${settings?.whatsapp || "25 120 130"})`}
                         </p>
                       </div>
 
@@ -1892,8 +1916,8 @@ function BookingContent() {
                             {locale === "ar"
                               ? "طلب التأكيد على واتساب"
                               : locale === "en"
-                              ? "Confirm via WhatsApp"
-                              : "Demander confirmation sur WhatsApp"}
+                              ? "Open WhatsApp"
+                              : "Recevoir sur WhatsApp"}
                           </span>
                         </a>
                         <button
