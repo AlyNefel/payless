@@ -195,80 +195,101 @@ html {
   );
 }
 
-/* Charging Card Border Animation Effect */
-@keyframes chargingGlow {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+/* Spinning Gold Border Card Effect */
+@property --spin-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
 }
 
-@keyframes chargingPulse {
+@keyframes goldSpin {
+  0%   { --spin-angle: 0deg; }
+  100% { --spin-angle: 360deg; }
+}
+
+@keyframes goldSpinFast {
+  0%   { --spin-angle: 0deg; }
+  100% { --spin-angle: 360deg; }
+}
+
+@keyframes goldGlow {
   0%, 100% {
-    opacity: 0.65;
-    box-shadow: 0 0 15px rgba(59, 130, 246, 0.15), inset 0 0 15px rgba(245, 158, 11, 0.05);
+    box-shadow:
+      0 0 10px rgba(255, 208, 41, 0.15),
+      0 4px 20px rgba(0, 0, 0, 0.08);
   }
   50% {
-    opacity: 1;
-    box-shadow: 0 0 25px rgba(245, 158, 11, 0.3), 0 0 35px rgba(59, 130, 246, 0.25);
+    box-shadow:
+      0 0 22px rgba(255, 208, 41, 0.45),
+      0 0 40px rgba(255, 208, 41, 0.18),
+      0 8px 30px rgba(0, 0, 0, 0.12);
   }
 }
 
-/* Charging Card Effect applied to cards */
+/* Spinning Gold Border Card */
 .charging-card,
 .card-charging {
   position: relative;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: goldGlow 3.5s ease-in-out infinite;
 }
 
 .charging-card::before,
 .card-charging::before {
   content: "";
   position: absolute;
-  inset: -1.5px;
+  inset: -2px;
   border-radius: inherit;
-  padding: 1.5px;
-  background: linear-gradient(
-    90deg,
-    rgba(59, 130, 246, 0.35),
-    rgba(245, 158, 11, 0.9),
-    rgba(59, 130, 246, 0.95),
-    rgba(16, 185, 129, 0.9),
-    rgba(245, 158, 11, 0.9),
-    rgba(59, 130, 246, 0.35)
+  background: conic-gradient(
+    from var(--spin-angle),
+    transparent 0deg,
+    transparent 60deg,
+    #ffd029 90deg,
+    #fff4a3 120deg,
+    #ffd029 150deg,
+    transparent 180deg,
+    transparent 300deg,
+    #ffd029 330deg,
+    #fff4a3 345deg,
+    #ffd029 355deg,
+    transparent 360deg
   );
-  background-size: 300% 300%;
-  animation: chargingGlow 5s ease infinite, chargingPulse 3.5s ease-in-out infinite;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  animation: goldSpin 4s linear infinite;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
+  padding: 2px;
   pointer-events: none;
   z-index: 10;
+  opacity: 0.75;
 }
 
 .charging-card:hover,
 .card-charging:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
 }
 
 .charging-card:hover::before,
 .card-charging:hover::before {
-  animation: chargingGlow 2.5s ease infinite, chargingPulse 1.8s ease-in-out infinite;
-  background: linear-gradient(
-    90deg,
-    rgba(59, 130, 246, 0.6),
-    rgba(245, 158, 11, 1),
-    rgba(59, 130, 246, 1),
-    rgba(16, 185, 129, 1),
-    rgba(245, 158, 11, 1),
-    rgba(59, 130, 246, 0.6)
+  animation: goldSpinFast 1.8s linear infinite;
+  opacity: 1;
+  background: conic-gradient(
+    from var(--spin-angle),
+    transparent 0deg,
+    transparent 40deg,
+    #ffd029 70deg,
+    #fffbe6 100deg,
+    #ffd029 120deg,
+    transparent 160deg,
+    transparent 220deg,
+    #ffd029 250deg,
+    #fffbe6 280deg,
+    #ffd029 310deg,
+    transparent 350deg,
+    transparent 360deg
   );
-  background-size: 300% 300%;
 }
 
 /* Reduced motion */

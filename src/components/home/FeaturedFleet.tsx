@@ -329,7 +329,7 @@ export function FeaturedFleet() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
-                className="charging-card group rounded-2xl bg-card border border-border/70 hover:border-blue-500/40 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between overflow-hidden"
+                className="charging-card group rounded-2xl bg-card shadow-sm flex flex-col justify-between overflow-hidden"
               >
                 <div>
                   {/* Image Card Top */}
