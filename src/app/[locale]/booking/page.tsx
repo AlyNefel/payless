@@ -14,6 +14,7 @@ import {
 import { CarSpinner } from "@/components/ui/CarSpinner";
 import { useCompanySettings } from "@/contexts/CompanySettingsContext";
 import { DEFAULT_ZONES, matchZone, type ZoneFeeConfig } from "@/lib/locationFees";
+import { calculateSeasonalRentalTotal, getVehicleEffectiveDailyRate } from "@/lib/seasonalPricing";
 
 interface LocationItem {
   _id: string;
@@ -233,9 +234,17 @@ function BookingContent() {
     }
   }
 
-  async function fetchSingleVehicle(id: string) {
+  const [showAllFleet, setShowAllFleet] = useState(false);
+  const [customPickupAddress, setCustomPickupAddress] = useState("");
+  const [customReturnAddress, setCustomReturnAddress] = useState("");
+
+  async function fetchSingleVehicle(id: string, brand?: string, model?: string) {
     try {
-      const res = await fetch(`/api/vehicles?vehicleId=${id}`);
+      const q = new URLSearchParams();
+      if (id) q.set("vehicleId", id);
+      if (brand) q.set("brand", brand);
+      if (model) q.set("model", model);
+      const res = await fetch(`/api/vehicles?${q.toString()}`);
       const json = await res.json();
       if (json.vehicles && json.vehicles.length > 0) {
         const found = json.vehicles.find((v: Vehicle) => v._id === id) || json.vehicles[0];
@@ -253,8 +262,10 @@ function BookingContent() {
   // Fetch initial single vehicle if vehicleId was passed
   useEffect(() => {
     const urlVehicleId = searchParams.get("vehicleId");
-    if (urlVehicleId) {
-      fetchSingleVehicle(urlVehicleId);
+    const urlBrand = searchParams.get("brand") || undefined;
+    const urlModel = searchParams.get("model") || undefined;
+    if (urlVehicleId || (urlBrand && urlModel)) {
+      fetchSingleVehicle(urlVehicleId || "", urlBrand, urlModel);
     }
   }, [searchParams]);
 
@@ -275,8 +286,15 @@ function BookingContent() {
   }, [data.pickupDate, data.pickupTime, data.returnDate, data.returnTime]);
 
   const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + (item.vehicle.pricing.daily || 0) * rentalDays, 0);
-  }, [cart, rentalDays]);
+    return cart.reduce((sum, item) => {
+      const { subtotal: itemSub } = calculateSeasonalRentalTotal(
+        item.vehicle,
+        data.pickupDate,
+        data.returnDate
+      );
+      return sum + (itemSub || (item.vehicle.pricing.daily || 0) * rentalDays);
+    }, 0);
+  }, [cart, data.pickupDate, data.returnDate, rentalDays]);
 
   const extrasTotal = useMemo(() => {
     return cart.reduce((sum, item) => {
@@ -369,9 +387,8 @@ function BookingContent() {
   }, [selectedReturnLoc, matchedReturnZone]);
 
   const isDifferentLocation = Boolean(data.pickupLocationId && data.returnLocationId && data.pickupLocationId !== data.returnLocationId);
-  const differentLocationFee = isDifferentLocation
-    ? (zoneConfig.differentLocationFee || settings.differentLocationFee || 50) * 100
-    : 0;
+  // User policy: 0 DT extra when returning to a different agency
+  const differentLocationFee = 0;
 
   const timbreFiscal = (settings.timbreFiscal !== undefined ? settings.timbreFiscal : 1) * 100;
   const contributionLF2026 =
@@ -637,17 +654,12 @@ function BookingContent() {
         : `${selectedVehicle?.brand} ${selectedVehicle?.model}`;
 
     const msg = encodeURIComponent(
-      `🚗 *Payless Car Rental Tunisie — Mon Bon de Réservation*\n\n` +
-      `Bonjour ${data.firstName} ${data.lastName},\n` +
-      `Voici les détails de votre réservation chez Payless Car Rental Tunisie :\n\n` +
-      `📋 *Référence* : ${bookingRef}\n` +
-      `🚗 *Véhicule(s)* : ${carListStr}\n` +
-      `📅 *Période* : du ${data.pickupDate} à ${data.pickupTime} au ${data.returnDate} à ${data.returnTime} (${rentalDays} j)\n` +
-      `📍 *Prise en charge* : ${selectedPickupLocName}\n` +
-      `📍 *Restitution* : ${selectedReturnLocName}\n` +
-      `💰 *Total TTC* : ${fmt(totalAmount)} TND\n\n` +
-      `📄 *Télécharger / Consulter ma Facture & Bon PDF officiel* :\n${pdfUrl}\n\n` +
-      `Assistance Payless 24/7 au : +216 80 80 80 80.`
+      `📄 *Payless Car Rental — Facture & Bon de Réservation*\n\n` +
+      `Référence : ${bookingRef}\n` +
+      `Véhicule(s) : ${carListStr}\n` +
+      `Total : ${fmt(totalAmount)} TND\n\n` +
+      `👉 *Télécharger / Consulter votre Facture PDF* :\n${pdfUrl}\n\n` +
+      `Assistance Payless 24/7 : +216 25 120 130`
     );
 
     // Si un numéro valide est renseigné, on ouvre la discussion avec son propre numéro
@@ -704,11 +716,27 @@ function BookingContent() {
                 style={{ width: `${((step - 1) / 5) * 100}%` }}
               />
               {steps.map((s) => (
-                <div key={s.n} className="relative z-10 flex flex-col items-center gap-1">
+                <button
+                  key={s.n}
+                  type="button"
+                  disabled={s.n > step}
+                  onClick={() => {
+                    if (s.n < step) {
+                      setStep(s.n as Step);
+                      if (typeof window !== "undefined") {
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }
+                    }
+                  }}
+                  className={`relative z-10 flex flex-col items-center gap-1 focus:outline-none transition-transform ${
+                    s.n < step ? "cursor-pointer hover:scale-110 active:scale-95" : "cursor-default"
+                  }`}
+                  title={s.n < step ? `Revenir à l'étape ${s.n} (${s.label})` : s.label}
+                >
                   <div
                     className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all shadow-sm ${
                       s.n < step
-                        ? "bg-emerald-600 text-white"
+                        ? "bg-emerald-600 text-white hover:ring-2 hover:ring-emerald-400"
                         : s.n === step
                         ? "bg-blue-600 text-white ring-4 ring-blue-100 dark:ring-blue-900/40"
                         : "bg-white dark:bg-neutral-800 border-2 border-border dark:border-neutral-700 text-muted-foreground"
@@ -723,7 +751,7 @@ function BookingContent() {
                   >
                     {s.label}
                   </span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -770,7 +798,25 @@ function BookingContent() {
                           {getLocalizedName(l.name, locale)}
                         </option>
                       ))}
+                      <option value="custom">
+                        📍 {locale === "ar" ? "عنوان مخصص / فندق / إقامة (في أي مكان بتونس)" : locale === "en" ? "Custom Address / Hotel / Residence" : "Autre adresse / Lieu personnalisé (Hôtel, Domicile...)"}
+                      </option>
                     </select>
+
+                    {data.pickupLocationId === "custom" && (
+                      <div className="mt-2.5">
+                        <input
+                          type="text"
+                          value={customPickupAddress}
+                          onChange={(e) => {
+                            setCustomPickupAddress(e.target.value);
+                            setData((d) => ({ ...d, notes: `${d.notes ? d.notes + " | " : ""}Lieu prise: ${e.target.value}` }));
+                          }}
+                          placeholder={locale === "ar" ? "اكتب العنوان بالتفصيل (اسم الفندق، الشارع، المدينة)..." : locale === "en" ? "Enter exact delivery address (Hotel, Street, City)..." : "Indiquez l'adresse exacte (Hôtel, Nom de rue, Ville)..."}
+                          className="w-full px-3.5 py-2.5 rounded-xl border-2 border-blue-400 dark:border-blue-600 bg-blue-50/40 dark:bg-blue-950/20 text-xs text-foreground outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -788,7 +834,25 @@ function BookingContent() {
                           {getLocalizedName(l.name, locale)}
                         </option>
                       ))}
+                      <option value="custom">
+                        📍 {locale === "ar" ? "عنوان مخصص / فندق / إقامة" : locale === "en" ? "Custom Address / Hotel / Residence" : "Autre adresse / Lieu personnalisé (Hôtel, Domicile...)"}
+                      </option>
                     </select>
+
+                    {data.returnLocationId === "custom" && (
+                      <div className="mt-2.5">
+                        <input
+                          type="text"
+                          value={customReturnAddress}
+                          onChange={(e) => {
+                            setCustomReturnAddress(e.target.value);
+                            setData((d) => ({ ...d, notes: `${d.notes ? d.notes + " | " : ""}Lieu retour: ${e.target.value}` }));
+                          }}
+                          placeholder={locale === "ar" ? "اكتب عنوان الإرجاع بالتفصيل..." : locale === "en" ? "Enter exact drop-off address..." : "Indiquez l'adresse exacte de restitution..."}
+                          className="w-full px-3.5 py-2.5 rounded-xl border-2 border-amber-400 dark:border-amber-600 bg-amber-50/40 dark:bg-amber-950/20 text-xs text-foreground outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -938,33 +1002,57 @@ function BookingContent() {
                   </p>
                 </div>
 
-                {/* Selected Fleet Cart Pill Bar */}
+                {/* Selected Vehicle Card - Direct flow without needing to see the full list again */}
                 {cart.length > 0 && (
-                  <div className="p-3.5 bg-blue-50/90 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800/60 space-y-2">
-                    <div className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center justify-between">
-                      <span className="flex items-center gap-1.5">
-                        <Car className="w-4 h-4 text-blue-600" />
-                        <span>Flotte réservée pour votre séjour ({cart.length}) :</span>
-                      </span>
-                      <span className="text-[11px] font-normal text-muted-foreground">
-                        Cliquez sur + pour ajouter d&apos;autres modèles
-                      </span>
+                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50/60 dark:from-blue-950/40 dark:to-indigo-950/20 border-2 border-blue-400 dark:border-blue-700 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+                          ✓
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                            {locale === "ar" ? "السيارة المحددة لحجزك" : locale === "en" ? "Selected Vehicle" : "Véhicule sélectionné pour votre séjour"}
+                          </div>
+                          <div className="font-extrabold text-base sm:text-lg text-foreground">
+                            {cart.map((c) => `${c.vehicle.brand} ${c.vehicle.model}`).join(" + ")}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStep(3);
+                          if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                        className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/25 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0"
+                      >
+                        <span>{locale === "ar" ? "متابعة إلى الخيارات الإضافية" : locale === "en" ? "Continue to Extras" : "Continuer vers les options"}</span>
+                        <ChevronRight className="w-4 h-4 rtl-flip" />
+                      </button>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+
+                    {/* Pre-selected cars details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                       {cart.map((c, idx) => (
                         <div
                           key={c.vehicle._id + "-" + idx}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-neutral-900 border border-blue-300 dark:border-blue-700 shadow-xs"
+                          className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-neutral-900 border border-blue-200 dark:border-blue-800 shadow-xs"
                         >
-                          <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">
-                            {idx + 1}
-                          </span>
-                          <span className="text-foreground">
-                            {c.vehicle.brand} {c.vehicle.model}
-                          </span>
-                          <span className="text-blue-700 dark:text-blue-400 font-mono text-[11px]">
-                            {fmt(c.vehicle.pricing?.daily)} DT/j
-                          </span>
+                          <img
+                            src={c.vehicle.images?.[0]?.url || "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=200&q=80"}
+                            alt={`${c.vehicle.brand} ${c.vehicle.model}`}
+                            className="w-16 h-12 object-cover rounded-lg shrink-0 bg-neutral-100"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-xs truncate text-foreground">
+                              {c.vehicle.brand} {c.vehicle.model}
+                            </div>
+                            <div className="text-[11px] text-blue-600 dark:text-blue-400 font-mono font-bold mt-0.5">
+                              {fmt(getVehicleEffectiveDailyRate(c.vehicle, data.pickupDate))} DT / jour
+                            </div>
+                          </div>
                           <button
                             type="button"
                             onClick={() => {
@@ -973,16 +1061,36 @@ function BookingContent() {
                                 setActiveVehicleIndex(Math.max(0, cart.length - 2));
                               }
                             }}
-                            className="text-muted-foreground hover:text-red-600 p-0.5 rounded transition-colors"
+                            className="text-muted-foreground hover:text-red-500 p-1 text-xs rounded transition-colors"
                             title="Retirer ce véhicule"
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
                       ))}
                     </div>
+
+                    {/* Button to toggle viewing full fleet */}
+                    <div className="pt-2 border-t border-blue-200/60 dark:border-blue-800/60 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground text-[11px]">
+                        {locale === "ar" ? "هل ترغب في إضافة سيارة ثانية أو تغيير السيارة؟" : locale === "en" ? "Want to add a second car or switch vehicle?" : "Vous souhaitez ajouter un autre véhicule ou changer de modèle ?"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowAllFleet((prev) => !prev)}
+                        className="font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                      >
+                        {showAllFleet
+                          ? (locale === "ar" ? "إخفاء قائمة السيارات ▲" : locale === "en" ? "Hide Fleet Catalog ▲" : "Masquer la liste ▲")
+                          : (locale === "ar" ? "+ تصفح باقي أسطول السيارات ▼" : locale === "en" ? "+ Browse other fleet cars ▼" : "+ Parcourir d'autres véhicules ▼")}
+                      </button>
+                    </div>
                   </div>
                 )}
+
+                {/* Full fleet list shown if no car selected OR user explicitly toggled showAllFleet */}
+                {(cart.length === 0 || showAllFleet) && (
+                  <>
 
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -1142,6 +1250,8 @@ function BookingContent() {
                     )}
                   </div>
                 )}
+                </>
+              )}
               </div>
             )}
 
@@ -1204,13 +1314,13 @@ function BookingContent() {
                   </div>
                 )}
 
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   {availableExtras.map((extra) => {
                     const currentCartItem = cart[activeVehicleIndex] || cart[0];
                     const currentVehicleExtras = currentCartItem?.extras || [];
                     const current = currentVehicleExtras.find((e) => e.id === extra._id);
                     const qty = current?.quantity || 0;
-                    const max = extra.maxQuantity || 2;
+                    const max = extra.maxQuantity || 3;
                     const priceFormatted = extra.price === 0 ? "Offert (0 TND)" : `${fmt(extra.price)} ${currencySymbol}`;
 
                     const updateExtras = (nextList: { id: string; quantity: number }[]) => {
@@ -1225,66 +1335,79 @@ function BookingContent() {
                     return (
                       <div
                         key={extra._id}
-                        className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
+                        className={`flex flex-col justify-between p-4 rounded-2xl border-2 transition-all ${
                           qty > 0
-                            ? "border-blue-500 bg-blue-50/60 dark:bg-blue-950/20"
-                            : "border-border dark:border-neutral-800 bg-white dark:bg-neutral-800/40"
+                            ? "border-blue-500 bg-blue-50/70 dark:bg-blue-950/30 shadow-sm"
+                            : "border-border dark:border-neutral-800 bg-white dark:bg-neutral-800/40 hover:border-blue-300"
                         }`}
                       >
-                        <span className="text-2xl">{extra.icon || "✨"}</span>
-                        <div className="flex-1">
-                          <div className="font-semibold text-sm text-foreground">
-                            {getLocalizedName(extra.name, locale)}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {priceFormatted}{" "}
-                            {extra.pricingType === "per_rental"
-                              ? locale === "ar"
-                                ? "(لكل إيجار)"
-                                : locale === "en"
-                                ? "(flat fee)"
-                                : "(forfait location)"
-                              : locale === "ar"
-                              ? "/ يوم"
-                              : locale === "en"
-                              ? "/ day"
-                              : "/ jour"}
+                        <div className="flex items-start gap-3">
+                          <span className="text-3xl shrink-0 p-2 rounded-xl bg-neutral-100 dark:bg-neutral-800">
+                            {extra.icon || "✨"}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-sm text-foreground">
+                              {getLocalizedName(extra.name, locale)}
+                            </div>
+                            <div className="inline-block mt-2 px-2.5 py-1 rounded-lg bg-blue-100/80 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 font-extrabold text-xs font-mono">
+                              {priceFormatted}{" "}
+                              <span className="font-normal text-[11px] text-muted-foreground">
+                                {extra.pricingType === "per_rental"
+                                  ? (locale === "ar" ? "(لكل إيجار)" : locale === "en" ? "(flat fee)" : "(forfait)")
+                                  : (locale === "ar" ? "/ يوم" : locale === "en" ? "/ day" : "/ jour")}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const nextList =
-                                qty <= 1
-                                  ? currentVehicleExtras.filter((e) => e.id !== extra._id)
-                                  : currentVehicleExtras.map((e) =>
-                                      e.id === extra._id ? { ...e, quantity: e.quantity - 1 } : e
-                                    );
-                              updateExtras(nextList);
-                            }}
-                            disabled={qty === 0}
-                            className="w-8 h-8 rounded-full border border-border dark:border-neutral-700 flex items-center justify-center disabled:opacity-30 hover:bg-muted transition-colors"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <span className="w-6 text-center font-bold text-sm">{qty}</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const nextList =
-                                qty === 0
-                                  ? [...currentVehicleExtras, { id: extra._id, quantity: 1 }]
-                                  : currentVehicleExtras.map((e) =>
-                                      e.id === extra._id ? { ...e, quantity: Math.min(max, e.quantity + 1) } : e
-                                    );
-                              updateExtras(nextList);
-                            }}
-                            disabled={qty >= max}
-                            className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 disabled:opacity-30 transition-colors"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
+
+                        <div className="flex items-center justify-between pt-3 mt-3 border-t border-border/60">
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {qty > 0 ? (
+                              <span className="text-blue-600 dark:text-blue-400 font-bold">
+                                ✓ {qty} sélectionné{qty > 1 ? "s" : ""}
+                              </span>
+                            ) : (
+                              <span>Non sélectionné</span>
+                            )}
+                          </span>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nextList =
+                                  qty <= 1
+                                    ? currentVehicleExtras.filter((e) => e.id !== extra._id)
+                                    : currentVehicleExtras.map((e) =>
+                                        e.id === extra._id ? { ...e, quantity: e.quantity - 1 } : e
+                                      );
+                                updateExtras(nextList);
+                              }}
+                              disabled={qty === 0}
+                              className="w-8 h-8 rounded-full border border-border dark:border-neutral-700 flex items-center justify-center disabled:opacity-25 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+                              title="Diminuer"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-6 text-center font-bold text-sm font-mono">{qty}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nextList =
+                                  qty === 0
+                                    ? [...currentVehicleExtras, { id: extra._id, quantity: 1 }]
+                                    : currentVehicleExtras.map((e) =>
+                                        e.id === extra._id ? { ...e, quantity: Math.min(max, e.quantity + 1) } : e
+                                      );
+                                updateExtras(nextList);
+                              }}
+                              disabled={qty >= max}
+                              className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center disabled:opacity-25 transition-colors cursor-pointer shadow-xs"
+                              title="Ajouter"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );

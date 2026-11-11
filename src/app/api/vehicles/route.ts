@@ -24,22 +24,55 @@ export async function GET(request: NextRequest) {
     } catch {}
 
     const vehicleId = searchParams.get("vehicleId") || searchParams.get("id");
-    if (vehicleId && mongoose.Types.ObjectId.isValid(vehicleId)) {
-      const singleVehicle = await Vehicle.findById(vehicleId)
-        .populate("categoryId")
-        .populate("location")
-        .lean();
-      if (!singleVehicle) {
-        return NextResponse.json({ success: false, error: "Vehicle not found" }, { status: 404 });
+    const brandParam = searchParams.get("brand");
+    const modelParam = searchParams.get("model");
+
+    if (vehicleId || (brandParam && modelParam)) {
+      let singleVehicle: any = null;
+      if (vehicleId && mongoose.Types.ObjectId.isValid(vehicleId)) {
+        singleVehicle = await Vehicle.findById(vehicleId)
+          .populate("categoryId")
+          .populate("location")
+          .lean();
       }
-      const finalDoc = isAdmin ? singleVehicle : sanitizeVehicleForClient(singleVehicle);
-      return NextResponse.json({
-        success: true,
-        vehicle: finalDoc,
-        vehicles: [finalDoc],
-        data: [finalDoc],
-        total: 1,
-      });
+
+      if (!singleVehicle && vehicleId) {
+        // Try finding by slug, or matching model name from ID like "car-suzuki-swift-bva"
+        const cleanModel = vehicleId.replace(/^car-/, "").replace(/-/g, " ");
+        singleVehicle = await Vehicle.findOne({
+          $or: [
+            { slug: vehicleId },
+            { model: { $regex: cleanModel, $options: "i" } },
+            ...(brandParam && modelParam
+              ? [{ brand: { $regex: brandParam, $options: "i" }, model: { $regex: modelParam, $options: "i" } }]
+              : []),
+          ],
+        })
+          .populate("categoryId")
+          .populate("location")
+          .lean();
+      }
+
+      if (!singleVehicle && brandParam && modelParam) {
+        singleVehicle = await Vehicle.findOne({
+          brand: { $regex: brandParam, $options: "i" },
+          model: { $regex: modelParam, $options: "i" },
+        })
+          .populate("categoryId")
+          .populate("location")
+          .lean();
+      }
+
+      if (singleVehicle) {
+        const finalDoc = isAdmin ? singleVehicle : sanitizeVehicleForClient(singleVehicle);
+        return NextResponse.json({
+          success: true,
+          vehicle: finalDoc,
+          vehicles: [finalDoc],
+          data: [finalDoc],
+          total: 1,
+        });
+      }
     }
 
     const categoryParam = searchParams.get("category");

@@ -212,17 +212,23 @@ export default function CalendarPage() {
     };
   }, [bookings, year, month, daysInMonth]);
 
-  // Helper to extract bookings for a given vehicle that overlap this month
+  // Helper to extract and lay out bookings for a given vehicle without overlap
   const getBookingsForVehicle = (vehicle: VehicleItem) => {
     const monthStart = new Date(year, month, 1);
     const monthEnd = new Date(year, month, daysInMonth, 23, 59, 59);
 
-    return bookings.filter((b) => {
+    const filtered = bookings.filter((b) => {
+      // Exclude cancelled or rejected reservations from calendar (user requirement)
+      if (b.status === "cancelled" || b.status === "rejected") return false;
+
       // Status filter
       if (statusFilter !== "all" && b.status !== statusFilter) return false;
 
       // Match vehicle by ID or Brand+Model
-      const matchId = b.vehicleId && (b.vehicleId === vehicle._id || (typeof b.vehicleId === "object" && (b.vehicleId as any)._id === vehicle._id));
+      const matchId =
+        b.vehicleId &&
+        (b.vehicleId === vehicle._id ||
+          (typeof b.vehicleId === "object" && (b.vehicleId as any)._id === vehicle._id));
       const matchName =
         b.vehicleName &&
         b.vehicleName.toLowerCase().includes(vehicle.brand.toLowerCase()) &&
@@ -237,6 +243,37 @@ export default function CalendarPage() {
       // Check overlap with current month
       return p <= monthEnd && r >= monthStart;
     });
+
+    // Sort chronologically
+    const sorted = [...filtered].sort(
+      (a, b) => new Date(a.pickupDate).getTime() - new Date(b.pickupDate).getTime()
+    );
+
+    // Multi-track allocation: prevents overlapping bookings on the same day from stacking on top of each other
+    const trackEndTimes: number[] = [];
+    const bookingsWithTrack = sorted.map((b) => {
+      const pTime = new Date(b.pickupDate).getTime();
+      const rTime = new Date(b.returnDate).getTime();
+
+      let assignedTrack = -1;
+      for (let i = 0; i < trackEndTimes.length; i++) {
+        // If track i is free before this booking starts
+        if (trackEndTimes[i] < pTime) {
+          assignedTrack = i;
+          trackEndTimes[i] = rTime;
+          break;
+        }
+      }
+      if (assignedTrack === -1) {
+        assignedTrack = trackEndTimes.length;
+        trackEndTimes.push(rTime);
+      }
+
+      return { ...b, trackIndex: assignedTrack };
+    });
+
+    const totalTracks = Math.max(1, trackEndTimes.length);
+    return { list: bookingsWithTrack, totalTracks };
   };
 
   const DAY_WIDTH = 44; // px per day cell
@@ -508,12 +545,14 @@ export default function CalendarPage() {
               {/* VEHICLE ROWS & GANTT BARS */}
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filteredVehicles.map((v) => {
-                  const vehicleBookings = getBookingsForVehicle(v);
+                  const { list: vehicleBookings, totalTracks } = getBookingsForVehicle(v);
                   const thumb = v.images?.find((i) => i.isPrimary)?.url || v.images?.[0]?.url;
+                  const rowHeight = Math.max(58, 16 + totalTracks * 34);
 
                   return (
                     <div
                       key={v._id}
+                      style={{ minHeight: `${rowHeight}px` }}
                       className="flex group hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors relative"
                     >
                       {/* Sticky Left Column: Vehicle Info */}
@@ -549,7 +588,7 @@ export default function CalendarPage() {
                       </div>
 
                       {/* Timeline Day Grid & Overlaid Bars */}
-                      <div className="flex-1 relative flex h-16">
+                      <div className="flex-1 relative flex" style={{ minHeight: `${rowHeight}px` }}>
                         {/* Background Grid Columns */}
                         {days.map((d) => {
                           const dateObj = new Date(year, month, d);
@@ -572,8 +611,8 @@ export default function CalendarPage() {
                           );
                         })}
 
-                        {/* Booking Gantt Bars */}
-                        {vehicleBookings.map((b) => {
+                        {/* Booking Gantt Bars (Multi-track with no overlaps) */}
+                        {vehicleBookings.map((b: any) => {
                           const p = new Date(b.pickupDate);
                           const r = new Date(b.returnDate);
 
@@ -600,6 +639,9 @@ export default function CalendarPage() {
                           const leftPx = (startDay - 1) * DAY_WIDTH + 2;
                           const widthPx = spanDays * DAY_WIDTH - 4;
 
+                          const track = b.trackIndex || 0;
+                          const barTop = 8 + track * 34;
+
                           const statusStyle =
                             STATUS_COLORS[b.status] || STATUS_COLORS.confirmed;
 
@@ -610,8 +652,10 @@ export default function CalendarPage() {
                               style={{
                                 left: `${leftPx}px`,
                                 width: `${widthPx}px`,
+                                top: `${barTop}px`,
+                                height: "28px",
                               }}
-                              className={`absolute top-2.5 bottom-2.5 rounded-lg px-2 flex items-center justify-between text-xs font-semibold cursor-pointer transition-all duration-200 z-10 shadow-sm border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} hover:scale-[1.02] hover:z-20`}
+                              className={`absolute rounded-lg px-2 flex items-center justify-between text-xs font-semibold cursor-pointer transition-all duration-200 z-10 shadow-sm border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} hover:scale-[1.02] hover:z-30`}
                               title={`${b.reference} - ${b.customerName} (${b.pickupDate} -> ${b.returnDate})`}
                             >
                               <div className="flex items-center gap-1.5 truncate">

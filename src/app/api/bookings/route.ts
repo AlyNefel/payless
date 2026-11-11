@@ -19,6 +19,7 @@ import {
   formatPrice,
   formatDate,
 } from "@/lib/utils";
+import { calculateSeasonalRentalTotal } from "@/lib/seasonalPricing";
 import { sendEmail, buildBookingConfirmationEmail } from "@/lib/email";
 import { generateBookingPDF } from "@/lib/pdf";
 import { sendBookingWhatsAppNotification } from "@/lib/whatsapp";
@@ -305,8 +306,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const vDailyRate = vDoc.pricing.daily;
-      const vSubtotal = calculateRentalPrice(vDoc.pricing, rentalDays);
+      const { subtotal: seasonalSubtotal, averageDailyRate } = calculateSeasonalRentalTotal(
+        vDoc,
+        pickupDateStr,
+        returnDateStr
+      );
+      const vDailyRate = averageDailyRate || vDoc.pricing.daily;
+      const vSubtotal = seasonalSubtotal || calculateRentalPrice(vDoc.pricing, rentalDays);
       let vExtrasTotal = 0;
       const vBookingExtras: Array<{
         extraId: mongoose.Types.ObjectId;
@@ -441,12 +447,8 @@ export async function POST(request: NextRequest) {
       returnLocationFee = Math.round(returnZone.returnFee * 100);
     }
 
-    // Inter-agency return fee (Aller-simple)
-    let differentLocationFee = 0;
-    const isDifferentLocation = pickupLoc._id.toString() !== returnLoc._id.toString();
-    if (isDifferentLocation && feeConfig.differentLocationFee > 0) {
-      differentLocationFee = Math.round(feeConfig.differentLocationFee * 100);
-    }
+    // Inter-agency return fee (Aller-simple): 0 per policy (no extra 50 DT charged for different agency)
+    const differentLocationFee = 0;
 
     const outOfTownFee = returnLocationFee;
 

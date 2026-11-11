@@ -78,6 +78,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Car,
     items: [
       { title: "Car Model Manager", href: "/admin/fleet", icon: Car },
+      { title: "Tarifs par Période", href: "/admin/pricing", icon: Tag },
       { title: "Garage & Vidanges", href: "/admin/garage", icon: Wrench },
       { title: "Location Manager", href: "/admin/locations", icon: MapPin },
     ],
@@ -87,6 +88,7 @@ const NAV_GROUPS: NavGroup[] = [
     groupTitle: { fr: "Tarifs, Extras & Finances", en: "Rates, Extras & Finance" },
     icon: Receipt,
     items: [
+      { title: "Tarifs par Période", href: "/admin/pricing", icon: Tag },
       { title: "Extras & Fee Manager", href: "/admin/fees", icon: SlidersHorizontal },
       { title: "Payment & Finance Manager", href: "/admin/finance", icon: Receipt },
       { title: "Promos & Coupons", href: "/admin/promotions", icon: Tag },
@@ -116,6 +118,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Layers,
     items: [
       { title: "Car Model Manager", href: "/admin/fleet", icon: Car },
+      { title: "Tarifs par Période", href: "/admin/pricing", icon: Tag },
       { title: "Garage & Vidanges", href: "/admin/garage", icon: Wrench },
       { title: "Tarifs Flotte", href: "/admin/fleet", icon: Car },
       { title: "Customer Manager", href: "/admin/customers", icon: Users },
@@ -132,6 +135,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 const MANAGERS_MENU = [
   { label: "Car Model Manager", href: "/admin/fleet" },
+  { label: "Tarifs par Période", href: "/admin/pricing" },
   { label: "Garage & Vidanges", href: "/admin/garage" },
   { label: "Car Model Prices", href: "/admin/fleet" },
   { label: "Customer Manager", href: "/admin/customers" },
@@ -329,6 +333,7 @@ function AdminLayoutContent({
   const getNavTitle = (href: string, fallback: string) => {
     if (href === "/admin") return lang === "fr" ? "Tableau de bord" : "Dashboard";
     if (href === "/admin/fleet") return lang === "fr" ? "Gestion Flotte" : "Fleet Manager";
+    if (href === "/admin/pricing") return lang === "fr" ? "Tarifs par Période" : "Period Pricing";
     if (href === "/admin/bookings") return lang === "fr" ? "Réservations" : "Reservations";
     if (href === "/admin/steps") return lang === "fr" ? "Étapes de Réservation" : "Reservation Steps";
     if (href === "/admin/calendar") return lang === "fr" ? "Calendrier Flotte" : "Fleet Calendar";
@@ -656,59 +661,69 @@ function AdminLayoutContent({
       )}
 
       {/* MAIN VIEWPORT */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 w-full overflow-x-hidden">
         {/* TOP NAVIGATION BAR */}
-        <header className="h-20 bg-white/80 dark:bg-[#0b0f17]/80 border-b border-slate-200 dark:border-slate-800/80 backdrop-blur-xl px-4 md:px-8 flex items-center justify-between sticky top-0 z-20 transition-colors duration-300">
+        <header className="h-16 sm:h-20 bg-white/80 dark:bg-[#0b0f17]/80 border-b border-slate-200 dark:border-slate-800/80 backdrop-blur-xl px-3 sm:px-6 md:px-8 flex items-center justify-between sticky top-0 z-20 transition-colors duration-300 w-full max-w-full">
           {/* Mobile hamburger & search */}
-          <div className="flex items-center gap-3 md:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              className="md:hidden p-2 sm:p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shrink-0"
+              title="Menu Navigation"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* Quick Search trigger */}
+            {/* Mobile-only Search Button */}
+            <button
+              onClick={() => router.push("/admin/bookings")}
+              className="sm:hidden p-2 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shrink-0"
+              title="Rechercher"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+
+            {/* Desktop/Tablet Quick Search trigger */}
             <div
               onClick={() => router.push("/admin/bookings")}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-900/90 hover:bg-slate-200/70 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs cursor-pointer transition-all hover:border-slate-300 dark:hover:border-slate-700 w-48 sm:w-72 md:w-80 shadow-sm"
+              className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-900/90 hover:bg-slate-200/70 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs cursor-pointer transition-all hover:border-slate-300 dark:hover:border-slate-700 sm:w-60 md:w-80 shadow-sm"
             >
               <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span className="flex-1 truncate">Recherche matricule, client, réf...</span>
-              <kbd className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+              <kbd className="hidden md:inline-block px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                 Ctrl+K
               </kbd>
             </div>
           </div>
 
           {/* Right actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* LANGUAGE SWITCHER (FR / EN) */}
             <button
               onClick={() => setLang(lang === "fr" ? "en" : "fr")}
-              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all shadow-sm flex items-center gap-1.5 font-bold text-xs"
+              className="p-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all shadow-sm flex items-center gap-1 font-bold text-xs"
               title={lang === "fr" ? "Switch to English" : "Passer en Français"}
             >
-              <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span className="uppercase">{lang}</span>
+              <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span className="uppercase text-[11px] sm:text-xs">{lang}</span>
             </button>
 
             {/* THEME TOGGLE BUTTON (Dark / Light) */}
             <button
               onClick={toggleTheme}
-              className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-amber-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all shadow-sm flex items-center gap-1.5"
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-amber-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all shadow-sm flex items-center gap-1.5"
               title={theme === "dark" ? "Passer en Mode Clair" : "Passer en Mode Sombre"}
             >
               {theme === "dark" ? (
                 <>
-                  <Sun className="w-4 h-4 text-amber-400 animate-spin-slow" />
+                  <Sun className="w-4 h-4 text-amber-400 animate-spin-slow shrink-0" />
                   <span className="hidden sm:inline text-[11px] font-semibold text-slate-300">
                     Clair
                   </span>
                 </>
               ) : (
                 <>
-                  <Moon className="w-4 h-4 text-slate-700" />
+                  <Moon className="w-4 h-4 text-slate-700 shrink-0" />
                   <span className="hidden sm:inline text-[11px] font-semibold text-slate-700">
                     Sombre
                   </span>
@@ -719,18 +734,18 @@ function AdminLayoutContent({
             {/* Quick New Booking Button */}
             <button
               onClick={() => setShowQuickBookingModal(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white text-xs font-semibold shadow-md shadow-blue-600/20 hover:shadow-blue-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 px-2.5 py-2 sm:px-3.5 sm:py-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white text-xs font-semibold shadow-md shadow-blue-600/20 hover:shadow-blue-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden sm:inline">+ Nouvelle Réservation</span>
-              <span className="sm:hidden">Créer</span>
+              <span className="sm:hidden text-[11px] font-bold">+ Créer</span>
             </button>
 
             {/* Notifications Bell with Popover */}
             <div className="relative">
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors shadow-sm"
+                className="relative p-2 sm:p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors shadow-sm"
                 title="Notifications"
               >
                 <Bell className="w-4 h-4" />

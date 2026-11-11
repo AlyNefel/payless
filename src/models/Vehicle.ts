@@ -4,6 +4,16 @@ export type TransmissionType = "automatic" | "manual";
 export type FuelType = "gasoline" | "diesel" | "electric" | "hybrid";
 export type VehicleStatus = "available" | "rented" | "maintenance" | "unavailable" | "archived";
 
+export interface ISeasonalPrice {
+  name?: string;
+  startDate?: string;
+  endDate?: string;
+  startMonth?: number; // 1 to 12
+  endMonth?: number;   // 1 to 12
+  dailyRate: number;   // in DT or cents
+  discountPercent?: number; // optional discount applied during this period
+}
+
 export interface IVehicle {
   _id: mongoose.Types.ObjectId;
   brand: string;
@@ -26,6 +36,7 @@ export interface IVehicle {
     monthly: number;
     currency: string;
     deposit: number;
+    seasonalPrices?: ISeasonalPrice[];
   };
   features: string[];
   hasAirConditioning: boolean;
@@ -87,6 +98,17 @@ const VehicleSchema = new Schema<IVehicle>(
       monthly: { type: Number, required: true },
       currency: { type: String, default: "TND" },
       deposit: { type: Number, default: 0 },
+      seasonalPrices: [
+        {
+          name: { type: String, default: "" },
+          startDate: { type: String, default: "" },
+          endDate: { type: String, default: "" },
+          startMonth: { type: Number },
+          endMonth: { type: Number },
+          dailyRate: { type: Number, required: true },
+          discountPercent: { type: Number, default: 0 },
+        },
+      ],
     },
     features: [String],
     hasAirConditioning: { type: Boolean, default: true },

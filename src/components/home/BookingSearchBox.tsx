@@ -10,29 +10,130 @@ import {
   Search,
   Sparkles,
   Plane,
+  Compass,
+  Moon,
   CalendarDays,
   ChevronDown,
 } from "lucide-react";
 
 interface LocationOption {
   id: string;
-  city: string;
-  name: string;
+  city: { fr: string; en: string; ar: string };
+  name: { fr: string; en: string; ar: string };
   type: "airport" | "city";
 }
 
 const TUNISIA_LOCATIONS: LocationOption[] = [
-  { id: "tun-airport", city: "Tunis", name: "1. Aéroport de Tunis-Carthage (TUN)", type: "airport" },
-  { id: "mir-airport", city: "Monastir", name: "2. Aéroport de Monastir Habib Bourguiba (MIR)", type: "airport" },
-  { id: "soukra-agency", city: "Ariana", name: "3. Agence La Soukra (Siège Social)", type: "city" },
-  { id: "bizerte-city", city: "Bizerte", name: "4. Bizerte Ville", type: "city" },
-  { id: "nabeul-city", city: "Nabeul", name: "5. Nabeul Ville", type: "city" },
-  { id: "grand-tunis", city: "Tunis", name: "6. Grand Tunis (Livraison Hôtels & Domicile)", type: "city" },
-  { id: "nbe-airport", city: "Enfidha", name: "7. Aéroport Enfidha-Hammamet (NBE)", type: "airport" },
-  { id: "hammamet-city", city: "Hammamet", name: "8. Hammamet Ville & Yasmine Hammamet", type: "city" },
-  { id: "sfax-city", city: "Sfax", name: "9. Sfax Ville", type: "city" },
-  { id: "sousse-city", city: "Sousse", name: "10. Sousse Ville & Port El Kantaoui", type: "city" },
-  { id: "jendouba-city", city: "Jendouba", name: "11. Jendouba Ville & Tabarka", type: "city" },
+  {
+    id: "tun-airport",
+    city: { fr: "Tunis", en: "Tunis", ar: "تونس" },
+    name: {
+      fr: "1. Aéroport de Tunis-Carthage (TUN)",
+      en: "1. Tunis-Carthage Airport (TUN)",
+      ar: "1. مطار تونس قرطاج الدولي (TUN)",
+    },
+    type: "airport",
+  },
+  {
+    id: "mir-airport",
+    city: { fr: "Monastir", en: "Monastir", ar: "المنستير" },
+    name: {
+      fr: "2. Aéroport de Monastir Habib Bourguiba (MIR)",
+      en: "2. Monastir Airport (MIR)",
+      ar: "2. مطار الحبيب بورقيبة المنستير (MIR)",
+    },
+    type: "airport",
+  },
+  {
+    id: "soukra-agency",
+    city: { fr: "La Soukra", en: "La Soukra", ar: "سكرة" },
+    name: {
+      fr: "3. Agence La Soukra (Siège Social)",
+      en: "3. La Soukra Agency (HQ)",
+      ar: "3. وكالة سكرة (المقر الرئيسي)",
+    },
+    type: "city",
+  },
+  {
+    id: "bizerte-city",
+    city: { fr: "Bizerte", en: "Bizerte", ar: "بنزرت" },
+    name: {
+      fr: "4. Bizerte Ville & Port",
+      en: "4. Bizerte Downtown & Port",
+      ar: "4. مدينة بنزرت والميناء",
+    },
+    type: "city",
+  },
+  {
+    id: "nabeul-city",
+    city: { fr: "Nabeul", en: "Nabeul", ar: "نابل" },
+    name: {
+      fr: "5. Nabeul Ville",
+      en: "5. Nabeul Downtown",
+      ar: "5. مدينة نابل",
+    },
+    type: "city",
+  },
+  {
+    id: "grand-tunis",
+    city: { fr: "Grand Tunis", en: "Greater Tunis", ar: "تونس الكبرى" },
+    name: {
+      fr: "6. Grand Tunis (Livraison Hôtels & Domicile)",
+      en: "6. Greater Tunis (Hotel & Home Delivery)",
+      ar: "6. تونس الكبرى (تسليم الفنادق والمنازل)",
+    },
+    type: "city",
+  },
+  {
+    id: "nbe-airport",
+    city: { fr: "Enfidha", en: "Enfidha", ar: "النفيضة" },
+    name: {
+      fr: "7. Aéroport Enfidha-Hammamet (NBE)",
+      en: "7. Enfidha-Hammamet Airport (NBE)",
+      ar: "7. مطار النفيضة الحمامات الدولي (NBE)",
+    },
+    type: "airport",
+  },
+  {
+    id: "hammamet-city",
+    city: { fr: "Hammamet", en: "Hammamet", ar: "الحمامات" },
+    name: {
+      fr: "8. Hammamet Ville & Yasmine Hammamet",
+      en: "8. Hammamet & Yasmine Hammamet",
+      ar: "8. مدينة الحمامات وياسمين الحمامات",
+    },
+    type: "city",
+  },
+  {
+    id: "sfax-city",
+    city: { fr: "Sfax", en: "Sfax", ar: "صفاقس" },
+    name: {
+      fr: "9. Sfax Ville & Port",
+      en: "9. Sfax Downtown & Port",
+      ar: "9. مدينة صفاقس والميناء",
+    },
+    type: "city",
+  },
+  {
+    id: "sousse-city",
+    city: { fr: "Sousse", en: "Sousse", ar: "سوسة" },
+    name: {
+      fr: "10. Sousse Ville & Port El Kantaoui",
+      en: "10. Sousse & Port El Kantaoui",
+      ar: "10. مدينة سوسة وميناء القنطاوي",
+    },
+    type: "city",
+  },
+  {
+    id: "jendouba-city",
+    city: { fr: "Tabarka", en: "Tabarka", ar: "طبرقة" },
+    name: {
+      fr: "11. Jendouba Ville & Tabarka",
+      en: "11. Jendouba & Tabarka",
+      ar: "11. جندوبة وطبرقة",
+    },
+    type: "city",
+  },
 ];
 
 export function BookingSearchBox() {
@@ -209,12 +310,16 @@ export function BookingSearchBox() {
                 >
                   {TUNISIA_LOCATIONS.map((loc) => (
                     <option key={loc.id} value={loc.id}>
-                      {loc.name}
+                      {loc.name[locale as "fr" | "en" | "ar"] || loc.name.fr}
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-3.5 rtl:right-auto rtl:left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                  <Plane className="w-4 h-4 text-muted-foreground" />
+                <div className="absolute right-3.5 rtl:right-auto rtl:left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground flex items-center gap-1">
+                  {TUNISIA_LOCATIONS.find((l) => l.id === pickupLocation)?.type === "airport" ? (
+                    <Plane className="w-4 h-4 text-amber-500" />
+                  ) : (
+                    <Compass className="w-4 h-4 text-blue-500" />
+                  )}
                 </div>
               </div>
             </div>
@@ -237,12 +342,16 @@ export function BookingSearchBox() {
                   >
                     {TUNISIA_LOCATIONS.map((loc) => (
                       <option key={loc.id} value={loc.id}>
-                        {loc.name}
+                        {loc.name[locale as "fr" | "en" | "ar"] || loc.name.fr}
                       </option>
                     ))}
                   </select>
-                  <div className="absolute right-3.5 rtl:right-auto rtl:left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                    <Plane className="w-4 h-4 text-muted-foreground" />
+                  <div className="absolute right-3.5 rtl:right-auto rtl:left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground flex items-center gap-1">
+                    {TUNISIA_LOCATIONS.find((l) => l.id === returnLocation)?.type === "airport" ? (
+                      <Plane className="w-4 h-4 text-amber-500" />
+                    ) : (
+                      <Compass className="w-4 h-4 text-blue-500" />
+                    )}
                   </div>
                 </div>
               ) : (
@@ -257,7 +366,7 @@ export function BookingSearchBox() {
                       : locale === "ar"
                       ? "نفس الموقع ("
                       : "Same location ("}
-                    {TUNISIA_LOCATIONS.find((l) => l.id === pickupLocation)?.city || "Tunis"}
+                    {TUNISIA_LOCATIONS.find((l) => l.id === pickupLocation)?.city[locale as "fr" | "en" | "ar"] || "Tunis"}
                     )
                   </span>
                   <span className="text-[11px] text-amber-500 font-bold shrink-0">
