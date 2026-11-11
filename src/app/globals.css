@@ -195,7 +195,7 @@ html {
   );
 }
 
-/* Spinning Gold Border Card Effect */
+/* ── Fleet Card: Spinning Gold Border ── */
 @property --spin-angle {
   syntax: "<angle>";
   initial-value: 0deg;
@@ -203,198 +203,84 @@ html {
 }
 
 @keyframes goldSpin {
-  0%   { --spin-angle: 0deg; }
-  100% { --spin-angle: 360deg; }
+  to { --spin-angle: 360deg; }
 }
 
-@keyframes goldSpinFast {
-  0%   { --spin-angle: 0deg; }
-  100% { --spin-angle: 360deg; }
-}
-
-@keyframes goldGlow {
-  0%, 100% {
-    box-shadow:
-      0 0 8px 2px rgba(255, 208, 41, 0.35),
-      0 0 20px 4px rgba(255, 208, 41, 0.15),
-      0 4px 24px rgba(0, 0, 0, 0.10);
-  }
-  50% {
-    box-shadow:
-      0 0 18px 5px rgba(255, 208, 41, 0.75),
-      0 0 45px 12px rgba(255, 208, 41, 0.35),
-      0 0 70px 16px rgba(255, 180, 0, 0.15),
-      0 8px 32px rgba(0, 0, 0, 0.14);
-  }
-}
-
-/* Spinning Gold Border Card */
+/* Card base — no box-shadow glow, just the border does the work */
 .charging-card,
 .card-charging {
   position: relative;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  animation: goldGlow 2.8s ease-in-out infinite;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
 }
 
-/* Outer glow layer — blurred gold halo */
+/* Remove blurred halo ::after — just the sharp border */
 .charging-card::after,
 .card-charging::after {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  background: conic-gradient(
-    from var(--spin-angle),
-    transparent 0deg,
-    transparent 50deg,
-    rgba(255, 208, 41, 0.6) 80deg,
-    rgba(255, 230, 100, 0.9) 110deg,
-    rgba(255, 208, 41, 0.6) 140deg,
-    transparent 170deg,
-    transparent 230deg,
-    rgba(255, 208, 41, 0.5) 260deg,
-    rgba(255, 230, 100, 0.8) 290deg,
-    rgba(255, 208, 41, 0.5) 315deg,
-    transparent 345deg,
-    transparent 360deg
-  );
-  animation: goldSpin 4s linear infinite;
-  filter: blur(8px);
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.8;
+  display: none;
 }
 
-/* Sharp spinning border layer */
+/* Thin spinning gold border via ::before + mask trick */
 .charging-card::before,
 .card-charging::before {
   content: "";
   position: absolute;
-  inset: -1px;
+  inset: -1.5px;
   border-radius: inherit;
   background: conic-gradient(
     from var(--spin-angle),
     transparent 0deg,
-    transparent 55deg,
-    #c8960c 75deg,
-    #ffd029 95deg,
-    #fff4a3 115deg,
-    #ffd029 135deg,
-    #c8960c 155deg,
-    transparent 175deg,
-    transparent 235deg,
-    #c8960c 255deg,
-    #ffd029 275deg,
-    #fff4a3 290deg,
-    #ffd029 305deg,
-    #c8960c 320deg,
-    transparent 340deg,
+    transparent 65deg,
+    #c8960c   82deg,
+    #ffd029   96deg,
+    #fff9d6  108deg,
+    #ffd029  120deg,
+    #c8960c  133deg,
+    transparent 148deg,
+    transparent 245deg,
+    #c8960c   262deg,
+    #ffd029   276deg,
+    #fff9d6  288deg,
+    #ffd029  300deg,
+    #c8960c  313deg,
+    transparent 328deg,
     transparent 360deg
   );
-  animation: goldSpin 4s linear infinite;
+  animation: goldSpin 3.8s linear infinite;
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  padding: 1px;
+  padding: 1.5px;
   pointer-events: none;
   z-index: 10;
-  opacity: 1;
 }
 
+/* Hover: lift + speed up spin + subtle shadow only */
 .charging-card:hover,
 .card-charging:hover {
   transform: translateY(-4px);
-  box-shadow:
-    0 0 25px 8px rgba(255, 208, 41, 0.9),
-    0 0 60px 18px rgba(255, 208, 41, 0.45),
-    0 0 90px 24px rgba(255, 180, 0, 0.2),
-    0 12px 40px rgba(0, 0, 0, 0.18) !important;
-  animation: none;
-}
-
-.charging-card:hover::after,
-.card-charging:hover::after {
-  animation: goldSpinFast 1.6s linear infinite;
-  opacity: 1;
-  filter: blur(10px);
-  background: conic-gradient(
-    from var(--spin-angle),
-    transparent 0deg,
-    transparent 30deg,
-    rgba(255, 208, 41, 0.9)  60deg,
-    rgba(255, 240, 120, 1)   90deg,
-    rgba(255, 208, 41, 0.9)  120deg,
-    transparent 150deg,
-    transparent 210deg,
-    rgba(255, 208, 41, 0.8)  240deg,
-    rgba(255, 240, 120, 1)   270deg,
-    rgba(255, 208, 41, 0.8)  300deg,
-    transparent 330deg,
-    transparent 360deg
-  );
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.14);
 }
 
 .charging-card:hover::before,
 .card-charging:hover::before {
-  animation: goldSpinFast 1.6s linear infinite;
-  background: conic-gradient(
-    from var(--spin-angle),
-    transparent 0deg,
-    transparent 40deg,
-    #b8820a 60deg,
-    #ffd029 85deg,
-    #fffbe6 105deg,
-    #ffd029 125deg,
-    #b8820a 145deg,
-    transparent 165deg,
-    transparent 220deg,
-    #b8820a 240deg,
-    #ffd029 265deg,
-    #fffbe6 285deg,
-    #ffd029 305deg,
-    #b8820a 320deg,
-    transparent 345deg,
-    transparent 360deg
-  );
+  animation-duration: 1.4s;
 }
 
-/* ── Smoke / Mist Effect rising from card bottom ── */
+/* ── Cinematic White Smoke / Mist from card bottom ── */
 @keyframes smokeUp {
-  0% {
-    transform: translateY(0) translateX(0) scale(0.4);
-    opacity: 0;
-  }
-  15% {
-    opacity: 0.75;
-  }
-  70% {
-    transform: translateY(-55px) translateX(8px) scale(1.5);
-    opacity: 0.3;
-  }
-  100% {
-    transform: translateY(-100px) translateX(-6px) scale(2.4);
-    opacity: 0;
-  }
+  0%   { transform: translateY(0)     translateX(0)    scale(0.35); opacity: 0; }
+  18%  { opacity: 0.55; }
+  65%  { transform: translateY(-52px)  translateX(7px)  scale(1.6);  opacity: 0.22; }
+  100% { transform: translateY(-96px)  translateX(-5px) scale(2.5);  opacity: 0; }
 }
 
 @keyframes smokeUp2 {
-  0% {
-    transform: translateY(0) translateX(0) scale(0.3);
-    opacity: 0;
-  }
-  12% {
-    opacity: 0.6;
-  }
-  65% {
-    transform: translateY(-60px) translateX(-10px) scale(1.6);
-    opacity: 0.25;
-  }
-  100% {
-    transform: translateY(-105px) translateX(5px) scale(2.5);
-    opacity: 0;
-  }
+  0%   { transform: translateY(0)     translateX(0)    scale(0.28); opacity: 0; }
+  14%  { opacity: 0.45; }
+  60%  { transform: translateY(-58px)  translateX(-9px) scale(1.7);  opacity: 0.18; }
+  100% { transform: translateY(-100px) translateX(6px)  scale(2.6);  opacity: 0; }
 }
 
 .smoke-wrap {
@@ -410,58 +296,39 @@ html {
 
 .smoke-wrap span {
   position: absolute;
-  bottom: -8px;
+  bottom: -10px;
   border-radius: 50%;
+  /* Cinematic white — very light, cold */
   background: radial-gradient(
     circle at center,
-    rgba(254, 227, 127, 0.7) 0%,
-    rgba(254, 227, 127, 0.3) 45%,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(240, 240, 255, 0.25) 50%,
     transparent 72%
   );
-  filter: blur(7px);
-  animation: smokeUp 3.6s ease-out infinite;
+  filter: blur(9px);
 }
 
 .smoke-wrap span:nth-child(1) {
-  left: 18%;
-  width: 44px;
-  height: 44px;
-  animation-name: smokeUp;
-  animation-duration: 3.2s;
-  animation-delay: 0s;
+  left: 14%; width: 50px; height: 50px;
+  animation: smokeUp  3.1s ease-out infinite 0s;
 }
 .smoke-wrap span:nth-child(2) {
-  left: 42%;
-  width: 58px;
-  height: 58px;
-  animation-name: smokeUp2;
-  animation-duration: 4.1s;
-  animation-delay: 1.0s;
+  left: 38%; width: 64px; height: 64px;
+  animation: smokeUp2 4.2s ease-out infinite 0.9s;
 }
 .smoke-wrap span:nth-child(3) {
-  left: 64%;
-  width: 40px;
-  height: 40px;
-  animation-name: smokeUp;
-  animation-duration: 3.7s;
-  animation-delay: 2.1s;
+  left: 60%; width: 44px; height: 44px;
+  animation: smokeUp  3.6s ease-out infinite 2.0s;
 }
 .smoke-wrap span:nth-child(4) {
-  left: 32%;
-  width: 52px;
-  height: 52px;
-  animation-name: smokeUp2;
-  animation-duration: 4.5s;
-  animation-delay: 0.6s;
+  left: 30%; width: 56px; height: 56px;
+  animation: smokeUp2 4.6s ease-out infinite 0.5s;
 }
 .smoke-wrap span:nth-child(5) {
-  left: 76%;
-  width: 36px;
-  height: 36px;
-  animation-name: smokeUp;
-  animation-duration: 3.4s;
-  animation-delay: 1.7s;
+  left: 74%; width: 38px; height: 38px;
+  animation: smokeUp  3.3s ease-out infinite 1.6s;
 }
+
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
