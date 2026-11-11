@@ -437,6 +437,11 @@ export function FeaturedFleet() {
                     </Link>
                   </div>
                 </div>
+
+                {/* Smoke / mist rising from card bottom */}
+                <div className="smoke-wrap" aria-hidden="true">
+                  <span /><span /><span /><span /><span />
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>

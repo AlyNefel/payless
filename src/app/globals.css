@@ -241,7 +241,7 @@ html {
 .card-charging::after {
   content: "";
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: inherit;
   background: conic-gradient(
     from var(--spin-angle),
@@ -270,7 +270,7 @@ html {
 .card-charging::before {
   content: "";
   position: absolute;
-  inset: -2px;
+  inset: -1px;
   border-radius: inherit;
   background: conic-gradient(
     from var(--spin-angle),
@@ -297,7 +297,7 @@ html {
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  padding: 2px;
+  padding: 1px;
   pointer-events: none;
   z-index: 10;
   opacity: 1;
@@ -358,6 +358,109 @@ html {
     transparent 345deg,
     transparent 360deg
   );
+}
+
+/* ── Smoke / Mist Effect rising from card bottom ── */
+@keyframes smokeUp {
+  0% {
+    transform: translateY(0) translateX(0) scale(0.4);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.75;
+  }
+  70% {
+    transform: translateY(-55px) translateX(8px) scale(1.5);
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateY(-100px) translateX(-6px) scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes smokeUp2 {
+  0% {
+    transform: translateY(0) translateX(0) scale(0.3);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.6;
+  }
+  65% {
+    transform: translateY(-60px) translateX(-10px) scale(1.6);
+    opacity: 0.25;
+  }
+  100% {
+    transform: translateY(-105px) translateX(5px) scale(2.5);
+    opacity: 0;
+  }
+}
+
+.smoke-wrap {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 110px;
+  pointer-events: none;
+  z-index: 15;
+  overflow: hidden;
+}
+
+.smoke-wrap span {
+  position: absolute;
+  bottom: -8px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    rgba(254, 227, 127, 0.7) 0%,
+    rgba(254, 227, 127, 0.3) 45%,
+    transparent 72%
+  );
+  filter: blur(7px);
+  animation: smokeUp 3.6s ease-out infinite;
+}
+
+.smoke-wrap span:nth-child(1) {
+  left: 18%;
+  width: 44px;
+  height: 44px;
+  animation-name: smokeUp;
+  animation-duration: 3.2s;
+  animation-delay: 0s;
+}
+.smoke-wrap span:nth-child(2) {
+  left: 42%;
+  width: 58px;
+  height: 58px;
+  animation-name: smokeUp2;
+  animation-duration: 4.1s;
+  animation-delay: 1.0s;
+}
+.smoke-wrap span:nth-child(3) {
+  left: 64%;
+  width: 40px;
+  height: 40px;
+  animation-name: smokeUp;
+  animation-duration: 3.7s;
+  animation-delay: 2.1s;
+}
+.smoke-wrap span:nth-child(4) {
+  left: 32%;
+  width: 52px;
+  height: 52px;
+  animation-name: smokeUp2;
+  animation-duration: 4.5s;
+  animation-delay: 0.6s;
+}
+.smoke-wrap span:nth-child(5) {
+  left: 76%;
+  width: 36px;
+  height: 36px;
+  animation-name: smokeUp;
+  animation-duration: 3.4s;
+  animation-delay: 1.7s;
 }
 
 /* Reduced motion */
