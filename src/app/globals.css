@@ -215,14 +215,16 @@ html {
 @keyframes goldGlow {
   0%, 100% {
     box-shadow:
-      0 0 10px rgba(255, 208, 41, 0.15),
-      0 4px 20px rgba(0, 0, 0, 0.08);
+      0 0 8px 2px rgba(255, 208, 41, 0.35),
+      0 0 20px 4px rgba(255, 208, 41, 0.15),
+      0 4px 24px rgba(0, 0, 0, 0.10);
   }
   50% {
     box-shadow:
-      0 0 22px rgba(255, 208, 41, 0.45),
-      0 0 40px rgba(255, 208, 41, 0.18),
-      0 8px 30px rgba(0, 0, 0, 0.12);
+      0 0 18px 5px rgba(255, 208, 41, 0.75),
+      0 0 45px 12px rgba(255, 208, 41, 0.35),
+      0 0 70px 16px rgba(255, 180, 0, 0.15),
+      0 8px 32px rgba(0, 0, 0, 0.14);
   }
 }
 
@@ -231,9 +233,39 @@ html {
 .card-charging {
   position: relative;
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  animation: goldGlow 3.5s ease-in-out infinite;
+  animation: goldGlow 2.8s ease-in-out infinite;
 }
 
+/* Outer glow layer — blurred gold halo */
+.charging-card::after,
+.card-charging::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--spin-angle),
+    transparent 0deg,
+    transparent 50deg,
+    rgba(255, 208, 41, 0.6) 80deg,
+    rgba(255, 230, 100, 0.9) 110deg,
+    rgba(255, 208, 41, 0.6) 140deg,
+    transparent 170deg,
+    transparent 230deg,
+    rgba(255, 208, 41, 0.5) 260deg,
+    rgba(255, 230, 100, 0.8) 290deg,
+    rgba(255, 208, 41, 0.5) 315deg,
+    transparent 345deg,
+    transparent 360deg
+  );
+  animation: goldSpin 4s linear infinite;
+  filter: blur(8px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.8;
+}
+
+/* Sharp spinning border layer */
 .charging-card::before,
 .card-charging::before {
   content: "";
@@ -243,15 +275,20 @@ html {
   background: conic-gradient(
     from var(--spin-angle),
     transparent 0deg,
-    transparent 60deg,
-    #ffd029 90deg,
-    #fff4a3 120deg,
-    #ffd029 150deg,
-    transparent 180deg,
-    transparent 300deg,
-    #ffd029 330deg,
-    #fff4a3 345deg,
-    #ffd029 355deg,
+    transparent 55deg,
+    #c8960c 75deg,
+    #ffd029 95deg,
+    #fff4a3 115deg,
+    #ffd029 135deg,
+    #c8960c 155deg,
+    transparent 175deg,
+    transparent 235deg,
+    #c8960c 255deg,
+    #ffd029 275deg,
+    #fff4a3 290deg,
+    #ffd029 305deg,
+    #c8960c 320deg,
+    transparent 340deg,
     transparent 360deg
   );
   animation: goldSpin 4s linear infinite;
@@ -263,31 +300,62 @@ html {
   padding: 2px;
   pointer-events: none;
   z-index: 10;
-  opacity: 0.75;
+  opacity: 1;
 }
 
 .charging-card:hover,
 .card-charging:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
+  box-shadow:
+    0 0 25px 8px rgba(255, 208, 41, 0.9),
+    0 0 60px 18px rgba(255, 208, 41, 0.45),
+    0 0 90px 24px rgba(255, 180, 0, 0.2),
+    0 12px 40px rgba(0, 0, 0, 0.18) !important;
+  animation: none;
+}
+
+.charging-card:hover::after,
+.card-charging:hover::after {
+  animation: goldSpinFast 1.6s linear infinite;
+  opacity: 1;
+  filter: blur(10px);
+  background: conic-gradient(
+    from var(--spin-angle),
+    transparent 0deg,
+    transparent 30deg,
+    rgba(255, 208, 41, 0.9)  60deg,
+    rgba(255, 240, 120, 1)   90deg,
+    rgba(255, 208, 41, 0.9)  120deg,
+    transparent 150deg,
+    transparent 210deg,
+    rgba(255, 208, 41, 0.8)  240deg,
+    rgba(255, 240, 120, 1)   270deg,
+    rgba(255, 208, 41, 0.8)  300deg,
+    transparent 330deg,
+    transparent 360deg
+  );
 }
 
 .charging-card:hover::before,
 .card-charging:hover::before {
-  animation: goldSpinFast 1.8s linear infinite;
-  opacity: 1;
+  animation: goldSpinFast 1.6s linear infinite;
   background: conic-gradient(
     from var(--spin-angle),
     transparent 0deg,
     transparent 40deg,
-    #ffd029 70deg,
-    #fffbe6 100deg,
-    #ffd029 120deg,
-    transparent 160deg,
+    #b8820a 60deg,
+    #ffd029 85deg,
+    #fffbe6 105deg,
+    #ffd029 125deg,
+    #b8820a 145deg,
+    transparent 165deg,
     transparent 220deg,
-    #ffd029 250deg,
-    #fffbe6 280deg,
-    #ffd029 310deg,
-    transparent 350deg,
+    #b8820a 240deg,
+    #ffd029 265deg,
+    #fffbe6 285deg,
+    #ffd029 305deg,
+    #b8820a 320deg,
+    transparent 345deg,
     transparent 360deg
   );
 }
