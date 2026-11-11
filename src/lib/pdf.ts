@@ -1,5 +1,16 @@
 import { jsPDF } from "jspdf";
 
+export interface PDFVehicleItem {
+  brand: string;
+  model: string;
+  dailyRate: number;
+  subtotal: number;
+  rentalDuration?: number;
+  extrasTotal?: number;
+  extrasNames?: string[];
+  depositAmount?: number;
+}
+
 export interface PDFBookingData {
   bookingReference: string;
   customerName: string;
@@ -10,6 +21,7 @@ export interface PDFBookingData {
   vehicleBrand: string;
   vehicleModel: string;
   vehicleYear?: number;
+  vehicles?: PDFVehicleItem[];
   pickupLocation: string;
   returnLocation: string;
   pickupDate: string;
@@ -190,7 +202,14 @@ export function generateBookingPDF(data: PDFBookingData): Buffer {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text("2. VÉHICULE RÉSERVÉ", rightX + 3, y + 4.2);
+  const isMultiCar = Boolean(data.vehicles && data.vehicles.length > 1);
+  doc.text(
+    isMultiCar
+      ? `2. VÉHICULES RÉSERVÉS (${data.vehicles!.length} VÉHICULES)`
+      : "2. VÉHICULE RÉSERVÉ",
+    rightX + 3,
+    y + 4.2
+  );
 
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
@@ -200,10 +219,13 @@ export function generateBookingPDF(data: PDFBookingData): Buffer {
   const rightY = y + 10.5;
 
   doc.setFont("helvetica", "bold");
-  doc.text("Modèle réservé :", rightX + 3, rightY);
+  doc.text(isMultiCar ? "Modèles réservés :" : "Modèle réservé :", rightX + 3, rightY);
   doc.setFont("helvetica", "bold");
   // Vehicle year is strictly hidden from client invoice
-  doc.text(`${data.vehicleBrand} ${data.vehicleModel}`, rightX + 28, rightY, { maxWidth: colWidth - 30 });
+  const vehicleNameText = isMultiCar
+    ? data.vehicles!.map((v) => `${v.brand} ${v.model}`).join(" + ")
+    : `${data.vehicleBrand} ${data.vehicleModel}`;
+  doc.text(vehicleNameText, rightX + 28, rightY, { maxWidth: colWidth - 30 });
 
   doc.setFont("helvetica", "bold");
   doc.text("Catégorie :", rightX + 3, rightY + 5);
@@ -340,22 +362,45 @@ export function generateBookingPDF(data: PDFBookingData): Buffer {
     total: string;
   }
 
-  const invoiceRows: InvoiceRow[] = [
-    {
+  const invoiceRows: InvoiceRow[] = [];
+
+  if (data.vehicles && data.vehicles.length > 0) {
+    data.vehicles.forEach((vItem, idx) => {
+      const dur = vItem.rentalDuration || data.rentalDuration;
+      invoiceRows.push({
+        desc: `Location #${idx + 1} — ${vItem.brand} ${vItem.model}`,
+        qty: `${dur} j`,
+        unitPrice: (vItem.dailyRate / 100).toFixed(2),
+        total: (vItem.subtotal / 100).toFixed(2),
+      });
+
+      if (vItem.extrasTotal && vItem.extrasTotal > 0) {
+        invoiceRows.push({
+          desc: `Options & Équipements (${vItem.brand} ${vItem.model})${
+            vItem.extrasNames && vItem.extrasNames.length > 0 ? ` : ${vItem.extrasNames.join(", ")}` : ""
+          }`,
+          qty: "1 forfait",
+          unitPrice: (vItem.extrasTotal / 100).toFixed(2),
+          total: (vItem.extrasTotal / 100).toFixed(2),
+        });
+      }
+    });
+  } else {
+    invoiceRows.push({
       desc: `Location de base — ${data.vehicleBrand} ${data.vehicleModel}`,
       qty: `${data.rentalDuration} j`,
       unitPrice: (data.dailyRate / 100).toFixed(2),
       total: (data.subtotal / 100).toFixed(2),
-    },
-  ];
-
-  if (data.extrasTotal && data.extrasTotal > 0) {
-    invoiceRows.push({
-      desc: "Options & Équipements supplémentaires",
-      qty: "1 forfait",
-      unitPrice: (data.extrasTotal / 100).toFixed(2),
-      total: (data.extrasTotal / 100).toFixed(2),
     });
+
+    if (data.extrasTotal && data.extrasTotal > 0) {
+      invoiceRows.push({
+        desc: "Options & Équipements supplémentaires",
+        qty: "1 forfait",
+        unitPrice: (data.extrasTotal / 100).toFixed(2),
+        total: (data.extrasTotal / 100).toFixed(2),
+      });
+    }
   }
 
   if (data.pickupLocationFee && data.pickupLocationFee > 0) {

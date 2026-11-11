@@ -52,6 +52,21 @@ interface PopulatedBooking {
     licensePlate?: string;
     pricing?: { daily?: number; deposit?: number; currency?: string };
   };
+  vehicles?: Array<{
+    vehicleId?: {
+      _id: string;
+      brand: string;
+      model: string;
+      year?: number;
+      licensePlate?: string;
+    };
+    brand?: string;
+    model?: string;
+    dailyRate?: number;
+    subtotal?: number;
+    depositAmount?: number;
+    extras?: Array<{ id: string; quantity: number }>;
+  }>;
   customerId?: {
     _id: string;
     firstName: string;
@@ -558,48 +573,91 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
                 <Car className="w-4 h-4 text-amber-500" />
-                <span>Véhicule Assigné</span>
+                <span>
+                  {booking.vehicles && booking.vehicles.length > 1
+                    ? `Véhicules Réservés (${booking.vehicles.length} véhicules)`
+                    : "Véhicule Assigné"}
+                </span>
               </h2>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shrink-0">
-                  <Car className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                    {booking.vehicleId?.brand} {booking.vehicleId?.model} ({booking.vehicleId?.year || 2024})
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Matricule: <span className="font-mono font-semibold">{booking.vehicleId?.licensePlate || "À assigner au comptoir"}</span>
-                  </p>
-                </div>
+            {booking.vehicles && booking.vehicles.length > 1 ? (
+              <div className="space-y-3">
+                {booking.vehicles.map((vItem, idx) => {
+                  const vObj = typeof vItem.vehicleId === "object" ? vItem.vehicleId : null;
+                  const vBrand = vItem.brand || vObj?.brand || "Véhicule";
+                  const vModel = vItem.model || vObj?.model || "";
+                  const vPlate = vObj?.licensePlate || "À assigner au comptoir";
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between gap-4 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-700 dark:text-amber-400 font-bold shrink-0 text-xs font-mono">
+                          #{idx + 1}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                            {vBrand} {vModel}
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Matricule: <span className="font-mono font-semibold">{vPlate}</span>
+                            {vItem.dailyRate ? ` • Tarif: ${vItem.dailyRate / 100} TND/j` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      {vItem.subtotal && (
+                        <div className="text-right">
+                          <span className="font-bold font-mono text-sm text-blue-600 dark:text-blue-400">
+                            {vItem.subtotal / 100} TND
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold shrink-0">
+                    <Car className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                      {booking.vehicleId?.brand} {booking.vehicleId?.model} ({booking.vehicleId?.year || 2024})
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Matricule: <span className="font-mono font-semibold">{booking.vehicleId?.licensePlate || "À assigner au comptoir"}</span>
+                    </p>
+                  </div>
+                </div>
 
-              {/* Reassign Vehicle Dropdown */}
-              <div className="w-full sm:w-auto">
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                  Changer de véhicule :
-                </label>
-                <select
-                  value={selectedVehicleId}
-                  onChange={(e) => setSelectedVehicleId(e.target.value)}
-                  className="w-full sm:w-56 h-9 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-white"
-                >
-                  <option value={booking.vehicleId?._id || ""}>
-                    {booking.vehicleId ? `${booking.vehicleId.brand} ${booking.vehicleId.model}` : "Sélectionner..."}
-                  </option>
-                  {availableVehicles
-                    .filter((v) => v._id !== booking.vehicleId?._id)
-                    .map((v) => (
-                      <option key={v._id} value={v._id}>
-                        {v.brand} {v.model} ({v.year})
-                      </option>
-                    ))}
-                </select>
+                {/* Reassign Vehicle Dropdown */}
+                <div className="w-full sm:w-auto">
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                    Changer de véhicule :
+                  </label>
+                  <select
+                    value={selectedVehicleId}
+                    onChange={(e) => setSelectedVehicleId(e.target.value)}
+                    className="w-full sm:w-56 h-9 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-white"
+                  >
+                    <option value={booking.vehicleId?._id || ""}>
+                      {booking.vehicleId ? `${booking.vehicleId.brand} ${booking.vehicleId.model}` : "Sélectionner..."}
+                    </option>
+                    {availableVehicles
+                      .filter((v) => v._id !== booking.vehicleId?._id)
+                      .map((v) => (
+                        <option key={v._id} value={v._id}>
+                          {v.brand} {v.model} ({v.year})
+                        </option>
+                      ))}
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Dates & Locations Card */}

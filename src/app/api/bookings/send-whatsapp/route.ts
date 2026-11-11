@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     })
       .populate("customerId")
       .populate("vehicleId")
+      .populate("vehicles.vehicleId")
       .populate("pickupLocationId")
       .populate("returnLocationId")
       .lean();
@@ -58,12 +59,19 @@ export async function POST(request: NextRequest) {
       pickupLoc.address ||
       "Agence";
 
+    const vehicleNames = (booking as any).vehicles?.length
+      ? (booking as any).vehicles
+          .map((v: any) => `${v.brand || v.vehicleId?.brand || ""} ${v.model || v.vehicleId?.model || ""}`.trim())
+          .filter(Boolean)
+          .join(" + ")
+      : `${vehicle.brand || ""} ${vehicle.model || ""}`.trim() || "Véhicule";
+
     // Dispatch via WhatsApp Gateway (UltraMsg / GreenAPI / Meta)
     const result = await sendBookingWhatsAppNotification({
       ...booking,
       customerName: `${customer.firstName || ""} ${customer.lastName || ""}`.trim() || "Client",
       customerPhone,
-      vehicleName: `${vehicle.brand || ""} ${vehicle.model || ""}`.trim() || "Véhicule",
+      vehicleName: vehicleNames,
       pickupDate: booking.pickupDate,
       returnDate: booking.returnDate,
       pickupLocation: pickupLocName,

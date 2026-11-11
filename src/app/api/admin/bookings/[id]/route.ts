@@ -35,6 +35,7 @@ export async function GET(
     await connectDB();
     const booking = await Booking.findById(id)
       .populate("vehicleId")
+      .populate("vehicles.vehicleId")
       .populate("customerId")
       .populate("pickupLocationId")
       .populate("returnLocationId")

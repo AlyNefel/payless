@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
 
     const booking = await Booking.findOne(query)
       .populate("vehicleId")
+      .populate("vehicles.vehicleId")
       .populate("pickupLocationId")
       .populate("returnLocationId")
       .populate("customerId")
@@ -80,6 +81,28 @@ export async function POST(request: NextRequest) {
     const customerName = `${cust?.firstName || "Client"} ${cust?.lastName || ""}`.trim();
     const customerLanguage = (cust?.preferredLanguage as "fr" | "en" | "ar") || "fr";
 
+    const pdfVehicles =
+      booking.vehicles && booking.vehicles.length > 0
+        ? booking.vehicles.map((bv: any) => {
+            const bvDoc = bv.vehicleId as any;
+            return {
+              brand: bv.brand || bvDoc?.brand || vehicle?.brand || "Véhicule",
+              model: bv.model || bvDoc?.model || vehicle?.model || "Garanti",
+              dailyRate: bv.dailyRate || booking.pricingBreakdown?.dailyRate || 0,
+              subtotal: bv.subtotal || booking.pricingBreakdown?.subtotal || 0,
+              rentalDuration: booking.rentalDuration,
+              extrasTotal: bv.extras
+                ? bv.extras.reduce(
+                    (acc: number, ex: any) => acc + (ex.price || 0) * (ex.quantity || 1) * booking.rentalDuration,
+                    0
+                  )
+                : 0,
+              extrasNames: bv.extras ? bv.extras.map((ex: any) => `${ex.name} (x${ex.quantity})`) : [],
+              depositAmount: bv.depositAmount || bvDoc?.pricing?.deposit,
+            };
+          })
+        : undefined;
+
     // 1. Generate Black & White PDF Invoice Voucher
     const pdfBuffer = generateBookingPDF({
       bookingReference: booking.bookingReference,
@@ -91,6 +114,7 @@ export async function POST(request: NextRequest) {
       vehicleBrand: vehicle?.brand || "Véhicule",
       vehicleModel: vehicle?.model || "Garanti",
       vehicleYear: vehicle?.year,
+      vehicles: pdfVehicles,
       pickupLocation: pickupLocName,
       returnLocation: returnLocName,
       pickupDate: formatDate(booking.pickupDate, "fr-FR"),

@@ -31,7 +31,23 @@ import mongoose from "mongoose";
 export const dynamic = "force-dynamic";
 
 const createBookingSchema = z.object({
-  vehicleId: z.string().min(1, "Vehicle ID is required"),
+  vehicleId: z.string().optional(),
+  vehicles: z
+    .array(
+      z.object({
+        vehicleId: z.string().min(1),
+        extras: z
+          .array(
+            z.object({
+              extraId: z.string().min(1),
+              quantity: z.number().int().min(1).default(1),
+            })
+          )
+          .optional()
+          .default([]),
+      })
+    )
+    .optional(),
   pickupLocationId: z.string().min(1, "Pickup location is required"),
   returnLocationId: z.string().min(1, "Return location is required"),
   pickupDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
@@ -121,6 +137,13 @@ export async function POST(request: NextRequest) {
       body.returnDate = returnD.toISOString().split("T")[0];
     }
 
+    // Auto-normalize multi-car and single-car payload
+    if (body.vehicles && Array.isArray(body.vehicles) && body.vehicles.length > 0 && !body.vehicleId) {
+      body.vehicleId = body.vehicles[0].vehicleId;
+    } else if (body.vehicleId && (!body.vehicles || !Array.isArray(body.vehicles) || body.vehicles.length === 0)) {
+      body.vehicles = [{ vehicleId: body.vehicleId, extras: body.extras || [] }];
+    }
+
     const validationResult = createBookingSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -180,39 +203,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Fetch vehicle & verify existence and active status
-    let vehicle = null;
-    if (mongoose.Types.ObjectId.isValid(vehicleId)) {
-      vehicle = await Vehicle.findById(vehicleId).populate("categoryId");
-    }
-    if (!vehicle) {
-      vehicle = await Vehicle.findOne({ isActive: true, status: { $ne: "archived" } }).populate("categoryId");
-    }
-
-    if (!vehicle || !vehicle.isActive || vehicle.status === "archived") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Le véhicule sélectionné n'est pas disponible à la location.",
-        },
-        { status: 404 }
-      );
-    }
-
-    // 2. Strict Real Stock & Concurrency Anti-Double Booking Check
-    const stockInfo = await getVehicleStockAvailability(vehicle._id.toString(), pickupDate, returnDate);
-    if (!stockInfo.isAvailable || stockInfo.availableUnits <= 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Ce véhicule n'est plus disponible pour les dates sélectionnées (stock épuisé). Veuillez choisir un autre véhicule ou modifier vos dates.",
-          stock: stockInfo,
-        },
-        { status: 409 }
-      );
-    }
-
-    // 3. Resiliently resolve pickup and return locations
+    // 1. Resolve pickup and return locations
     async function resolveLocationDoc(idOrCode: string) {
       if (mongoose.Types.ObjectId.isValid(idOrCode)) {
         const found = await Location.findById(idOrCode);
@@ -261,43 +252,109 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Calculate Server-side Base Pricing
-    const dailyRate = vehicle.pricing.daily;
-    const subtotal = calculateRentalPrice(vehicle.pricing, rentalDays);
+    // 2. Fetch and Validate all Vehicles (Multi-car system)
+    const rawVehicles = validationResult.data.vehicles;
+    const vehicleListInputs =
+      rawVehicles && rawVehicles.length > 0
+        ? rawVehicles
+        : [{ vehicleId: vehicleId || "", extras: selectedExtras || [] }];
 
-    // 5. Calculate Extras Pricing
-    let extrasTotal = 0;
-    const bookingExtras: {
-      extraId: mongoose.Types.ObjectId;
-      name: string;
-      price: number;
-      quantity: number;
-    }[] = [];
+    const processedVehicles: Array<{
+      vehicle: any;
+      dailyRate: number;
+      subtotal: number;
+      depositAmount: number;
+      extras: Array<{
+        extraId: mongoose.Types.ObjectId;
+        name: string;
+        price: number;
+        quantity: number;
+      }>;
+      extrasTotal: number;
+    }> = [];
 
-    if (selectedExtras && selectedExtras.length > 0) {
-      for (const item of selectedExtras) {
-        if (!mongoose.Types.ObjectId.isValid(item.extraId)) continue;
-        const extraDoc = await Extra.findById(item.extraId);
-        if (!extraDoc || !extraDoc.isActive) continue;
-
-        const qty = Math.min(item.quantity || 1, extraDoc.maxQuantity || 5);
-        let extraCost = 0;
-
-        if (extraDoc.pricingType === "per_day") {
-          extraCost = extraDoc.price * rentalDays * qty;
-        } else {
-          extraCost = extraDoc.price * qty;
-        }
-
-        extrasTotal += extraCost;
-        bookingExtras.push({
-          extraId: extraDoc._id,
-          name: extraDoc.name[customerLanguage] || extraDoc.name.fr || extraDoc.name.en,
-          price: extraDoc.price,
-          quantity: qty,
-        });
+    for (const vInput of vehicleListInputs) {
+      let vDoc = null;
+      if (mongoose.Types.ObjectId.isValid(vInput.vehicleId)) {
+        vDoc = await Vehicle.findById(vInput.vehicleId).populate("categoryId");
       }
+      if (!vDoc) {
+        vDoc = await Vehicle.findOne({ isActive: true, status: { $ne: "archived" } }).populate("categoryId");
+      }
+
+      if (!vDoc || !vDoc.isActive || vDoc.status === "archived") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Le véhicule sélectionné n'est pas disponible à la location.",
+          },
+          { status: 404 }
+        );
+      }
+
+      // Concurrency Anti-Double Booking Check for each vehicle
+      const stockInfo = await getVehicleStockAvailability(vDoc._id.toString(), pickupDate, returnDate);
+      if (!stockInfo.isAvailable || stockInfo.availableUnits <= 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Le véhicule ${vDoc.brand} ${vDoc.model} n'est plus disponible pour les dates sélectionnées (stock épuisé).`,
+            stock: stockInfo,
+          },
+          { status: 409 }
+        );
+      }
+
+      const vDailyRate = vDoc.pricing.daily;
+      const vSubtotal = calculateRentalPrice(vDoc.pricing, rentalDays);
+      let vExtrasTotal = 0;
+      const vBookingExtras: Array<{
+        extraId: mongoose.Types.ObjectId;
+        name: string;
+        price: number;
+        quantity: number;
+      }> = [];
+
+      if (vInput.extras && vInput.extras.length > 0) {
+        for (const item of vInput.extras) {
+          if (!mongoose.Types.ObjectId.isValid(item.extraId)) continue;
+          const extraDoc = await Extra.findById(item.extraId);
+          if (!extraDoc || !extraDoc.isActive) continue;
+
+          const qty = Math.min(item.quantity || 1, extraDoc.maxQuantity || 5);
+          let extraCost = 0;
+
+          if (extraDoc.pricingType === "per_day") {
+            extraCost = extraDoc.price * rentalDays * qty;
+          } else {
+            extraCost = extraDoc.price * qty;
+          }
+
+          vExtrasTotal += extraCost;
+          vBookingExtras.push({
+            extraId: extraDoc._id,
+            name: extraDoc.name[customerLanguage] || extraDoc.name.fr || extraDoc.name.en,
+            price: extraDoc.price,
+            quantity: qty,
+          });
+        }
+      }
+
+      processedVehicles.push({
+        vehicle: vDoc,
+        dailyRate: vDailyRate,
+        subtotal: vSubtotal,
+        depositAmount: vDoc.pricing.deposit || 0,
+        extras: vBookingExtras,
+        extrasTotal: vExtrasTotal,
+      });
     }
+
+    const vehicle = processedVehicles[0].vehicle;
+    const dailyRate = processedVehicles[0].dailyRate;
+    const subtotal = processedVehicles.reduce((acc, pv) => acc + pv.subtotal, 0);
+    const extrasTotal = processedVehicles.reduce((acc, pv) => acc + pv.extrasTotal, 0);
+    const bookingExtras = processedVehicles.flatMap((pv) => pv.extras);
 
     // 6. Validate and apply coupon if provided
     let discountAmount = 0;
@@ -408,10 +465,11 @@ export async function POST(request: NextRequest) {
 
     const taxRate = 0;
     const taxAmount = 0;
-    const timbreFiscal = Math.round(timbreFiscalSetting * 100);
-    const contributionLF2026 = Math.round(contributionSetting * 100) * rentalDays;
+    const timbreFiscal = Math.round(timbreFiscalSetting * 100); // 1 timbre fiscal unique pour toute la facture
+    const contributionLF2026 =
+      Math.round(contributionSetting * 100) * rentalDays * processedVehicles.length;
 
-    const depositAmount = vehicle.pricing.deposit || 0;
+    const depositAmount = processedVehicles.reduce((acc, pv) => acc + pv.depositAmount, 0);
     const totalAmount = Math.max(
       0,
       subtotal +
@@ -523,11 +581,22 @@ export async function POST(request: NextRequest) {
     // 10. Generate Reference & CREATE BOOKING WITH INSTANT AUTO-CONFIRMATION
     const bookingReference = generateBookingReference();
 
+    const vehicleTitle = processedVehicles.map((pv) => `${pv.vehicle.brand} ${pv.vehicle.model}`).join(" + ");
+
     const booking = await Booking.create({
       bookingReference,
       customerId: customer._id,
       createdBy: linkedUserId,
       vehicleId: vehicle._id,
+      vehicles: processedVehicles.map((pv) => ({
+        vehicleId: pv.vehicle._id,
+        brand: pv.vehicle.brand,
+        model: pv.vehicle.model,
+        dailyRate: pv.dailyRate,
+        subtotal: pv.subtotal,
+        depositAmount: pv.depositAmount,
+        extras: pv.extras,
+      })),
       pickupLocationId: pickupLoc._id,
       returnLocationId: returnLoc._id,
       pickupDate,
@@ -630,6 +699,16 @@ export async function POST(request: NextRequest) {
         vehicleBrand: vehicle.brand,
         vehicleModel: vehicle.model,
         vehicleYear: vehicle.year,
+        vehicles: processedVehicles.map((pv) => ({
+          brand: pv.vehicle.brand,
+          model: pv.vehicle.model,
+          dailyRate: pv.dailyRate,
+          subtotal: pv.subtotal,
+          rentalDuration: rentalDays,
+          extrasTotal: pv.extrasTotal,
+          extrasNames: pv.extras.map((ex) => `${ex.name} (x${ex.quantity})`),
+          depositAmount: pv.depositAmount,
+        })),
         pickupLocation: pickupLocName,
         returnLocation: returnLocName,
         pickupDate: formatDate(pickupDate, "fr-FR"),
@@ -658,7 +737,7 @@ export async function POST(request: NextRequest) {
     const emailData = buildBookingConfirmationEmail({
       customerName: `${customer.firstName} ${customer.lastName}`,
       bookingReference,
-      vehicleName: `${vehicle.brand} ${vehicle.model} (${vehicle.year})`,
+      vehicleName: vehicleTitle,
       pickupLocation: pickupLocName,
       returnLocation: returnLocName,
       pickupDate: formatDate(pickupDate, customerLanguage === "ar" ? "ar-TN" : "fr-FR"),
@@ -745,10 +824,10 @@ export async function POST(request: NextRequest) {
 
     // Auto-dispatch WhatsApp confirmation if gateway is connected
     sendBookingWhatsAppNotification({
-      ...booking.toObject ? booking.toObject() : booking,
+      ...(booking.toObject ? booking.toObject() : booking),
       customerName: `${customer.firstName} ${customer.lastName}`,
       customerPhone: customer.phone,
-      vehicleName: `${vehicle.brand} ${vehicle.model}`,
+      vehicleName: vehicleTitle,
       pickupDate,
       returnDate,
       pickupLocation: pickupLocName,
@@ -760,6 +839,7 @@ export async function POST(request: NextRequest) {
     // Return the created booking with sanitized fields
     const populatedBooking = await Booking.findById(booking._id)
       .populate("vehicleId")
+      .populate("vehicles.vehicleId")
       .populate("pickupLocationId")
       .populate("returnLocationId")
       .populate("customerId")

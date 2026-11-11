@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
     const [rawBookings, total] = await Promise.all([
       Booking.find(query)
         .populate("vehicleId")
+        .populate("vehicles.vehicleId")
         .populate("customerId")
         .populate("pickupLocationId")
         .populate("returnLocationId")
@@ -100,6 +101,13 @@ export async function GET(request: NextRequest) {
       const pLoc = b.pickupLocationId;
       const rLoc = b.returnLocationId;
 
+      const multiVehName = b.vehicles?.length
+        ? b.vehicles
+            .map((v: any) => `${v.brand || v.vehicleId?.brand || ""} ${v.model || v.vehicleId?.model || ""}`.trim())
+            .filter(Boolean)
+            .join(" + ")
+        : "";
+
       return {
         id: b._id.toString(),
         _id: b._id.toString(),
@@ -111,8 +119,9 @@ export async function GET(request: NextRequest) {
         customerName: cust ? `${cust.firstName || ""} ${cust.lastName || ""}`.trim() : "Client Payless",
         customerPhone: cust?.phone || "",
         customerEmail: cust?.email || "",
+        vehicles: b.vehicles || [],
         vehicleId: veh?._id?.toString() || (typeof b.vehicleId === "string" ? b.vehicleId : ""),
-        vehicleName: veh ? `${veh.brand} ${veh.model}` : "Véhicule",
+        vehicleName: multiVehName || (veh ? `${veh.brand} ${veh.model}` : "Véhicule"),
         licensePlate: veh?.licensePlate || "TUN-2026",
         vehicleImage: veh?.images?.find((i: any) => i.isPrimary)?.url || veh?.images?.[0]?.url || "",
         pickupDate: b.pickupDate ? new Date(b.pickupDate).toISOString().split("T")[0] : "",
@@ -166,10 +175,21 @@ export async function DELETE(request: NextRequest) {
     }
 
     // If vehicle was assigned and booking was active/confirmed, restore vehicle availability
-    if (booking.vehicleId && ["confirmed", "active", "pending"].includes(booking.bookingStatus)) {
-      await Vehicle.findByIdAndUpdate(booking.vehicleId, {
-        $inc: { availableUnits: 1 },
-      }).catch(() => {});
+    if (["confirmed", "active", "pending"].includes(booking.bookingStatus)) {
+      if (booking.vehicles && booking.vehicles.length > 0) {
+        for (const item of booking.vehicles) {
+          const vId = item.vehicleId;
+          if (vId) {
+            await Vehicle.findByIdAndUpdate(vId, {
+              $inc: { availableUnits: 1 },
+            }).catch(() => {});
+          }
+        }
+      } else if (booking.vehicleId) {
+        await Vehicle.findByIdAndUpdate(booking.vehicleId, {
+          $inc: { availableUnits: 1 },
+        }).catch(() => {});
+      }
     }
 
     await Booking.findByIdAndDelete(id);

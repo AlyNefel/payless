@@ -38,6 +38,16 @@ export interface IBookingExtra {
   quantity: number;
 }
 
+export interface IBookingVehicleItem {
+  vehicleId: mongoose.Types.ObjectId;
+  brand?: string;
+  model?: string;
+  dailyRate: number;
+  subtotal: number;
+  depositAmount?: number;
+  extras?: IBookingExtra[];
+}
+
 export interface IBookingAudit {
   action: string;
   performedBy: mongoose.Types.ObjectId | string;
@@ -69,6 +79,7 @@ export interface IBooking extends Document {
   bookingReference: string;
   customerId: mongoose.Types.ObjectId;
   vehicleId: mongoose.Types.ObjectId;
+  vehicles?: IBookingVehicleItem[];
   pickupLocationId: mongoose.Types.ObjectId;
   returnLocationId: mongoose.Types.ObjectId;
   pickupDate: Date;
@@ -117,6 +128,24 @@ const BookingSchema = new Schema<IBooking>(
       required: true,
       index: true,
     },
+    vehicles: [
+      {
+        vehicleId: { type: Schema.Types.ObjectId, ref: "Vehicle" },
+        brand: String,
+        model: String,
+        dailyRate: Number,
+        subtotal: Number,
+        depositAmount: Number,
+        extras: [
+          {
+            extraId: { type: Schema.Types.ObjectId, ref: "Extra" },
+            name: String,
+            price: Number,
+            quantity: { type: Number, default: 1 },
+          },
+        ],
+      },
+    ],
     pickupLocationId: {
       type: Schema.Types.ObjectId,
       ref: "Location",

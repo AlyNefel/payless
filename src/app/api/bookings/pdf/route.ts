@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
 
     const booking = await Booking.findOne(query)
       .populate("vehicleId")
+      .populate("vehicles.vehicleId")
       .populate("pickupLocationId")
       .populate("returnLocationId")
       .populate("customerId")
@@ -63,6 +64,28 @@ export async function GET(request: NextRequest) {
     const pLocName = typeof pLoc?.name === "object" ? pLoc.name.fr || pLoc.name.en : pLoc?.name || pLoc?.address || "Aéroport Tunis-Carthage";
     const rLocName = typeof rLoc?.name === "object" ? rLoc.name.fr || rLoc.name.en : rLoc?.name || rLoc?.address || "Aéroport Tunis-Carthage";
 
+    const pdfVehicles =
+      booking.vehicles && booking.vehicles.length > 0
+        ? booking.vehicles.map((bv: any) => {
+            const bvDoc = bv.vehicleId as any;
+            return {
+              brand: bv.brand || bvDoc?.brand || v?.brand || "Véhicule",
+              model: bv.model || bvDoc?.model || v?.model || "Garanti",
+              dailyRate: bv.dailyRate || booking.pricingBreakdown.dailyRate,
+              subtotal: bv.subtotal || booking.pricingBreakdown.subtotal,
+              rentalDuration: booking.rentalDuration,
+              extrasTotal: bv.extras
+                ? bv.extras.reduce(
+                    (acc: number, ex: any) => acc + (ex.price || 0) * (ex.quantity || 1) * booking.rentalDuration,
+                    0
+                  )
+                : 0,
+              extrasNames: bv.extras ? bv.extras.map((ex: any) => `${ex.name} (x${ex.quantity})`) : [],
+              depositAmount: bv.depositAmount || bvDoc?.pricing?.deposit,
+            };
+          })
+        : undefined;
+
     const pdfBuffer = generateBookingPDF({
       bookingReference: booking.bookingReference,
       customerName: `${cust?.firstName || "Client"} ${cust?.lastName || ""}`.trim(),
@@ -73,6 +96,7 @@ export async function GET(request: NextRequest) {
       vehicleBrand: v?.brand || "Véhicule",
       vehicleModel: v?.model || "Garanti",
       vehicleYear: v?.year || new Date().getFullYear(),
+      vehicles: pdfVehicles,
       pickupLocation: pLocName,
       returnLocation: rLocName,
       pickupDate: formatDate(booking.pickupDate, "fr-FR"),

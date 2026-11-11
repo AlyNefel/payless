@@ -9,7 +9,7 @@ import {
   MapPin, Calendar, Clock, ChevronRight, Car, Users, Fuel,
   Gauge, Plus, Minus, Check, AlertCircle, Loader2, Copy, Tag,
   ShieldCheck, Phone, Mail, UserCheck, Search, FileText, MessageSquare,
-  Download, CheckCircle2, Shield, Sparkles, Send, ExternalLink
+  Download, CheckCircle2, Shield, Sparkles, Send, ExternalLink, X
 } from "lucide-react";
 import { CarSpinner } from "@/components/ui/CarSpinner";
 import { useCompanySettings } from "@/contexts/CompanySettingsContext";
@@ -95,6 +95,11 @@ interface Vehicle {
   totalUnits?: number;
 }
 
+interface CartItem {
+  vehicle: Vehicle;
+  extras: { id: string; quantity: number }[];
+}
+
 function getLocalizedName(name: { fr: string; en: string; ar: string } | string | undefined, locale: string): string {
   if (!name) return "";
   if (typeof name === "string") return name;
@@ -124,7 +129,9 @@ function BookingContent() {
   const [locations, setLocations] = useState<LocationItem[]>(DEFAULT_LOCATIONS);
   const [availableExtras, setAvailableExtras] = useState<ExtraItem[]>(DEFAULT_EXTRAS);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [activeVehicleIndex, setActiveVehicleIndex] = useState<number>(0);
+  const selectedVehicle = cart[activeVehicleIndex]?.vehicle || cart[0]?.vehicle || null;
   const [couponStatus, setCouponStatus] = useState<{ valid: boolean; discountAmount?: number; discount?: number; message: string } | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
   const [bookingRef, setBookingRef] = useState("");
@@ -232,7 +239,10 @@ function BookingContent() {
       const json = await res.json();
       if (json.vehicles && json.vehicles.length > 0) {
         const found = json.vehicles.find((v: Vehicle) => v._id === id) || json.vehicles[0];
-        setSelectedVehicle(found);
+        setCart((prev) => {
+          if (prev.some((c) => c.vehicle._id === found._id)) return prev;
+          return [{ vehicle: found, extras: [] }, ...prev];
+        });
         setData((d) => ({ ...d, vehicleId: found._id }));
       }
     } catch (e) {
@@ -265,25 +275,32 @@ function BookingContent() {
   }, [data.pickupDate, data.pickupTime, data.returnDate, data.returnTime]);
 
   const subtotal = useMemo(() => {
-    if (!selectedVehicle) return 0;
-    return selectedVehicle.pricing.daily * rentalDays;
-  }, [selectedVehicle, rentalDays]);
+    return cart.reduce((sum, item) => sum + (item.vehicle.pricing.daily || 0) * rentalDays, 0);
+  }, [cart, rentalDays]);
 
   const extrasTotal = useMemo(() => {
-    return data.extras.reduce((sum, ex) => {
-      const extra = availableExtras.find((e) => e._id === ex.id);
-      if (!extra) return sum;
-      const cost = extra.pricingType === "per_rental" ? extra.price * ex.quantity : extra.price * ex.quantity * rentalDays;
-      return sum + cost;
+    return cart.reduce((sum, item) => {
+      const vExtras = item.extras.reduce((exSum, ex) => {
+        const extra = availableExtras.find((e) => e._id === ex.id);
+        if (!extra) return exSum;
+        const cost =
+          extra.pricingType === "per_rental"
+            ? extra.price * ex.quantity
+            : extra.price * ex.quantity * rentalDays;
+        return exSum + cost;
+      }, 0);
+      return sum + vExtras;
     }, 0);
-  }, [data.extras, availableExtras, rentalDays]);
+  }, [cart, availableExtras, rentalDays]);
 
   const discountAmount = useMemo(() => {
     if (!couponStatus || !couponStatus.valid) return 0;
     return couponStatus.discountAmount || couponStatus.discount || 0;
   }, [couponStatus]);
 
-  const depositAmount = selectedVehicle?.pricing?.deposit || 0;
+  const depositAmount = useMemo(() => {
+    return cart.reduce((sum, item) => sum + (item.vehicle.pricing.deposit || 0), 0);
+  }, [cart]);
 
   // Zone configuration state (configurable by Admin)
   const [zoneConfig, setZoneConfig] = useState<{
@@ -357,7 +374,11 @@ function BookingContent() {
     : 0;
 
   const timbreFiscal = (settings.timbreFiscal !== undefined ? settings.timbreFiscal : 1) * 100;
-  const contributionLF2026 = (settings.contributionLF2026 !== undefined ? settings.contributionLF2026 : 2) * 100 * rentalDays;
+  const contributionLF2026 =
+    (settings.contributionLF2026 !== undefined ? settings.contributionLF2026 : 2) *
+    100 *
+    rentalDays *
+    Math.max(1, cart.length);
 
   const totalAmount = Math.max(
     0,
@@ -408,8 +429,8 @@ function BookingContent() {
   }
 
   async function submitBooking() {
-    if (!selectedVehicle) {
-      setError("Veuillez sélectionner un véhicule avant de confirmer.");
+    if (cart.length === 0) {
+      setError("Veuillez sélectionner au moins un véhicule avant de confirmer.");
       setStep(2);
       return;
     }
@@ -428,17 +449,26 @@ function BookingContent() {
 
     try {
       const payload = {
-        vehicleId: selectedVehicle._id,
+        vehicleId: cart[0].vehicle._id,
+        vehicles: cart.map((c) => ({
+          vehicleId: c.vehicle._id,
+          extras: c.extras.map((ex) => ({
+            extraId: ex.id,
+            quantity: ex.quantity,
+          })),
+        })),
         pickupLocationId: data.pickupLocationId || (locations[0]?._id ?? "soukra-agency"),
         returnLocationId: data.returnLocationId || data.pickupLocationId || (locations[0]?._id ?? "soukra-agency"),
         pickupDate: data.pickupDate,
         returnDate: data.returnDate,
         pickupTime: data.pickupTime,
         returnTime: data.returnTime,
-        extras: data.extras.map((ex) => ({
-          extraId: ex.id,
-          quantity: ex.quantity,
-        })),
+        extras: cart.flatMap((c) =>
+          c.extras.map((ex) => ({
+            extraId: ex.id,
+            quantity: ex.quantity,
+          }))
+        ),
         couponCode: couponStatus?.valid ? data.couponCode.trim().toUpperCase() : undefined,
         customer: {
           firstName: data.firstName.trim(),
@@ -601,12 +631,17 @@ function BookingContent() {
     const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://paylesscarrental.tn";
     const pdfUrl = `${siteUrl}/api/bookings/pdf?ref=${bookingRef}&email=${encodeURIComponent(data.email)}`;
 
+    const carListStr =
+      cart.length > 0
+        ? cart.map((c) => `${c.vehicle.brand} ${c.vehicle.model}`).join(" + ")
+        : `${selectedVehicle?.brand} ${selectedVehicle?.model}`;
+
     const msg = encodeURIComponent(
       `🚗 *Payless Car Rental Tunisie — Mon Bon de Réservation*\n\n` +
       `Bonjour ${data.firstName} ${data.lastName},\n` +
       `Voici les détails de votre réservation chez Payless Car Rental Tunisie :\n\n` +
       `📋 *Référence* : ${bookingRef}\n` +
-      `🚗 *Véhicule* : ${selectedVehicle?.brand} ${selectedVehicle?.model}\n` +
+      `🚗 *Véhicule(s)* : ${carListStr}\n` +
       `📅 *Période* : du ${data.pickupDate} à ${data.pickupTime} au ${data.returnDate} à ${data.returnTime} (${rentalDays} j)\n` +
       `📍 *Prise en charge* : ${selectedPickupLocName}\n` +
       `📍 *Restitution* : ${selectedReturnLocName}\n` +
@@ -651,7 +686,7 @@ function BookingContent() {
 
   const canProceed = (s: Step) => {
     if (s === 1) return data.pickupDate && data.returnDate && data.pickupLocationId;
-    if (s === 2) return !!selectedVehicle;
+    if (s === 2) return cart.length > 0;
     if (s === 4) return Boolean(data.firstName.trim() && data.lastName.trim() && data.email.trim() && data.phone.trim() && data.licenceYear.trim());
     return true;
   };
@@ -883,17 +918,71 @@ function BookingContent() {
             {step === 2 && (
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-2xl font-bold mb-1">
-                    {locale === "ar" ? "اختر سيارتك" : locale === "en" ? "Select Your Car" : "Choisissez votre voiture"}
-                  </h2>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
+                    <h2 className="text-2xl font-bold">
+                      {locale === "ar" ? "اختر سياراتك" : locale === "en" ? "Select Your Vehicles" : "Choisissez vos véhicules"}
+                    </h2>
+                    {cart.length > 0 && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300">
+                        <Check className="w-3.5 h-3.5" />
+                        {cart.length} véhicule{cart.length > 1 ? "s" : ""} sélectionné{cart.length > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-muted-foreground text-sm">
                     {locale === "ar"
-                      ? "موديلات تونس 2026 مضمونة بحالة الوكالة"
+                      ? "يمكنك حجز سيارة واحدة أو عدة سيارات معاً في نفس الحجز وبفاتورة موحدة"
                       : locale === "en"
-                      ? "Guaranteed 2026 exact models, showroom condition"
-                      : "Flotte officielle Payless Tunisie en état neuf"}
+                      ? "You can reserve one or multiple vehicles in a single booking with a unified invoice"
+                      : "Vous pouvez réserver un ou plusieurs véhicules ensemble avec une facture et un bon uniques"}
                   </p>
                 </div>
+
+                {/* Selected Fleet Cart Pill Bar */}
+                {cart.length > 0 && (
+                  <div className="p-3.5 bg-blue-50/90 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800/60 space-y-2">
+                    <div className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Car className="w-4 h-4 text-blue-600" />
+                        <span>Flotte réservée pour votre séjour ({cart.length}) :</span>
+                      </span>
+                      <span className="text-[11px] font-normal text-muted-foreground">
+                        Cliquez sur + pour ajouter d&apos;autres modèles
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {cart.map((c, idx) => (
+                        <div
+                          key={c.vehicle._id + "-" + idx}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-neutral-900 border border-blue-300 dark:border-blue-700 shadow-xs"
+                        >
+                          <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">
+                            {idx + 1}
+                          </span>
+                          <span className="text-foreground">
+                            {c.vehicle.brand} {c.vehicle.model}
+                          </span>
+                          <span className="text-blue-700 dark:text-blue-400 font-mono text-[11px]">
+                            {fmt(c.vehicle.pricing?.daily)} DT/j
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCart((prev) => prev.filter((_, i) => i !== idx));
+                              if (activeVehicleIndex >= cart.length - 1) {
+                                setActiveVehicleIndex(Math.max(0, cart.length - 2));
+                              }
+                            }}
+                            className="text-muted-foreground hover:text-red-600 p-0.5 rounded transition-colors"
+                            title="Retirer ce véhicule"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -924,19 +1013,17 @@ function BookingContent() {
                           v.images?.find((i) => i.isPrimary)?.url ||
                           v.images?.[0]?.url ||
                           "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=400&q=80";
-                        const isSelected = selectedVehicle?._id === v._id;
+                        const inCartCount = cart.filter((c) => c.vehicle._id === v._id).length;
+                        const isSelected = inCartCount > 0;
+                        const maxAvail = v.availableUnits !== undefined ? v.availableUnits : 5;
+                        const canAddMore = inCartCount < maxAvail;
 
                         return (
-                          <button
+                          <div
                             key={v._id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedVehicle(v);
-                              setData((d) => ({ ...d, vehicleId: v._id }));
-                            }}
                             className={`w-full flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-xl border-2 transition-all text-left ${
                               isSelected
-                                ? "border-blue-600 bg-blue-50/80 dark:bg-blue-950/30 shadow-md"
+                                ? "border-blue-600 bg-blue-50/70 dark:bg-blue-950/30 shadow-md"
                                 : "border-border dark:border-neutral-800 hover:border-blue-300 dark:hover:border-neutral-700 bg-white dark:bg-neutral-800/60"
                             }`}
                           >
@@ -948,9 +1035,16 @@ function BookingContent() {
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h4 className="font-bold text-base text-foreground">
-                                {v.brand} {v.model}
-                              </h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-bold text-base text-foreground">
+                                  {v.brand} {v.model}
+                                </h4>
+                                {inCartCount > 0 && (
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-600 text-white">
+                                    {inCartCount} dans le panier
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                   <Gauge className="w-3.5 h-3.5" />
@@ -992,20 +1086,57 @@ function BookingContent() {
                                 </div>
                               )}
                             </div>
-                            <div className="w-full sm:w-auto flex items-center justify-between sm:flex-col sm:items-end gap-1 border-t sm:border-t-0 border-border/50 pt-2 sm:pt-0 shrink-0">
-                              <div className="text-lg sm:text-xl font-bold text-blue-700 dark:text-blue-400">
-                                {fmt(v.pricing?.daily)} {currencySymbol}
+                            <div className="w-full sm:w-auto flex items-center justify-between sm:flex-col sm:items-end gap-2 border-t sm:border-t-0 border-border/50 pt-2 sm:pt-0 shrink-0">
+                              <div className="text-right">
+                                <div className="text-lg sm:text-xl font-bold text-blue-700 dark:text-blue-400">
+                                  {fmt(v.pricing?.daily)} {currencySymbol}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  {locale === "ar" ? "/ يوم شامل" : locale === "en" ? "/ day incl. tax" : "/ jour TTC"}
+                                </div>
                               </div>
-                              <div className="text-[11px] text-muted-foreground">
-                                {locale === "ar" ? "/ يوم شامل" : locale === "en" ? "/ day incl. tax" : "/ jour TTC"}
+                              <div className="flex items-center gap-1.5">
+                                {inCartCount > 0 ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const idxToRemove = cart.findLastIndex((c) => c.vehicle._id === v._id);
+                                        if (idxToRemove !== -1) {
+                                          setCart((prev) => prev.filter((_, i) => i !== idxToRemove));
+                                        }
+                                      }}
+                                      className="px-2.5 py-1.5 rounded-lg border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 text-xs font-semibold transition-colors"
+                                    >
+                                      - Retirer
+                                    </button>
+                                    {canAddMore && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setCart((prev) => [...prev, { vehicle: v, extras: [] }]);
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors"
+                                      >
+                                        + Ajouter encore
+                                      </button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCart((prev) => [...prev, { vehicle: v, extras: [] }]);
+                                      setData((d) => ({ ...d, vehicleId: v._id }));
+                                    }}
+                                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors shadow-xs"
+                                  >
+                                    + Choisir ce véhicule
+                                  </button>
+                                )}
                               </div>
                             </div>
-                            {isSelected && (
-                              <div className="hidden sm:flex w-7 h-7 rounded-full bg-blue-600 text-white items-center justify-center shrink-0">
-                                <Check className="w-4 h-4" />
-                              </div>
-                            )}
-                          </button>
+                          </div>
                         );
                       })
                     )}
@@ -1023,19 +1154,73 @@ function BookingContent() {
                   </h2>
                   <p className="text-muted-foreground text-sm">
                     {locale === "ar"
-                      ? "أضف راحة وأماناً لرحلتك في تونس"
+                      ? "أضف راحة وأماناً لرحلتك في تونس (يمكنك تخصيص خيارات كل سيارة بشكل مستقل)"
                       : locale === "en"
-                      ? "Customise your trip with optional equipment & services"
-                      : "Personnalisez votre location avec nos options certifiées"}
+                      ? "Customise your trip with optional equipment & services (configured per vehicle)"
+                      : "Personnalisez votre location avec nos options certifiées (configurables par véhicule)"}
                   </p>
                 </div>
 
+                {/* Multi-vehicle Tab Switcher */}
+                {cart.length > 1 && (
+                  <div className="space-y-2 p-3 bg-neutral-100 dark:bg-neutral-800/80 rounded-2xl border border-border">
+                    <div className="text-xs font-bold text-muted-foreground">
+                      Sélectionnez le véhicule pour lequel configurer les options :
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {cart.map((item, idx) => {
+                        const optCount = item.extras.reduce((a, b) => a + b.quantity, 0);
+                        const isCurrent = activeVehicleIndex === idx;
+                        return (
+                          <button
+                            key={item.vehicle._id + "-" + idx}
+                            type="button"
+                            onClick={() => setActiveVehicleIndex(idx)}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 border ${
+                              isCurrent
+                                ? "bg-white dark:bg-neutral-900 text-blue-600 dark:text-blue-400 border-blue-500 shadow-sm"
+                                : "bg-transparent text-muted-foreground hover:bg-white/50 dark:hover:bg-neutral-700/50 border-transparent"
+                            }`}
+                          >
+                            <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+                              {idx + 1}
+                            </span>
+                            <span>
+                              {item.vehicle.brand} {item.vehicle.model}
+                            </span>
+                            {optCount > 0 ? (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold">
+                                {optCount} option{optCount > 1 ? "s" : ""}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground font-normal">
+                                (0 option)
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   {availableExtras.map((extra) => {
-                    const current = data.extras.find((e) => e.id === extra._id);
+                    const currentCartItem = cart[activeVehicleIndex] || cart[0];
+                    const currentVehicleExtras = currentCartItem?.extras || [];
+                    const current = currentVehicleExtras.find((e) => e.id === extra._id);
                     const qty = current?.quantity || 0;
                     const max = extra.maxQuantity || 2;
                     const priceFormatted = extra.price === 0 ? "Offert (0 TND)" : `${fmt(extra.price)} ${currencySymbol}`;
+
+                    const updateExtras = (nextList: { id: string; quantity: number }[]) => {
+                      setCart((prev) =>
+                        prev.map((item, idx) =>
+                          idx === activeVehicleIndex ? { ...item, extras: nextList } : item
+                        )
+                      );
+                      setData((d) => ({ ...d, extras: nextList }));
+                    };
 
                     return (
                       <div
@@ -1070,15 +1255,13 @@ function BookingContent() {
                           <button
                             type="button"
                             onClick={() => {
-                              setData((d) => ({
-                                ...d,
-                                extras:
-                                  qty <= 1
-                                    ? d.extras.filter((e) => e.id !== extra._id)
-                                    : d.extras.map((e) =>
-                                        e.id === extra._id ? { ...e, quantity: e.quantity - 1 } : e
-                                      ),
-                              }));
+                              const nextList =
+                                qty <= 1
+                                  ? currentVehicleExtras.filter((e) => e.id !== extra._id)
+                                  : currentVehicleExtras.map((e) =>
+                                      e.id === extra._id ? { ...e, quantity: e.quantity - 1 } : e
+                                    );
+                              updateExtras(nextList);
                             }}
                             disabled={qty === 0}
                             className="w-8 h-8 rounded-full border border-border dark:border-neutral-700 flex items-center justify-center disabled:opacity-30 hover:bg-muted transition-colors"
@@ -1089,15 +1272,13 @@ function BookingContent() {
                           <button
                             type="button"
                             onClick={() => {
-                              setData((d) => ({
-                                ...d,
-                                extras:
-                                  qty === 0
-                                    ? [...d.extras, { id: extra._id, quantity: 1 }]
-                                    : d.extras.map((e) =>
-                                        e.id === extra._id ? { ...e, quantity: Math.min(max, e.quantity + 1) } : e
-                                      ),
-                              }));
+                              const nextList =
+                                qty === 0
+                                  ? [...currentVehicleExtras, { id: extra._id, quantity: 1 }]
+                                  : currentVehicleExtras.map((e) =>
+                                      e.id === extra._id ? { ...e, quantity: Math.min(max, e.quantity + 1) } : e
+                                    );
+                              updateExtras(nextList);
                             }}
                             disabled={qty >= max}
                             className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 disabled:opacity-30 transition-colors"
@@ -1266,49 +1447,78 @@ function BookingContent() {
                   </p>
                 </div>
 
-                {/* 1. Selected Vehicle card */}
-                {selectedVehicle && (
+                {/* 1. Selected Vehicles card */}
+                {cart.length > 0 && (
                   <div className="p-4 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-border dark:border-neutral-700 space-y-3">
-                    <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Car className="w-4 h-4 text-blue-600" />
-                      <span>1. Véhicule Sélectionné</span>
+                    <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Car className="w-4 h-4 text-blue-600" />
+                        <span>1. {cart.length > 1 ? `Véhicules Sélectionnés (${cart.length})` : "Véhicule Sélectionné"}</span>
+                      </span>
+                      <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        {cart.length} véhicule{cart.length > 1 ? "s" : ""} garanti{cart.length > 1 ? "s" : ""}
+                      </span>
                     </div>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                      <img
-                        src={
-                          selectedVehicle.images?.find((i) => i.isPrimary)?.url ||
-                          selectedVehicle.images?.[0]?.url ||
-                          "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=400&q=80"
-                        }
-                        alt=""
-                        className="w-full sm:w-32 h-24 object-cover rounded-xl bg-neutral-200 dark:bg-neutral-700"
-                      />
-                      <div className="flex-1 space-y-1">
-                        <div className="font-extrabold text-lg text-foreground">
-                          {selectedVehicle.brand} {selectedVehicle.model}
+
+                    <div className="space-y-3">
+                      {cart.map((cItem, cIdx) => (
+                        <div
+                          key={cItem.vehicle._id + "-" + cIdx}
+                          className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3.5 rounded-xl bg-white dark:bg-neutral-900 border border-border/80"
+                        >
+                          <img
+                            src={
+                              cItem.vehicle.images?.find((i) => i.isPrimary)?.url ||
+                              cItem.vehicle.images?.[0]?.url ||
+                              "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=400&q=80"
+                            }
+                            alt=""
+                            className="w-full sm:w-28 h-20 object-cover rounded-xl bg-neutral-200 dark:bg-neutral-700 shrink-0"
+                          />
+                          <div className="flex-1 space-y-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 text-[10px] font-bold">
+                                #{cIdx + 1}
+                              </span>
+                              <div className="font-extrabold text-base text-foreground truncate">
+                                {cItem.vehicle.brand} {cItem.vehicle.model}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span className="px-2 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-700/70 text-[11px]">
+                                {cItem.vehicle.transmission === "automatic" ? "Boîte Automatique" : "Boîte Manuelle"}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-700/70 text-[11px]">
+                                {cItem.vehicle.seats} Places
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-700/70 text-[11px]">
+                                Carburant: {cItem.vehicle.fuelType}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold text-[11px]">
+                                ✓ Kilométrage Illimité
+                              </span>
+                            </div>
+                            {cItem.extras.length > 0 && (
+                              <div className="text-xs text-blue-600 dark:text-blue-400 font-medium pt-0.5">
+                                Options :{" "}
+                                {cItem.extras
+                                  .map((ex) => {
+                                    const item = availableExtras.find((e) => e._id === ex.id);
+                                    return `${getLocalizedName(item?.name, locale)} (x${ex.quantity})`;
+                                  })
+                                  .join(", ")}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right sm:border-l sm:border-border sm:dark:border-neutral-700 sm:pl-4 shrink-0">
+                            <div className="text-xs text-muted-foreground">Tarif journalier</div>
+                            <div className="text-lg font-bold text-blue-700 dark:text-blue-400">
+                              {fmt(cItem.vehicle.pricing?.daily)} {currencySymbol}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground">/ jour TTC</div>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          <span className="px-2 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-700/70">
-                            {selectedVehicle.transmission === "automatic" ? "Boîte Automatique" : "Boîte Manuelle"}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-700/70">
-                            {selectedVehicle.seats} Places
-                          </span>
-                          <span className="px-2 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-700/70">
-                            Carburant: {selectedVehicle.fuelType}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold">
-                            ✓ Kilométrage Illimité
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right sm:border-l sm:border-border sm:dark:border-neutral-700 sm:pl-4">
-                        <div className="text-xs text-muted-foreground">Prix journalier</div>
-                        <div className="text-xl font-bold text-blue-700 dark:text-blue-400">
-                          {fmt(selectedVehicle.pricing?.daily)} {currencySymbol}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">/ jour TTC</div>
-                      </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -1362,41 +1572,62 @@ function BookingContent() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60 dark:divide-neutral-800 text-foreground">
-                        {/* Base Rental Subtotal */}
-                        {subtotal > 0 && (
-                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
+                        {/* Base Rental Subtotal per vehicle */}
+                        {cart.map((cItem, cIdx) => (
+                          <tr key={"car-row-" + cIdx} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
                             <td className="py-2.5 px-3.5 sm:px-4">
-                              <span className="font-semibold">Location {selectedVehicle?.brand} {selectedVehicle?.model}</span>
+                              <span className="font-semibold">
+                                Location {cart.length > 1 ? `#${cIdx + 1} ` : ""}{cItem.vehicle.brand} {cItem.vehicle.model}
+                              </span>
                             </td>
                             <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
-                              {rentalDays} j × {fmt(selectedVehicle?.pricing?.daily)} {currencySymbol}
+                              {rentalDays} j × {fmt(cItem.vehicle.pricing?.daily)} {currencySymbol}
                             </td>
                             <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
-                              {fmt(subtotal)} {currencySymbol}
+                              {fmt((cItem.vehicle.pricing?.daily || 0) * rentalDays)} {currencySymbol}
                             </td>
                           </tr>
-                        )}
+                        ))}
 
-                        {/* Paid Extras only */}
-                        {extrasTotal > 0 && (
-                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
-                            <td className="py-2.5 px-3.5 sm:px-4">
-                              <span className="font-semibold">Options & équipements additionnels</span>
-                              <div className="text-[11px] text-muted-foreground truncate max-w-[240px]">
-                                {data.extras.map((ex) => {
-                                  const item = availableExtras.find((e) => e._id === ex.id);
-                                  return `${getLocalizedName(item?.name, locale)} (x${ex.quantity})`;
-                                }).join(", ")}
-                              </div>
-                            </td>
-                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
-                              {data.extras.length} option(s)
-                            </td>
-                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
-                              +{fmt(extrasTotal)} {currencySymbol}
-                            </td>
-                          </tr>
-                        )}
+                        {/* Paid Extras per vehicle */}
+                        {cart.map((cItem, cIdx) => {
+                          if (!cItem.extras || cItem.extras.length === 0) return null;
+                          const vExtrasCost = cItem.extras.reduce((sum, ex) => {
+                            const found = availableExtras.find((e) => e._id === ex.id);
+                            if (!found) return sum;
+                            return (
+                              sum +
+                              (found.pricingType === "per_rental"
+                                ? found.price * ex.quantity
+                                : found.price * ex.quantity * rentalDays)
+                            );
+                          }, 0);
+                          if (vExtrasCost <= 0) return null;
+
+                          return (
+                            <tr key={"extra-row-" + cIdx} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
+                              <td className="py-2.5 px-3.5 sm:px-4">
+                                <span className="font-semibold">
+                                  Options {cart.length > 1 ? `#${cIdx + 1} ` : ""}({cItem.vehicle.brand} {cItem.vehicle.model})
+                                </span>
+                                <div className="text-[11px] text-muted-foreground truncate max-w-[240px]">
+                                  {cItem.extras
+                                    .map((ex) => {
+                                      const item = availableExtras.find((e) => e._id === ex.id);
+                                      return `${getLocalizedName(item?.name, locale)} (x${ex.quantity})`;
+                                    })
+                                    .join(", ")}
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
+                                {cItem.extras.length} option(s)
+                              </td>
+                              <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
+                                +{fmt(vExtrasCost)} {currencySymbol}
+                              </td>
+                            </tr>
+                          );
+                        })}
 
                         {/* Delivery fee only if > 0 */}
                         {deliveryFee > 0 && (
@@ -1453,7 +1684,7 @@ function BookingContent() {
                               <span className="font-semibold">Contribution fiscale LF 2026</span>
                             </td>
                             <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
-                              {rentalDays} j × 2 TND
+                              {cart.length > 1 ? `${rentalDays} j × ${cart.length} vhc × 2 TND` : `${rentalDays} j × 2 TND`}
                             </td>
                             <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
                               +{fmt(contributionLF2026)} {currencySymbol}
@@ -1514,9 +1745,11 @@ function BookingContent() {
                       <div className="flex items-start gap-3">
                         <ShieldCheck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                         <div>
-                          <div className="font-bold text-amber-800 dark:text-amber-300">Caution de garantie</div>
+                          <div className="font-bold text-amber-800 dark:text-amber-300">
+                            Caution de garantie {cart.length > 1 ? `(${cart.length} véhicules)` : ""}
+                          </div>
                           <div className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                            Empreinte CB bloquée &amp; restituée intégralement au retour du véhicule — ou par Cash
+                            Empreinte CB bloquée &amp; restituée intégralement au retour {cart.length > 1 ? "des véhicules" : "du véhicule"} — ou par Cash
                           </div>
                         </div>
                       </div>
@@ -1919,10 +2152,16 @@ function BookingContent() {
                   </h2>
                   <p className="text-slate-600 dark:text-slate-400 text-sm max-w-md mx-auto">
                     {locale === "ar"
-                      ? `تم قفل السيارة بنجاح في أسطولنا وإرسال تأكيد الحجز إلى ${data.email}`
+                      ? (cart.length > 1
+                        ? `تم حجز وتأكيد ${cart.length} سيارات بنجاح في أسطولنا وإرسال التأكيد إلى ${data.email}`
+                        : `تم قفل السيارة بنجاح في أسطولنا وإرسال تأكيد الحجز إلى ${data.email}`)
                       : locale === "en"
-                      ? `Your vehicle has been locked in our fleet and confirmation sent to ${data.email}`
-                      : `Votre véhicule a été validé et verrouillé dans notre flotte en temps réel. Le bon officiel avec QR code a été envoyé à ${data.email}`}
+                      ? (cart.length > 1
+                        ? `Your ${cart.length} vehicles have been successfully reserved and confirmation sent to ${data.email}`
+                        : `Your vehicle has been locked in our fleet and confirmation sent to ${data.email}`)
+                      : (cart.length > 1
+                        ? `Vos ${cart.length} véhicules ont été validés et verrouillés dans notre flotte en temps réel. Le bon officiel avec QR code a été envoyé à ${data.email}`
+                        : `Votre véhicule a été validé et verrouillé dans notre flotte en temps réel. Le bon officiel avec QR code a été envoyé à ${data.email}`)}
                   </p>
                 </div>
 
@@ -1942,8 +2181,15 @@ function BookingContent() {
                 {/* Quick recap details */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-left text-xs">
                   <div className="bg-muted/40 dark:bg-neutral-800 p-3 rounded-xl border border-border/50">
-                    <div className="text-muted-foreground mb-0.5">Véhicule</div>
-                    <div className="font-bold text-foreground truncate">{selectedVehicle?.brand} {selectedVehicle?.model}</div>
+                    <div className="text-muted-foreground mb-0.5">Véhicule{cart.length > 1 ? "s" : ""}</div>
+                    <div
+                      className="font-bold text-foreground truncate"
+                      title={cart.map((c) => `${c.vehicle.brand} ${c.vehicle.model}`).join(" + ")}
+                    >
+                      {cart.length > 1
+                        ? `${cart.length} vhc (${cart.map((c) => `${c.vehicle.brand} ${c.vehicle.model}`).join(", ")})`
+                        : `${selectedVehicle?.brand} ${selectedVehicle?.model}`}
+                    </div>
                   </div>
                   <div className="bg-muted/40 dark:bg-neutral-800 p-3 rounded-xl border border-border/50">
                     <div className="text-muted-foreground mb-0.5">Durée</div>
