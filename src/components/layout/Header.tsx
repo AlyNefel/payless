@@ -7,6 +7,7 @@ import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { useCompanySettings } from "@/contexts/CompanySettingsContext";
+import { useTheme } from "next-themes";
 import {
   Globe,
   Menu,
@@ -24,6 +25,9 @@ import {
   ArrowRight,
   ArrowLeft,
   Search,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 
 interface NavItem {
@@ -128,6 +132,7 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { settings } = useCompanySettings();
+  const { theme, setTheme, resolvedTheme } = useTheme();
 
   const [mounted, setMounted] = React.useState(false);
   const [isScrolled, setIsScrolled] = React.useState(false);
@@ -347,6 +352,23 @@ export function Header() {
               )}
             </div>
 
+            {/* Theme Toggle Button (Dark/Light/System) */}
+            {mounted && (
+              <button
+                type="button"
+                onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                className="h-9 w-9 flex items-center justify-center rounded-lg border border-border/60 bg-background/50 hover:bg-muted text-foreground/80 hover:text-foreground transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-label="Toggle dark mode"
+                title={resolvedTheme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"}
+              >
+                {resolvedTheme === "dark" ? (
+                  <Sun className="h-4 w-4 text-amber-400" />
+                ) : (
+                  <Moon className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                )}
+              </button>
+            )}
+
             {/* CTA Book Now Button */}
             <Link
               href="/booking"
@@ -390,6 +412,22 @@ export function Header() {
             >
               <Menu className="h-5 w-5" />
             </button>
+
+            {/* Mobile Theme Toggle */}
+            {mounted && (
+              <button
+                type="button"
+                onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                aria-label="Toggle dark mode"
+                className="h-10 w-10 rounded-xl bg-slate-100 dark:bg-neutral-800 text-slate-800 dark:text-slate-100 flex items-center justify-center border border-border/80 shadow-xs active:scale-95 transition-all"
+              >
+                {resolvedTheme === "dark" ? (
+                  <Sun className="h-4.5 w-4.5 text-amber-400" />
+                ) : (
+                  <Moon className="h-4.5 w-4.5" />
+                )}
+              </button>
+            )}
           </div>
         </div>
       </header>

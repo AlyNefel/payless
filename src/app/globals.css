@@ -219,53 +219,58 @@ html {
   display: none;
 }
 
-/* Thin spinning gold border via ::before + mask trick */
+/* Thin, luxury spinning gold border via ::before + mask trick (1px hairline) */
 .charging-card::before,
 .card-charging::before {
   content: "";
   position: absolute;
-  inset: -1.5px;
+  inset: 0;
   border-radius: inherit;
   background: conic-gradient(
     from var(--spin-angle),
-    transparent 0deg,
-    transparent 65deg,
-    #c8960c   82deg,
-    #ffd029   96deg,
-    #fff9d6  108deg,
-    #ffd029  120deg,
-    #c8960c  133deg,
-    transparent 148deg,
-    transparent 245deg,
-    #c8960c   262deg,
-    #ffd029   276deg,
-    #fff9d6  288deg,
-    #ffd029  300deg,
-    #c8960c  313deg,
-    transparent 328deg,
-    transparent 360deg
+    rgba(255, 208, 41, 0.08) 0deg,
+    rgba(255, 208, 41, 0.08) 65deg,
+    rgba(212, 160, 23, 0.28) 95deg,
+    #ffd029 130deg,
+    #fffef2 144deg,
+    #ffd029 156deg,
+    rgba(212, 160, 23, 0.35) 185deg,
+    rgba(255, 208, 41, 0.08) 215deg,
+    rgba(255, 208, 41, 0.08) 360deg
   );
-  animation: goldSpin 3.8s linear infinite;
+  animation: goldSpin 4s linear infinite;
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  padding: 1.5px;
+  padding: 1px;
   pointer-events: none;
   z-index: 10;
 }
 
-/* Hover: lift + speed up spin + subtle shadow only */
+/* Hover: subtle lift + speed up spin + soft luxury glow */
 .charging-card:hover,
 .card-charging:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.16), 0 0 16px -2px rgba(255, 208, 41, 0.18);
 }
 
 .charging-card:hover::before,
 .card-charging:hover::before {
-  animation-duration: 1.4s;
+  animation-duration: 1.8s;
+  background: conic-gradient(
+    from var(--spin-angle),
+    rgba(255, 208, 41, 0.12) 0deg,
+    rgba(255, 208, 41, 0.12) 65deg,
+    rgba(212, 160, 23, 0.4) 95deg,
+    #ffd029 130deg,
+    #ffffff 144deg,
+    #ffd029 156deg,
+    rgba(212, 160, 23, 0.5) 185deg,
+    rgba(255, 208, 41, 0.12) 215deg,
+    rgba(255, 208, 41, 0.12) 360deg
+  );
 }
 
 /* ── Cinematic White Smoke / Mist from card bottom ── */
@@ -288,24 +293,24 @@ html {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 110px;
+  height: 85px;
   pointer-events: none;
-  z-index: 15;
+  z-index: 12;
   overflow: hidden;
 }
 
 .smoke-wrap span {
   position: absolute;
-  bottom: -10px;
+  bottom: -12px;
   border-radius: 50%;
-  /* Cinematic white — very light, cold */
+  /* Cinematic soft cold mist */
   background: radial-gradient(
     circle at center,
-    rgba(255, 255, 255, 0.55) 0%,
-    rgba(240, 240, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(240, 244, 255, 0.18) 48%,
     transparent 72%
   );
-  filter: blur(9px);
+  filter: blur(10px);
 }
 
 .smoke-wrap span:nth-child(1) {

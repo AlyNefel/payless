@@ -10,6 +10,7 @@ import { Footer } from "@/components/layout/Footer";
 import { WhatsAppWidget } from "@/components/layout/WhatsAppWidget";
 import { AIAgentChat } from "@/components/layout/AIAgentChat";
 import { CompanySettingsProvider } from "@/contexts/CompanySettingsContext";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "../globals.css";
 
 // Fallback font variables - resilient for offline build environments
@@ -136,24 +137,31 @@ export default async function LocaleLayout({
   const isRtl = locale === "ar";
 
   return (
-    <div
-      lang={locale}
-      dir={isRtl ? "rtl" : "ltr"}
-      suppressHydrationWarning
-      className={`${inter.variable} ${playfair.variable} ${cairo.variable} min-h-screen flex flex-col bg-background text-foreground overflow-x-clip ${
-        isRtl ? "font-arabic" : "font-sans"
-      }`}
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange={false}
     >
-      <NextIntlClientProvider messages={messages} locale={locale}>
-        <CompanySettingsProvider>
-          <Header />
-          <main className="flex-1 w-full overflow-x-clip">{children}</main>
-          <Footer />
-          <WhatsAppWidget />
-          <AIAgentChat />
-          <Toaster richColors position="top-right" />
-        </CompanySettingsProvider>
-      </NextIntlClientProvider>
-    </div>
+      <div
+        lang={locale}
+        dir={isRtl ? "rtl" : "ltr"}
+        suppressHydrationWarning
+        className={`${inter.variable} ${playfair.variable} ${cairo.variable} min-h-screen flex flex-col bg-background text-foreground overflow-x-clip ${
+          isRtl ? "font-arabic" : "font-sans"
+        }`}
+      >
+        <NextIntlClientProvider messages={messages} locale={locale}>
+          <CompanySettingsProvider>
+            <Header />
+            <main className="flex-1 w-full overflow-x-clip">{children}</main>
+            <Footer />
+            <WhatsAppWidget />
+            <AIAgentChat />
+            <Toaster richColors position="top-right" />
+          </CompanySettingsProvider>
+        </NextIntlClientProvider>
+      </div>
+    </ThemeProvider>
   );
 }
