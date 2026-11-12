@@ -260,50 +260,81 @@ const FORM_TABS = [
 
 export default function AdminFleetPage() {
   const { lang } = useAdminLang();
-  const [vehicles, setVehicles] = useState<VehicleItem[]>(INITIAL_VEHICLES);
+  const [vehicles, setVehicles] = useState<VehicleItem[]>([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [selectedTransmission, setSelectedTransmission] = useState<string>("All");
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [savingVehicle, setSavingVehicle] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    fetch("/api/vehicles?limit=100")
+  const fetchVehicles = () => {
+    setLoadingVehicles(true);
+    fetch("/api/admin/vehicles?limit=100")
       .then((res) => res.json())
       .then((json) => {
-        if (json.vehicles && json.vehicles.length > 0) {
-          setVehicles(
-            json.vehicles.map((v: any) => ({
-              id: v._id,
-              brand: v.brand,
-              model: v.model,
-              year: v.year,
-              category: v.categoryId?.name?.fr || v.category || "Berline",
-              transmission: v.transmission,
-              fuelType: v.fuelType,
-              seats: v.seats,
-              doors: v.doors,
-              pricing: {
-                daily: v.pricing.daily >= 1000 ? Math.round(v.pricing.daily / 100) : v.pricing.daily,
-                weekly: v.pricing.weekly >= 1000 ? Math.round(v.pricing.weekly / 100) : v.pricing.weekly,
-                monthly: v.pricing.monthly >= 1000 ? Math.round(v.pricing.monthly / 100) : v.pricing.monthly,
-                deposit: v.pricing.deposit >= 1000 ? Math.round(v.pricing.deposit / 100) : v.pricing.deposit,
-              },
-              status: v.status || "available",
-              mileage: v.mileage || 15000,
-              licensePlate: v.licensePlate || "TUN-2026",
-              color: v.color || "Noir",
-              imageUrl: v.images?.find((i: any) => i.isPrimary)?.url || v.images?.[0]?.url || "",
-              rating: v.rating || 4.9,
-              totalTrips: v.tripsCount || 12,
-              location: v.locationId?.name?.fr || "Aéroport Tunis-Carthage",
-              features: v.features || ["Climatisation", "Bluetooth", "GPS"],
-            }))
-          );
-        }
+        const list = json.vehicles || [];
+        setVehicles(
+          list.map((v: any) => ({
+            id: v._id,
+            brand: v.brand,
+            model: v.model,
+            year: v.year,
+            category: v.categoryId?.name?.fr || v.category || "Berline",
+            transmission: v.transmission,
+            fuelType: v.fuelType,
+            seats: v.seats,
+            doors: v.doors,
+            pricing: {
+              daily: v.pricing?.daily >= 1000 ? Math.round(v.pricing.daily / 100) : (v.pricing?.daily ?? 0),
+              weekly: v.pricing?.weekly >= 1000 ? Math.round(v.pricing.weekly / 100) : (v.pricing?.weekly ?? 0),
+              monthly: v.pricing?.monthly >= 1000 ? Math.round(v.pricing.monthly / 100) : (v.pricing?.monthly ?? 0),
+              deposit: v.pricing?.deposit >= 1000 ? Math.round(v.pricing.deposit / 100) : (v.pricing?.deposit ?? 0),
+            },
+            status: v.status || "available",
+            mileage: v.mileage || 0,
+            licensePlate: v.licensePlate || "",
+            color: v.color || "",
+            imageUrl: v.images?.find((i: any) => i.isPrimary)?.url || v.images?.[0]?.url || "",
+            rating: v.rating || 4.9,
+            totalTrips: v.tripsCount || 0,
+            location: v.locationId?.name?.fr || "Aéroport Tunis-Carthage",
+            features: v.features || [],
+          }))
+        );
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingVehicles(false));
+  };
+
+  useEffect(() => {
+    fetchVehicles();
   }, []);
+
+  // Cloudinary image upload helper
+  const handleImageUpload = async (
+    file: File,
+    key: "mainImageUrl" | "interiorImageUrl" | "bootImageUrl"
+  ) => {
+    setUploadingImages((prev) => ({ ...prev, [key]: true }));
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (json.url) {
+        setFormData((prev) => ({ ...prev, [key]: json.url }));
+      } else {
+        alert("Upload failed: " + (json.error || "Unknown error"));
+      }
+    } catch {
+      alert("Image upload failed. Please check your connection.");
+    } finally {
+      setUploadingImages((prev) => ({ ...prev, [key]: false }));
+    }
+  };
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -332,13 +363,29 @@ export default function AdminFleetPage() {
     return matchesSearch && matchesCategory && matchesTransmission && matchesStatus;
   });
 
-  const handleToggleStatus = (id: string, newStatus: VehicleItem["status"]) => {
+  const handleToggleStatus = async (id: string, newStatus: VehicleItem["status"]) => {
+    // Optimistic update
     setVehicles(vehicles.map((v) => (v.id === id ? { ...v, status: newStatus } : v)));
+    try {
+      await fetch("/api/admin/vehicles", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+    } catch {
+      // revert on error
+      fetchVehicles();
+    }
   };
 
-  const handleArchive = (id: string) => {
+  const handleArchive = async (id: string) => {
     if (confirm("Confirmer la mise en archive de ce véhicule ?")) {
       setVehicles(vehicles.filter((v) => v.id !== id));
+      try {
+        await fetch(`/api/admin/vehicles?id=${id}`, { method: "DELETE" });
+      } catch {
+        fetchVehicles();
+      }
     }
   };
 
@@ -374,72 +421,102 @@ export default function AdminFleetPage() {
     setShowAddModal(true);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSavingVehicle(true);
+
     const manufacturerParts = formData.modelName.trim().split(" ");
-    const brand = formData.manufacturer !== "--- Select ---"
-      ? formData.manufacturer
-      : manufacturerParts[0] || "Unknown";
-    const model = manufacturerParts.slice(1).join(" ") || formData.modelName || "Model";
+    const brand =
+      formData.manufacturer !== "--- Select ---"
+        ? formData.manufacturer
+        : manufacturerParts[0] || "Unknown";
+    const model =
+      manufacturerParts.slice(1).join(" ") || formData.modelName || "Model";
 
-    const carCategory = (
-      formData.vehicleClass !== "--- Select ---"
-        ? formData.vehicleClass
-        : "Economy"
-    ) as VehicleItem["category"];
+    const featuresList = Object.entries(formData.carFeatures)
+      .filter(([, v]) => v)
+      .map(([k]) => {
+        const map: Record<string, string> = {
+          ac: "A/C",
+          airBags: "Air Bags",
+          cruiseControl: "Cruise Control",
+          hdAudio: "HD Audio System",
+          abs: "ABS",
+          centralLocking: "Central Locking",
+          electricWindows: "Electric Windows",
+          powerSteering: "Power Steering",
+        };
+        return map[k];
+      });
 
-    const newCar: VehicleItem = {
-      id: editingVehicle ? editingVehicle.id : `veh-${Date.now()}`,
+    const images: { url: string; isPrimary: boolean; alt: string }[] = [];
+    if (formData.mainImageUrl)
+      images.push({ url: formData.mainImageUrl, isPrimary: true, alt: `${brand} ${model}` });
+    if (formData.interiorImageUrl)
+      images.push({ url: formData.interiorImageUrl, isPrimary: false, alt: "Interior" });
+    if (formData.bootImageUrl)
+      images.push({ url: formData.bootImageUrl, isPrimary: false, alt: "Boot" });
+
+    const payload = {
       brand,
       model,
       year: formData.year,
-      category: carCategory,
+      category:
+        formData.vehicleClass !== "--- Select ---" ? formData.vehicleClass : "Economy",
       transmission: formData.gearboxType.toLowerCase().includes("auto")
-        ? "automatic"
-        : "manual",
-      fuelType: (formData.fuelType.toLowerCase() as VehicleItem["fuelType"]) || "gasoline",
+        ? "Automatic"
+        : "Manual",
+      fuelType:
+        formData.fuelType !== "--- Select ---" ? formData.fuelType : "Gasoline",
       seats: formData.passengerSeats,
       doors: formData.doors,
-      licensePlate: formData.licensePlate || `${Math.floor(10000 + Math.random() * 90000)}-A-26`,
+      licensePlate:
+        formData.licensePlate ||
+        `${Math.floor(10000 + Math.random() * 90000)}-TN-26`,
       mileage: formData.mileage,
-      status: "available",
+      color: formData.color || "Inconnu",
+      status: "available" as const,
       pricing: {
         daily: formData.dailyPrice,
         weekly: formData.weeklyPrice,
         monthly: formData.monthlyPrice,
         deposit: formData.fixedDeposit,
       },
-      features: Object.entries(formData.carFeatures)
-        .filter(([, v]) => v)
-        .map(([k]) => {
-          const map: Record<string, string> = {
-            ac: "A/C",
-            airBags: "Air Bags",
-            cruiseControl: "Cruise Control",
-            hdAudio: "HD Audio System",
-            abs: "ABS",
-            centralLocking: "Central Locking",
-            electricWindows: "Electric Windows",
-            powerSteering: "Power Steering",
-          };
-          return map[k];
-        }),
-      imageUrl:
-        formData.mainImageUrl ||
-        "https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80",
-      color: formData.color || "Inconnu",
-      location:
-        MOCK_LOCATIONS.find((l) => formData.pickupLocationIds.includes(l.id))?.name ||
-        "Aéroport Tunis-Carthage (TUN 24/7)",
+      features: featuresList,
+      images: images.length > 0 ? images : undefined,
     };
 
-    if (editingVehicle) {
-      setVehicles(vehicles.map((v) => (v.id === editingVehicle.id ? newCar : v)));
-    } else {
-      setVehicles([newCar, ...vehicles]);
+    try {
+      let res: Response;
+      if (editingVehicle) {
+        res = await fetch("/api/admin/vehicles", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingVehicle.id, ...payload }),
+        });
+      } else {
+        res = await fetch("/api/admin/vehicles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert("Erreur: " + (err.error || "Sauvegarde échouée"));
+        return;
+      }
+
+      // Refresh vehicle list from DB
+      fetchVehicles();
+      setShowAddModal(false);
+      setEditingVehicle(null);
+    } catch {
+      alert("Erreur réseau. Réessayez.");
+    } finally {
+      setSavingVehicle(false);
     }
-    setShowAddModal(false);
-    setEditingVehicle(null);
   };
 
   const locationOptions = MOCK_LOCATIONS.map((l) => ({
@@ -1310,58 +1387,26 @@ export default function AdminFleetPage() {
 
                     {/* Image Uploads */}
                     <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-4">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        Images du Véhicule
-                      </p>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Images du Vehicule</p>
                       {[
-                        { label: "Main Image:", key: "mainImageUrl" as const },
-                        { label: "Interior Image:", key: "interiorImageUrl" as const },
-                        { label: "Boot Image:", key: "bootImageUrl" as const },
+                        { label: "Image Principale:", key: "mainImageUrl" as const },
+                        { label: "Image Interieur:", key: "interiorImageUrl" as const },
+                        { label: "Image Coffre:", key: "bootImageUrl" as const },
                       ].map(({ label, key }) => (
-                        <div key={key} className="flex items-center gap-4">
-                          <label className="w-52 shrink-0 font-semibold text-slate-700 dark:text-slate-300">
-                            {label}
-                          </label>
-                          <div className="flex items-center gap-3 flex-1">
-                            <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors">
-                              <Upload className="w-3.5 h-3.5" />
-                              <span>Choisir un fichier</span>
-                              <input type="file" accept="image/*" className="hidden" />
-                            </label>
-                            <span className="text-slate-400 text-[11px]">
-                              Aucun fichier choisi
-                            </span>
-                            {formData[key] ? (
-                              <img
-                                src={formData[key]}
-                                alt=""
-                                className="w-16 h-10 rounded-lg object-cover border border-slate-300 dark:border-slate-600"
-                              />
-                            ) : (
-                              <div className="flex items-center gap-1 text-slate-400 text-[11px]">
-                                <ImageIcon className="w-4 h-4" />
-                                <span>No Image</span>
-                              </div>
-                            )}
+                        <div key={key} className="flex items-start gap-4 flex-wrap">
+                          <label className="w-52 shrink-0 font-semibold text-slate-700 dark:text-slate-300 pt-2">{label}</label>
+                          <div className="flex flex-col gap-2 flex-1 min-w-0">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors whitespace-nowrap">
+                                {uploadingImages[key] ? (<><svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg><span>Upload...</span></>) : (<><Upload className="w-3.5 h-3.5"/><span>Choisir fichier</span></>)}
+                                <input type="file" accept="image/*" className="hidden" disabled={uploadingImages[key]} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload(f, key); }} />
+                              </label>
+                              {formData[key] ? (<img src={formData[key]} alt="" className="w-16 h-10 rounded-lg object-cover border border-slate-300 dark:border-slate-600 shrink-0" />) : (<div className="flex items-center gap-1 text-slate-400 text-[11px]"><ImageIcon className="w-4 h-4" /><span>No Image</span></div>)}
+                            </div>
+                            <input type="url" value={formData[key]} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder="ou coller une URL..." className="w-full rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 px-3 py-2 text-slate-800 dark:text-white focus:outline-none focus:border-blue-500 font-mono text-[11px]" />
                           </div>
                         </div>
                       ))}
-
-                      {/* Or use URL */}
-                      <div className="flex items-center gap-4">
-                        <label className="w-52 shrink-0 font-semibold text-slate-700 dark:text-slate-300">
-                          Or Image URL:
-                        </label>
-                        <input
-                          type="url"
-                          value={formData.mainImageUrl}
-                          onChange={(e) =>
-                            setFormData({ ...formData, mainImageUrl: e.target.value })
-                          }
-                          placeholder="https://..."
-                          className="flex-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 px-3 py-2 text-slate-800 dark:text-white focus:outline-none focus:border-blue-500 font-mono text-[11px]"
-                        />
-                      </div>
                     </div>
 
                     {/* Car Model Features */}
@@ -1605,10 +1650,18 @@ export default function AdminFleetPage() {
                   ) : (
                     <button
                       type="submit"
-                      className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition-all"
+                      disabled={savingVehicle}
+                      className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <Save className="w-3.5 h-3.5" />
-                      {editingVehicle ? "Sauvegarder Modifications" : "Enregistrer le Véhicule"}
+                      {savingVehicle ? (
+                        <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                      ) : (
+                        <Save className="w-3.5 h-3.5" />
+                      )}
+                      {savingVehicle ? "Sauvegarde..." : editingVehicle ? "Sauvegarder Modifications" : "Enregistrer le Véhicule"}
                     </button>
                   )}
                 </div>

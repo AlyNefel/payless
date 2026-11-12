@@ -1677,11 +1677,11 @@ function BookingContent() {
                   </div>
                 </div>
 
-                {/* 3. Itemized Cost Breakdown (Table View - Strict > 0 DT only) */}
+                {/* 3. Itemized Cost Breakdown — ALL options listed, one row each, with remove button */}
                 <div className="p-5 bg-neutral-50 dark:bg-neutral-800/60 rounded-2xl border border-border dark:border-neutral-700 space-y-4">
                   <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Tag className="w-4 h-4 text-blue-600" />
-                    <span>3. Détail Complet des Coûts &amp; Taxes Facturés (TTC)</span>
+                    <span>3. {locale === "ar" ? "تفاصيل التكاليف والضرائب" : locale === "en" ? "Full Cost & Tax Breakdown (VAT Incl.)" : "Détail Complet des Coûts & Taxes Facturés (TTC)"}</span>
                   </div>
 
                   {/* Clean Structured Financial Table */}
@@ -1689,9 +1689,10 @@ function BookingContent() {
                     <table className="w-full text-left text-xs">
                       <thead>
                         <tr className="bg-neutral-100 dark:bg-neutral-800 text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border dark:border-neutral-700">
-                          <th className="py-2.5 px-3.5 sm:px-4">Désignation</th>
-                          <th className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center">Détail</th>
-                          <th className="py-2.5 px-3.5 sm:px-4 text-right">Montant ({currencySymbol})</th>
+                          <th className="py-2.5 px-3.5 sm:px-4">{locale === "ar" ? "البيان" : locale === "en" ? "Description" : "Désignation"}</th>
+                          <th className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center">{locale === "ar" ? "تفاصيل" : locale === "en" ? "Details" : "Détail"}</th>
+                          <th className="py-2.5 px-3.5 sm:px-4 text-right">{locale === "ar" ? `المبلغ (${currencySymbol})` : locale === "en" ? `Amount (${currencySymbol})` : `Montant (${currencySymbol})`}</th>
+                          <th className="py-2.5 px-2 w-8"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60 dark:divide-neutral-800 text-foreground">
@@ -1700,7 +1701,7 @@ function BookingContent() {
                           <tr key={"car-row-" + cIdx} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
                             <td className="py-2.5 px-3.5 sm:px-4">
                               <span className="font-semibold">
-                                Location {cart.length > 1 ? `#${cIdx + 1} ` : ""}{cItem.vehicle.brand} {cItem.vehicle.model}
+                                {locale === "ar" ? "إيجار" : locale === "en" ? "Rental" : "Location"}{cart.length > 1 ? ` #${cIdx + 1} ` : " "}{cItem.vehicle.brand} {cItem.vehicle.model}
                               </span>
                             </td>
                             <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
@@ -1709,96 +1710,130 @@ function BookingContent() {
                             <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
                               {fmt((cItem.vehicle.pricing?.daily || 0) * rentalDays)} {currencySymbol}
                             </td>
+                            <td className="px-2"></td>
                           </tr>
                         ))}
 
-                        {/* Paid Extras per vehicle */}
-                        {cart.map((cItem, cIdx) => {
-                          if (!cItem.extras || cItem.extras.length === 0) return null;
-                          const vExtrasCost = cItem.extras.reduce((sum, ex) => {
-                            const found = availableExtras.find((e) => e._id === ex.id);
-                            if (!found) return sum;
+                        {/* ALL Extras — one row per extra per vehicle, always shown, with remove button */}
+                        {cart.map((cItem, cIdx) =>
+                          availableExtras.map((extra) => {
+                            const selected = cItem.extras.find((e) => e.id === extra._id);
+                            const qty = selected?.quantity || 0;
+                            // cost: flat fee = per_rental (once), per_day = × rentalDays
+                            const unitCost = extra.price;
+                            const totalCost = extra.pricingType === "per_rental"
+                              ? unitCost * Math.max(qty, 1)
+                              : unitCost * Math.max(qty, 1) * rentalDays;
+                            const displayCost = qty > 0 ? totalCost : 0;
+                            const isSelected = qty > 0;
+                            const detailStr = extra.pricingType === "per_rental"
+                              ? (locale === "ar" ? `${qty > 0 ? `×${qty} ` : ""}معلوم ثابت`
+                                : locale === "en" ? `${qty > 0 ? `×${qty} ` : ""}flat fee`
+                                : `${qty > 0 ? `×${qty} ` : ""}forfait`)
+                              : (locale === "ar" ? `${qty > 0 ? `×${qty} × ` : ""}${rentalDays} يوم`
+                                : locale === "en" ? `${qty > 0 ? `×${qty} × ` : ""}${rentalDays} day${rentalDays > 1 ? "s" : ""}`
+                                : `${qty > 0 ? `×${qty} × ` : ""}${rentalDays} jour${rentalDays > 1 ? "s" : ""}`);
+
                             return (
-                              sum +
-                              (found.pricingType === "per_rental"
-                                ? found.price * ex.quantity
-                                : found.price * ex.quantity * rentalDays)
+                              <tr
+                                key={`ex-${cIdx}-${extra._id}`}
+                                className={`transition-colors ${isSelected
+                                  ? "bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50/70 dark:hover:bg-blue-950/30"
+                                  : "hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40 opacity-60"}`}
+                              >
+                                <td className="py-2 px-3.5 sm:px-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-base">{extra.icon || "✨"}</span>
+                                    <div>
+                                      <span className={`font-medium ${isSelected ? "text-foreground" : "text-muted-foreground"}`}>
+                                        {getLocalizedName(extra.name, locale)}
+                                        {cart.length > 1 && <span className="text-[10px] ml-1 text-muted-foreground">#{cIdx + 1}</span>}
+                                      </span>
+                                      {!isSelected && (
+                                        <span className="ml-1.5 text-[10px] text-muted-foreground italic">
+                                          {locale === "ar" ? "(غير محدد)" : locale === "en" ? "(not selected)" : "(non sélectionné)"}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground text-[11px]">
+                                  {isSelected ? detailStr : "—"}
+                                </td>
+                                <td className="py-2 px-3.5 sm:px-4 text-right font-bold font-mono">
+                                  {isSelected ? (
+                                    displayCost === 0
+                                      ? <span className="text-emerald-600 dark:text-emerald-400">{locale === "ar" ? "مجاناً" : locale === "en" ? "Free" : "Offert"}</span>
+                                      : <span>+{fmt(displayCost)} {currencySymbol}</span>
+                                  ) : (
+                                    <span className="text-muted-foreground font-normal">
+                                      {unitCost === 0 ? (locale === "ar" ? "مجاناً" : locale === "en" ? "Free" : "Offert") : `${fmt(unitCost)} ${currencySymbol}`}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-2 px-2 text-center">
+                                  {isSelected ? (
+                                    <button
+                                      type="button"
+                                      title={locale === "ar" ? "إزالة هذا الخيار" : locale === "en" ? "Remove this option" : "Retirer cette option"}
+                                      onClick={() => {
+                                        setCart((prev) =>
+                                          prev.map((item, idx) =>
+                                            idx === cIdx
+                                              ? { ...item, extras: item.extras.filter((e) => e.id !== extra._id) }
+                                              : item
+                                          )
+                                        );
+                                      }}
+                                      className="p-1 rounded-full text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      title={locale === "ar" ? "إضافة هذا الخيار" : locale === "en" ? "Add this option" : "Ajouter cette option"}
+                                      onClick={() => {
+                                        setCart((prev) =>
+                                          prev.map((item, idx) =>
+                                            idx === cIdx
+                                              ? { ...item, extras: [...item.extras, { id: extra._id, quantity: 1 }] }
+                                              : item
+                                          )
+                                        );
+                                      }}
+                                      className="p-1 rounded-full text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
                             );
-                          }, 0);
-                          if (vExtrasCost <= 0) return null;
-
-                          return (
-                            <tr key={"extra-row-" + cIdx} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
-                              <td className="py-2.5 px-3.5 sm:px-4">
-                                <span className="font-semibold">
-                                  Options {cart.length > 1 ? `#${cIdx + 1} ` : ""}({cItem.vehicle.brand} {cItem.vehicle.model})
-                                </span>
-                                <div className="text-[11px] text-muted-foreground truncate max-w-[240px]">
-                                  {cItem.extras
-                                    .map((ex) => {
-                                      const item = availableExtras.find((e) => e._id === ex.id);
-                                      return `${getLocalizedName(item?.name, locale)} (x${ex.quantity})`;
-                                    })
-                                    .join(", ")}
-                                </div>
-                              </td>
-                              <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
-                                {cItem.extras.length} option(s)
-                              </td>
-                              <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
-                                +{fmt(vExtrasCost)} {currencySymbol}
-                              </td>
-                            </tr>
-                          );
-                        })}
-
-                        {/* Delivery fee only if > 0 */}
-                        {deliveryFee > 0 && (
-                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
-                            <td className="py-2.5 px-3.5 sm:px-4">
-                              <span className="font-semibold">Frais de livraison ({selectedPickupLocName})</span>
-                              <div className="text-[11px] text-muted-foreground">Mise à disposition VIP</div>
-                            </td>
-                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
-                              1 service
-                            </td>
-                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
-                              +{fmt(deliveryFee)} {currencySymbol}
-                            </td>
-                          </tr>
+                          })
                         )}
 
-                        {/* Ramassage fee only if > 0 */}
-                        {ramassageFee > 0 && (
-                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
-                            <td className="py-2.5 px-3.5 sm:px-4">
-                              <span className="font-semibold">Frais de restitution ({selectedReturnLocName})</span>
-                              <div className="text-[11px] text-muted-foreground">Rapatriement véhicule</div>
-                            </td>
-                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
-                              1 service
-                            </td>
-                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
-                              +{fmt(ramassageFee)} {currencySymbol}
-                            </td>
-                          </tr>
-                        )}
+                        {/* Delivery fee — always shown, one-time flat fee (not per day) */}
+                        <tr className={`hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40${deliveryFee === 0 ? " opacity-55" : ""}`}>
+                          <td className="py-2.5 px-3.5 sm:px-4">
+                            <span className="font-semibold">{locale === "ar" ? "معلوم التسليم" : locale === "en" ? "Delivery fee" : "Frais de livraison"} ({selectedPickupLocName || "\u2014"})</span>
+                            <div className="text-[11px] text-muted-foreground">{locale === "ar" ? "معلوم ثابت مرة واحدة" : locale === "en" ? "One-time flat fee" : "Forfait unique \u2014 non r\u00e9p\u00e9t\u00e9 par jour"}</div>
+                          </td>
+                          <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">1 service</td>
+                          <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">{deliveryFee === 0 ? <span className="text-emerald-600 dark:text-emerald-400">{locale === "ar" ? "مجاناً" : locale === "en" ? "Free" : "Inclus"}</span> : <span>+{fmt(deliveryFee)} {currencySymbol}</span>}</td>
+                          <td className="px-2"></td>
+                        </tr>
 
-                        {/* Inter-agency fee only if > 0 */}
-                        {isDifferentLocation && differentLocationFee > 0 && (
-                          <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
-                            <td className="py-2.5 px-3.5 sm:px-4">
-                              <span className="font-semibold">Frais retour agence différente (Aller-simple)</span>
-                              <div className="text-[11px] text-muted-foreground">Inter-agences</div>
-                            </td>
-                            <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
-                              1 trajet
-                            </td>
-                            <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
-                              +{fmt(differentLocationFee)} {currencySymbol}
-                            </td>
-                          </tr>
-                        )}
+                        {/* Ramassage / Return fee — always shown, one-time flat fee (not per day) */}
+                        <tr className={`hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40${ramassageFee === 0 ? " opacity-55" : ""}`}>
+                          <td className="py-2.5 px-3.5 sm:px-4">
+                            <span className="font-semibold">{locale === "ar" ? "معلوم الاسترجاع / الرَّمَسة" : locale === "en" ? "Return collection fee" : "Frais de restitution / ramassage"} ({selectedReturnLocName || "\u2014"})</span>
+                            <div className="text-[11px] text-muted-foreground">{locale === "ar" ? "معلوم ثابت مرة واحدة" : locale === "en" ? "One-time flat fee" : "Forfait unique \u2014 Rapatriement v\u00e9hicule"}</div>
+                          </td>
+                          <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">1 service</td>
+                          <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">{ramassageFee === 0 ? <span className="text-emerald-600 dark:text-emerald-400">{locale === "ar" ? "مجاناً" : locale === "en" ? "Free" : "Inclus"}</span> : <span>+{fmt(ramassageFee)} {currencySymbol}</span>}</td>
+                          <td className="px-2"></td>
+                        </tr>
 
                         {/* Contribution LF 2026 only if > 0 */}
                         {contributionLF2026 > 0 && (
@@ -1812,6 +1847,7 @@ function BookingContent() {
                             <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
                               +{fmt(contributionLF2026)} {currencySymbol}
                             </td>
+                            <td className="px-2"></td>
                           </tr>
                         )}
 
@@ -1820,6 +1856,7 @@ function BookingContent() {
                           <tr className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40">
                             <td className="py-2.5 px-3.5 sm:px-4">
                               <span className="font-semibold">Timbre fiscal de quittance</span>
+                              <div className="text-[11px] text-muted-foreground">{locale === "ar" ? "طابع جبائي واحد للعقد" : locale === "en" ? "1 stamp per contract" : "1 timbre / contrat (non répété par jour)"}</div>
                             </td>
                             <td className="py-2.5 px-3.5 sm:px-4 hidden sm:table-cell text-center font-mono text-muted-foreground">
                               1 contrat
@@ -1827,6 +1864,7 @@ function BookingContent() {
                             <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
                               +{fmt(timbreFiscal)} {currencySymbol}
                             </td>
+                            <td className="px-2"></td>
                           </tr>
                         )}
 
@@ -1843,6 +1881,7 @@ function BookingContent() {
                             <td className="py-2.5 px-3.5 sm:px-4 text-right font-bold font-mono">
                               -{fmt(discountAmount)} {currencySymbol}
                             </td>
+                            <td className="px-2"></td>
                           </tr>
                         )}
                       </tbody>
@@ -1857,6 +1896,7 @@ function BookingContent() {
                           <td className="py-3 px-3.5 sm:px-4 text-right text-base sm:text-xl font-black font-mono text-blue-700 dark:text-blue-400">
                             {fmt(totalAmount)} {currencySymbol}
                           </td>
+                          <td className="px-2"></td>
                         </tr>
                       </tfoot>
                     </table>
